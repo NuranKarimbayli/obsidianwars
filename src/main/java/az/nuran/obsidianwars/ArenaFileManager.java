@@ -19,6 +19,7 @@ public class ArenaFileManager {
     private static final String RESOURCE_BLOCKS_FILE = "resource_blocks.yml";
     private static File arenasFolder;
     private static final Obsidianwars plugin = Obsidianwars.getInstance();
+    private static final Object resourceBlockLock = new Object();
 
     public static void initialize() {
         // Create arenas folder if it doesn't exist
@@ -193,6 +194,33 @@ public class ArenaFileManager {
         config.set(path + "pos2.z", pos2.getBlockZ());
         
         saveArenaConfig(arenaName, config);
+    }
+
+    public static Location[] getArenaRegion(String arenaName, String positionType) {
+        FileConfiguration config = getArenaConfig(arenaName);
+        if (config == null) return null;
+
+        String path = "arena.region." + positionType + ".";
+        String worldName = config.getString(path + "world");
+        if (worldName == null) return null;
+
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) {
+            plugin.getLogger().warning("World '" + worldName + "' not found for arena " + arenaName + " " + positionType + " region. Check if world is loaded.");
+            return null;
+        }
+
+        int x1 = config.getInt(path + "pos1.x");
+        int y1 = config.getInt(path + "pos1.y");
+        int z1 = config.getInt(path + "pos1.z");
+        int x2 = config.getInt(path + "pos2.x");
+        int y2 = config.getInt(path + "pos2.y");
+        int z2 = config.getInt(path + "pos2.z");
+
+        return new Location[] {
+            new Location(world, x1, y1, z1),
+            new Location(world, x2, y2, z2)
+        };
     }
 
     public static void setLobbySpawn(String arenaName, Location location) {
@@ -421,61 +449,65 @@ public class ArenaFileManager {
     }
 
     public static void addResourceBlock(String arenaName, String blockType, Location location) {
-        FileConfiguration config = getResourceBlocksConfig(arenaName);
-        if (config == null) {
-            createResourceBlocksFile(arenaName);
-            config = getResourceBlocksConfig(arenaName);
-        }
+        synchronized (resourceBlockLock) {
+            FileConfiguration config = getResourceBlocksConfig(arenaName);
+            if (config == null) {
+                createResourceBlocksFile(arenaName);
+                config = getResourceBlocksConfig(arenaName);
+            }
 
-        List<java.util.Map<String, Object>> resourceBlocks = (List<java.util.Map<String, Object>>) config.getList("resource-blocks", new ArrayList<>());
-        
-        java.util.Map<String, Object> blockData = new java.util.HashMap<>();
-        blockData.put("type", blockType);
-        blockData.put("world", location.getWorld().getName());
-        blockData.put("x", location.getBlockX());
-        blockData.put("y", location.getBlockY());
-        blockData.put("z", location.getBlockZ());
-        
-        resourceBlocks.add(blockData);
-        config.set("resource-blocks", resourceBlocks);
-        
-        // IMMEDIATELY flush to disk
-        saveResourceBlocksConfig(arenaName, config);
+            List<java.util.Map<String, Object>> resourceBlocks = (List<java.util.Map<String, Object>>) config.getList("resource-blocks", new ArrayList<>());
+
+            java.util.Map<String, Object> blockData = new java.util.HashMap<>();
+            blockData.put("type", blockType);
+            blockData.put("world", location.getWorld().getName());
+            blockData.put("x", location.getBlockX());
+            blockData.put("y", location.getBlockY());
+            blockData.put("z", location.getBlockZ());
+
+            resourceBlocks.add(blockData);
+            config.set("resource-blocks", resourceBlocks);
+
+            // IMMEDIATELY flush to disk
+            saveResourceBlocksConfig(arenaName, config);
+        }
     }
 
     public static void removeResourceBlock(String arenaName, Location location) {
-        FileConfiguration config = getResourceBlocksConfig(arenaName);
-        if (config == null) return;
+        synchronized (resourceBlockLock) {
+            FileConfiguration config = getResourceBlocksConfig(arenaName);
+            if (config == null) return;
 
-        List<java.util.Map<String, Object>> resourceBlocks = (List<java.util.Map<String, Object>>) config.getList("resource-blocks", new ArrayList<>());
-        
-        boolean removed = false;
-        java.util.Map<String, Object> toRemove = null;
-        
-        for (java.util.Map<String, Object> blockData : resourceBlocks) {
-            String worldName = (String) blockData.get("world");
-            int x = ((Number) blockData.get("x")).intValue();
-            int y = ((Number) blockData.get("y")).intValue();
-            int z = ((Number) blockData.get("z")).intValue();
-            
-            World world = Bukkit.getWorld(worldName);
-            if (world == null) continue;
-            
-            Location blockLoc = new Location(world, x, y, z);
-            
-            if (blockLoc.equals(location)) {
-                toRemove = blockData;
-                removed = true;
-                break;
+            List<java.util.Map<String, Object>> resourceBlocks = (List<java.util.Map<String, Object>>) config.getList("resource-blocks", new ArrayList<>());
+
+            boolean removed = false;
+            java.util.Map<String, Object> toRemove = null;
+
+            for (java.util.Map<String, Object> blockData : resourceBlocks) {
+                String worldName = (String) blockData.get("world");
+                int x = ((Number) blockData.get("x")).intValue();
+                int y = ((Number) blockData.get("y")).intValue();
+                int z = ((Number) blockData.get("z")).intValue();
+
+                World world = Bukkit.getWorld(worldName);
+                if (world == null) continue;
+
+                Location blockLoc = new Location(world, x, y, z);
+
+                if (blockLoc.equals(location)) {
+                    toRemove = blockData;
+                    removed = true;
+                    break;
+                }
             }
-        }
-        
-        if (removed && toRemove != null) {
-            resourceBlocks.remove(toRemove);
-            config.set("resource-blocks", resourceBlocks);
-            
-            // IMMEDIATELY flush to disk
-            saveResourceBlocksConfig(arenaName, config);
+
+            if (removed && toRemove != null) {
+                resourceBlocks.remove(toRemove);
+                config.set("resource-blocks", resourceBlocks);
+
+                // IMMEDIATELY flush to disk
+                saveResourceBlocksConfig(arenaName, config);
+            }
         }
     }
 

@@ -1,8 +1,6 @@
 package az.nuran.obsidianwars;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.List;
@@ -41,6 +39,10 @@ public class ArenaConfigManager {
 
     public static void setArenaPosition(String arenaName, String positionType, Location pos1, Location pos2) {
         ArenaFileManager.setArenaPosition(arenaName, positionType, pos1, pos2);
+    }
+
+    public static Location[] getArenaRegion(String arenaName, String positionType) {
+        return ArenaFileManager.getArenaRegion(arenaName, positionType);
     }
 
     public static void setLobbySpawn(String arenaName, Location location) {

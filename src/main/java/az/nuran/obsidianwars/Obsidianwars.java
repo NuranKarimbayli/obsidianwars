@@ -1,6 +1,8 @@
 package az.nuran.obsidianwars;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Sound;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class Obsidianwars extends JavaPlugin {
@@ -66,6 +68,29 @@ public final class Obsidianwars extends JavaPlugin {
     public void onDisable() {
         getLogger().info("ObsidianWars plugini dayandirildi!");
 
+        // Clear lobby items and reset state for all players in arenas
+        for (java.util.UUID uuid : new java.util.ArrayList<>(ObsidianCommand.playersInArena.keySet())) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null && player.isOnline()) {
+                // Remove from team tracking
+                TeamManager.removePlayerFromTeam(player);
+                ParticleManager.removeSpawnProtection(player);
+
+                // Reset player state (clears inventory, armor, effects, etc.)
+                PlayerUtils.resetPlayerArenaLeave(player);
+
+                getLogger().info("Cleared lobby items for player: " + player.getName());
+            }
+        }
+
+        // Clear arena player tracking
+        ObsidianCommand.playersInArena.clear();
+
+        // Cleanup static maps to prevent memory leaks
+        WandListener.cleanup();
+        TeamListener.cleanup();
+        ObsidianCommand.cleanup();
+
         // Cleanup all games to prevent task leaks
         GameManager.cleanupAllGames();
 
@@ -74,6 +99,9 @@ public final class Obsidianwars extends JavaPlugin {
         WallManager.cleanup();
         MobSpawnerManager.cleanup();
         ScoreboardManager.cleanup();
+        ResourceBlockManager.cleanup();
+        WorldRulesManager.cleanup();
+        TeamManager.cleanup();
     }
 
     private void startCleanupTask() {

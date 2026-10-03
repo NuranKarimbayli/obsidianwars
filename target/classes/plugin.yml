@@ -1,12 +1,27 @@
-name: obsidianwars
-version: '1.0-SNAPSHOT'
-
+name: ObsidianWars
+version: '1.0.0'
 main: az.nuran.obsidianwars.Obsidianwars
-api-version: '1.21.1'
+api-version: '1.21'
+author: Nuran
+description: A competitive Minecraft Bedwars-style plugin with obsidian destruction mechanics
+website: https://github.com/nuran/obsidianwars
 load: POSTWORLD
 
 commands:
   obsidian:
-    description: Obsidian Savaslari ana emri
-    usage: /obsidian
-    aliases: [o]
+    description: Main command for ObsidianWars
+    usage: /obsidian <join|leave|arena|setblocks>
+    aliases: [o, obsidianwars]
+
+permissions:
+  obsidianwars.*:
+    description: Gives access to all ObsidianWars permissions
+    children:
+      obsidianwars.play: true
+      obsidianwars.admin: true
+  obsidianwars.play:
+    description: Allows players to join and play games
+    default: true
+  obsidianwars.admin:
+    description: Allows arena management and admin commands
+    default: op

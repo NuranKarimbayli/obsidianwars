@@ -55,4 +55,9 @@ public class WandListener implements Listener {
             }
         }
     }
+
+    public static void cleanup() {
+        pos1Map.clear();
+        pos2Map.clear();
+    }
 }

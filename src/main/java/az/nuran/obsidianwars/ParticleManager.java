@@ -1,7 +1,6 @@
 package az.nuran.obsidianwars;
 
 import org.bukkit.*;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Firework;
 import org.bukkit.inventory.meta.FireworkMeta;
@@ -16,6 +15,7 @@ public class ParticleManager {
     private static final Map<String, BukkitTask> obsidianParticleTasks = new HashMap<>();
     private static final Map<UUID, BukkitTask> spawnProtectionTasks = new HashMap<>();
     private static final Map<String, Map<String, Location>> obsidianLocations = new HashMap<>(); // Track obsidian locations per arena
+    private static final Map<String, BukkitTask> fireworksTasks = new HashMap<>(); // Separate map for fireworks tasks
 
     // Obsidian target particle settings
     private static String obsidianParticleType = "dust_color_transition";
@@ -292,6 +292,12 @@ public class ParticleManager {
             task.cancel();
         }
         spawnProtectionTasks.clear();
+
+        // Stop all fireworks tasks
+        for (BukkitTask task : fireworksTasks.values()) {
+            task.cancel();
+        }
+        fireworksTasks.clear();
     }
 
     public static void spawnVictoryFireworks(String arenaName, String winningTeam) {
@@ -310,12 +316,12 @@ public class ParticleManager {
             }
         }, 0L, 20L); // Every second (20 ticks)
 
-        // Store the task to cancel it later
-        obsidianParticleTasks.put("fireworks_" + arenaName, fireworksTask);
+        // Store the task in separate fireworks map to avoid key collision
+        fireworksTasks.put(arenaName, fireworksTask);
     }
 
     public static void stopVictoryFireworks(String arenaName) {
-        BukkitTask task = obsidianParticleTasks.remove("fireworks_" + arenaName);
+        BukkitTask task = fireworksTasks.remove(arenaName);
         if (task != null) {
             task.cancel();
         }

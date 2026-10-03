@@ -15,22 +15,35 @@ public class ScoreboardManager {
 
     private static final String SCOREBOARD_TITLE = "§d§lObsidianWars";
     private static final Map<UUID, Scoreboard> playerScoreboards = new HashMap<>();
+    private static final Map<UUID, Long> lastUpdateTime = new HashMap<>();
+    private static final long UPDATE_COOLDOWN_MS = 500; // 500ms cooldown
 
     public static void updateScoreboard(Player player) {
+        // Rate limiter check
+        UUID uuid = player.getUniqueId();
+        long currentTime = System.currentTimeMillis();
+        Long lastUpdate = lastUpdateTime.get(uuid);
+
+        if (lastUpdate != null && (currentTime - lastUpdate) < UPDATE_COOLDOWN_MS) {
+            return; // Skip update due to cooldown
+        }
+
+        lastUpdateTime.put(uuid, currentTime);
+
         try {
-            if (!ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
+            if (!ObsidianCommand.playersInArena.containsKey(uuid)) {
                 removeScoreboard(player);
                 return;
             }
 
-            String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
+            String arenaName = ObsidianCommand.playersInArena.get(uuid);
             GameManager.ArenaGame game = GameManager.getGame(arenaName);
 
-            // Reuse existing scoreboard or create new one
-            Scoreboard scoreboard = playerScoreboards.get(player.getUniqueId());
+            // Use per-player scoreboard from TeamManager or create new one
+            Scoreboard scoreboard = TeamManager.getPlayerScoreboard(player);
             if (scoreboard == null) {
                 scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-                playerScoreboards.put(player.getUniqueId(), scoreboard);
+                playerScoreboards.put(uuid, scoreboard);
             }
 
             // Əgər oyun aktivdirsə, oyun scoreboard-u göstəririk
@@ -177,12 +190,15 @@ public class ScoreboardManager {
     }
 
     public static void removeScoreboard(Player player) {
-        playerScoreboards.remove(player.getUniqueId());
-        player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+        UUID uuid = player.getUniqueId();
+        playerScoreboards.remove(uuid);
+        lastUpdateTime.remove(uuid);
+        TeamManager.removePlayerScoreboard(player);
     }
 
     public static void cleanup() {
         playerScoreboards.clear();
+        lastUpdateTime.clear();
     }
 
     private static int getArenaPlayerCount(String arenaName) {

@@ -8,7 +8,6 @@ import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -101,39 +100,45 @@ public class ObsidianCommand implements CommandExecutor {
             }
 
             player.teleport(lobbyLocation);
-            
+
             // Reset player state
             resetPlayerState(player);
-            
+
             // Oyunçunu arenada qeyd edirik
             playersInArena.put(player.getUniqueId(), arenaName);
-            
+
+            // IMMEDIATE AUTO-ASSIGNMENT: Assign to balanced team right away
+            String assignedTeam = TeamManager.autoAssignTeam(player, arenaName);
+            String teamName = assignedTeam.equals("red") ? "Qırmızı" : "Mavi";
+            String teamColor = assignedTeam.equals("red") ? "§c" : "§9";
+            player.sendMessage(MessagesConfigManager.getMessage("auto_team", "teamColor", teamColor, "teamName", teamName));
+
             // Lobby items veririk
             giveLobbyItems(player);
-            
+
             // Scoreboard qururuq
             ScoreboardManager.updateScoreboard(player);
-            
+
             // Broadcast mesajı
             broadcastToArena(arenaName, getMessage("player_joined", "player", player.getName(), "current", String.valueOf(getArenaPlayerCount(arenaName)), "max", String.valueOf(getMaxPlayers(arenaName))));
-            
+
             player.sendMessage(getMessage("join_lobby", "arenaName", arenaName));
-            
+
             // Play join sound
             String sound = MessagesConfigManager.getSound("join_lobby");
             Sound joinSound = Obsidianwars.parseSound(sound);
             if (joinSound != null) {
                 player.playSound(player.getLocation(), joinSound, 1.0f, 1.0f);
             }
-            
+
             // Send welcome message
             sendWelcomeMessage(player);
-            
+
             // Schedule rules announcement after 5 seconds
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 sendRulesAnnouncement(player);
             }, 100L); // 5 seconds (100 ticks)
-            
+
             // Oyun başlama şəraitini yoxlayırıq
             GameManager.checkGameStart(arenaName);
             
@@ -161,23 +166,16 @@ public class ObsidianCommand implements CommandExecutor {
                 player.sendMessage(getMessage("join_first"));
                 return true;
             }
-            
-            // Check if countdown is 6 seconds or fewer - prevent team changes
+
+            // Check if countdown is 5 seconds or fewer - prevent team changes
             String arenaName = playersInArena.get(player.getUniqueId());
             int countdown = GameManager.getCountdown(arenaName);
-            GameManager.ArenaGame game = GameManager.getGame(arenaName);
-            
-            // Allow team switching if countdown is paused (for team balancing)
-            if (game != null && game.isCountdownPaused()) {
-                // Team switching is allowed when paused
-                player.sendMessage("§eGame paused - team switching unlocked to balance teams!");
-                openTeamSelectionGUI(player);
-                return true;
-            } else if (countdown > 0 && countdown <= 6) {
-                player.sendMessage("§cKomanda dəyişdirilməsi son 6 saniyədə qadağandır!");
+
+            if (countdown > 0 && countdown <= 5) {
+                player.sendMessage("§cKomanda dəyişdirilməsi son 5 saniyədə qadağandır!");
                 return true;
             }
-            
+
             openTeamSelectionGUI(player);
             return true;
         }
@@ -190,41 +188,36 @@ public class ObsidianCommand implements CommandExecutor {
             }
 
             String arenaName = playersInArena.get(player.getUniqueId());
-            
+
+            // Check if in countdown state
+            GameManager.ArenaGame game = GameManager.getGame(arenaName);
+            boolean wasInCountdown = (game != null && game.getGameState() == GameManager.GameState.COUNTDOWN);
+
             // Oyunçunu arenadan çıxarırıq
             playersInArena.remove(player.getUniqueId());
-            TeamListener.playerTeams.remove(player.getUniqueId());
+            TeamManager.removePlayerFromTeam(player);
             ParticleManager.removeSpawnProtection(player);
-            
-            // Lobby items və zireh təmizləyirik
-            player.getInventory().clear();
-            player.getInventory().setHelmet(null);
-            player.getInventory().setChestplate(null);
-            player.getInventory().setLeggings(null);
-            player.getInventory().setBoots(null);
-            
-            // Oyunçunu əsas spawn nöqtəsinə qaytarırıq
+
+            // Reset player state and teleport to spawn
             Location mainSpawn = player.getWorld().getSpawnLocation();
-            player.teleport(mainSpawn);
-            
-            // Ad rəngini təmizləyirik
-            player.setDisplayName(player.getName());
-            player.setPlayerListName(player.getName());
-            
-            // Komanda sistemindən çıxarırıq
-            TeamManager.removePlayerFromTeams(player);
-            
-            // Scoreboard təmizləyirik
-            ScoreboardManager.removeScoreboard(player);
-            
+            PlayerUtils.resetPlayerFull(player, mainSpawn);
+
             // Broadcast mesajı
             broadcastToArena(arenaName, getMessage("player_left", "player", player.getName()));
-            
+
             player.sendMessage(getMessage("game_ended"));
-            
+
+            // CANCELLATION LOGIC: If player left during countdown, check if we need to cancel
+            if (wasInCountdown) {
+                if (TeamManager.isAnyTeamEmpty(arenaName) ||
+                    TeamManager.getTotalPlayerCount(arenaName) < ArenaConfigManager.getMinPlayers(arenaName)) {
+                    GameManager.cancelCountdown(arenaName);
+                }
+            }
+
             // Oyun statusunu yoxlayırıq
             GameManager.checkGameStart(arenaName);
-            
+
             return true;
         }
 
@@ -295,8 +288,24 @@ public class ObsidianCommand implements CommandExecutor {
                     return true;
                 }
 
-                int min = Integer.parseInt(args[3]);
-                int max = Integer.parseInt(args[4]);
+                int min, max;
+                try {
+                    min = Integer.parseInt(args[3]);
+                    max = Integer.parseInt(args[4]);
+                } catch (NumberFormatException e) {
+                    player.sendMessage("§cInvalid number format! Usage: /obsidian arena setplayers <arena> <min> <max>");
+                    return true;
+                }
+
+                if (min < 2) {
+                    player.sendMessage("§cMinimum players must be at least 2!");
+                    return true;
+                }
+
+                if (max < min) {
+                    player.sendMessage("§cMaximum players must be greater than or equal to minimum players!");
+                    return true;
+                }
 
                 ArenaConfigManager.setPlayerLimits(arenaName, min, max);
 
@@ -329,29 +338,12 @@ public class ObsidianCommand implements CommandExecutor {
                         if (arenaPlayer != null) {
                             // Oyunçunu arenadan çıxarırıq
                             playersInArena.remove(uuid);
-                            TeamListener.playerTeams.remove(uuid);
-                            
-                            // Lobby items və zireh təmizləyirik
-                            arenaPlayer.getInventory().clear();
-                            arenaPlayer.getInventory().setHelmet(null);
-                            arenaPlayer.getInventory().setChestplate(null);
-                            arenaPlayer.getInventory().setLeggings(null);
-                            arenaPlayer.getInventory().setBoots(null);
-                            
-                            // Ad rəngini təmizləyirik
-                            arenaPlayer.setDisplayName(arenaPlayer.getName());
-                            arenaPlayer.setPlayerListName(arenaPlayer.getName());
-                            
-                            // Komanda sistemindən çıxarırıq
-                            TeamManager.removePlayerFromTeams(arenaPlayer);
-                            
-                            // Scoreboard təmizləyirik
-                            ScoreboardManager.removeScoreboard(arenaPlayer);
-                            
-                            // Oyunçunu əsas spawn nöqtəsinə qaytarırıq
+                            TeamManager.removePlayerFromTeam(arenaPlayer);
+
+                            // Reset player state and teleport to spawn
                             Location mainSpawn = arenaPlayer.getWorld().getSpawnLocation();
-                            arenaPlayer.teleport(mainSpawn);
-                            
+                            PlayerUtils.resetPlayerFull(arenaPlayer, mainSpawn);
+
                             arenaPlayer.sendMessage("§cArena silindi, siz arenadan çıxarıldınız!");
                         }
                     }
@@ -652,6 +644,11 @@ public class ObsidianCommand implements CommandExecutor {
                     return true;
                 }
 
+                if (prepMinutes < 1) {
+                    player.sendMessage("§cPreparation time must be at least 1 minute!");
+                    return true;
+                }
+
                 WallManager.setTimer(arenaName, prepMinutes);
                 player.sendMessage(getMessage("timer_set", "arenaName", arenaName, "minutes", String.valueOf(prepMinutes)));
 
@@ -662,6 +659,11 @@ public class ObsidianCommand implements CommandExecutor {
                         suddenDeathMinutes = Integer.parseInt(args[4]);
                     } catch (NumberFormatException e) {
                         player.sendMessage("§cXəta: Sudden death müddəti rəqəm olmalıdır!");
+                        return true;
+                    }
+
+                    if (suddenDeathMinutes < 1) {
+                        player.sendMessage("§cSudden death time must be at least 1 minute!");
                         return true;
                     }
 
@@ -836,25 +838,7 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void resetPlayerState(Player player) {
-        // Clear inventory
-        player.getInventory().clear();
-        player.getInventory().setHelmet(null);
-        player.getInventory().setChestplate(null);
-        player.getInventory().setLeggings(null);
-        player.getInventory().setBoots(null);
-        
-        // Reset health and hunger
-        player.setHealth(20);
-        player.setFoodLevel(20);
-        
-        // Remove potion effects
-        player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
-        
-        // Reset game mode
-        player.setGameMode(org.bukkit.GameMode.SURVIVAL);
-        
-        // Reset fire
-        player.setFireTicks(0);
+        PlayerUtils.resetPlayerState(player);
     }
 
     private void sendWelcomeMessage(Player player) {
@@ -869,5 +853,9 @@ public class ObsidianCommand implements CommandExecutor {
         for (String line : rulesLines) {
             player.sendMessage(line);
         }
+    }
+
+    public static void cleanup() {
+        playersInArena.clear();
     }
 }

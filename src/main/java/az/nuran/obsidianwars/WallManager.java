@@ -9,9 +9,7 @@ import org.bukkit.World;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class WallManager {
@@ -65,24 +63,34 @@ public class WallManager {
         int minZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
         int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
 
-        // Batch block changes by chunk to reduce lag
-        Map<Chunk, List<Location>> chunkBatches = new HashMap<>();
+        // Calculate chunk boundaries
+        int minChunkX = minX >> 4;
+        int maxChunkX = maxX >> 4;
+        int minChunkZ = minZ >> 4;
+        int maxChunkZ = maxZ >> 4;
 
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    Location loc = new Location(world, x, y, z);
-                    Chunk chunk = loc.getChunk();
-                    chunkBatches.computeIfAbsent(chunk, k -> new ArrayList<>()).add(loc);
+        // Iterate chunk-by-chunk directly without allocating Location objects
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                Chunk chunk = world.getChunkAt(chunkX, chunkZ);
+                if (!chunk.isLoaded()) {
+                    chunk.load();
                 }
-            }
-        }
 
-        // Process each chunk batch
-        for (Map.Entry<Chunk, List<Location>> entry : chunkBatches.entrySet()) {
-            List<Location> locations = entry.getValue();
-            for (Location loc : locations) {
-                loc.getBlock().setType(Material.BEDROCK);
+                // Calculate block boundaries within this chunk
+                int chunkMinX = Math.max(minX, chunkX << 4);
+                int chunkMaxX = Math.min(maxX, (chunkX << 4) + 15);
+                int chunkMinZ = Math.max(minZ, chunkZ << 4);
+                int chunkMaxZ = Math.min(maxZ, (chunkZ << 4) + 15);
+
+                // Set blocks directly within chunk
+                for (int x = chunkMinX; x <= chunkMaxX; x++) {
+                    for (int y = minY; y <= maxY; y++) {
+                        for (int z = chunkMinZ; z <= chunkMaxZ; z++) {
+                            chunk.getBlock(x & 15, y, z & 15).setType(Material.BEDROCK);
+                        }
+                    }
+                }
             }
         }
     }
@@ -109,24 +117,34 @@ public class WallManager {
         int minZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
         int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
 
-        // Batch block changes by chunk to reduce lag
-        Map<Chunk, List<Location>> chunkBatches = new HashMap<>();
+        // Calculate chunk boundaries
+        int minChunkX = minX >> 4;
+        int maxChunkX = maxX >> 4;
+        int minChunkZ = minZ >> 4;
+        int maxChunkZ = maxZ >> 4;
 
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    Location loc = new Location(world, x, y, z);
-                    Chunk chunk = loc.getChunk();
-                    chunkBatches.computeIfAbsent(chunk, k -> new ArrayList<>()).add(loc);
+        // Iterate chunk-by-chunk directly without allocating Location objects
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                Chunk chunk = world.getChunkAt(chunkX, chunkZ);
+                if (!chunk.isLoaded()) {
+                    chunk.load();
                 }
-            }
-        }
 
-        // Process each chunk batch
-        for (Map.Entry<Chunk, List<Location>> entry : chunkBatches.entrySet()) {
-            List<Location> locations = entry.getValue();
-            for (Location loc : locations) {
-                loc.getBlock().setType(Material.AIR);
+                // Calculate block boundaries within this chunk
+                int chunkMinX = Math.max(minX, chunkX << 4);
+                int chunkMaxX = Math.min(maxX, (chunkX << 4) + 15);
+                int chunkMinZ = Math.max(minZ, chunkZ << 4);
+                int chunkMaxZ = Math.min(maxZ, (chunkZ << 4) + 15);
+
+                // Set blocks directly within chunk
+                for (int x = chunkMinX; x <= chunkMaxX; x++) {
+                    for (int y = minY; y <= maxY; y++) {
+                        for (int z = chunkMinZ; z <= chunkMaxZ; z++) {
+                            chunk.getBlock(x & 15, y, z & 15).setType(Material.AIR);
+                        }
+                    }
+                }
             }
         }
     }
@@ -153,24 +171,34 @@ public class WallManager {
         int minZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
         int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
 
-        // Batch block changes by chunk to reduce lag
-        Map<Chunk, List<Location>> chunkBatches = new HashMap<>();
+        // Calculate chunk boundaries
+        int minChunkX = minX >> 4;
+        int maxChunkX = maxX >> 4;
+        int minChunkZ = minZ >> 4;
+        int maxChunkZ = maxZ >> 4;
 
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    Location loc = new Location(world, x, y, z);
-                    Chunk chunk = loc.getChunk();
-                    chunkBatches.computeIfAbsent(chunk, k -> new ArrayList<>()).add(loc);
+        // Iterate chunk-by-chunk directly without allocating Location objects
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                Chunk chunk = world.getChunkAt(chunkX, chunkZ);
+                if (!chunk.isLoaded()) {
+                    chunk.load();
                 }
-            }
-        }
 
-        // Process each chunk batch
-        for (Map.Entry<Chunk, List<Location>> entry : chunkBatches.entrySet()) {
-            List<Location> locations = entry.getValue();
-            for (Location loc : locations) {
-                loc.getBlock().setType(Material.BEDROCK);
+                // Calculate block boundaries within this chunk
+                int chunkMinX = Math.max(minX, chunkX << 4);
+                int chunkMaxX = Math.min(maxX, (chunkX << 4) + 15);
+                int chunkMinZ = Math.max(minZ, chunkZ << 4);
+                int chunkMaxZ = Math.min(maxZ, (chunkZ << 4) + 15);
+
+                // Set blocks directly within chunk
+                for (int x = chunkMinX; x <= chunkMaxX; x++) {
+                    for (int y = minY; y <= maxY; y++) {
+                        for (int z = chunkMinZ; z <= chunkMaxZ; z++) {
+                            chunk.getBlock(x & 15, y, z & 15).setType(Material.BEDROCK);
+                        }
+                    }
+                }
             }
         }
     }

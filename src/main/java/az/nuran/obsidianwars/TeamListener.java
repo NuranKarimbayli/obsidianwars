@@ -14,6 +14,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Handles team selection GUI interactions with strict balance checking.
+ * Players cannot switch teams if it would create imbalance or if countdown is <= 5 seconds.
+ */
 public class TeamListener implements Listener {
 
     // Oyunçuların komanda seçimlərini saxlayırıq
@@ -27,24 +31,22 @@ public class TeamListener implements Listener {
 
             if (event.getWhoClicked() instanceof Player) {
                 Player player = (Player) event.getWhoClicked();
-                
-                // Check if countdown is 6 seconds or fewer - prevent team changes
+
+                // Check if player is in an arena
                 String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
-                if (arenaName != null) {
-                    int countdown = GameManager.getCountdown(arenaName);
-                    GameManager.ArenaGame game = GameManager.getGame(arenaName);
-                    
-                    // Allow team switching if countdown is paused (for team balancing)
-                    if (game != null && game.isCountdownPaused()) {
-                        // Team switching is allowed when paused
-                        // Continue with team change logic
-                    } else if (countdown > 0 && countdown <= 6) {
-                        player.sendMessage("§cKomanda dəyişdirilməsi son 6 saniyədə qadağandır!");
-                        player.closeInventory();
-                        return;
-                    }
+                if (arenaName == null) {
+                    player.closeInventory();
+                    return;
                 }
-                
+
+                // STRICT RULE: Lock team switching when countdown <= 5 seconds
+                int countdown = GameManager.getCountdown(arenaName);
+                if (countdown > 0 && countdown <= 5) {
+                    player.sendMessage("§cKomanda dəyişdirilməsi son 5 saniyədə qadağandır!");
+                    player.closeInventory();
+                    return;
+                }
+
                 ItemStack clickedItem = event.getCurrentItem();
 
                 if (clickedItem == null || !clickedItem.hasItemMeta()) {
@@ -61,25 +63,26 @@ public class TeamListener implements Listener {
                         player.closeInventory();
                         return;
                     }
-                    
+
+                    // STRICT RULE: Check if switching would create imbalance
+                    if (!TeamManager.canSwitchTeam(arenaName, currentTeam, "red")) {
+                        player.sendMessage("§cBu komandaya keçid komanda balansını pozacaq!");
+                        player.closeInventory();
+                        return;
+                    }
+
                     // Əgər oyunçu başqa komandada idi, oradan çıxarırıq
                     if (currentTeam != null && currentTeam.equals("blue")) {
                         player.sendMessage("§eMavi Komandasından çıxarıldınız.");
                     }
-                    
-                    playerTeams.put(player.getUniqueId(), "red");
-                    applyTeamColor(player, "red");
-                    TeamManager.setupTeam(player, "red");
-                    ScoreboardManager.updateScoreboard(player);
+
+                    // Use TeamManager to set team
+                    TeamManager.setPlayerTeam(player, arenaName, "red");
                     player.sendMessage("§aSiz §cQırmızı Komandaya§a qoşuldunuz!");
                     player.closeInventory();
-                    
+
                     // Oyun başlama şəraitini yoxlayırıq
-                    if (arenaName != null) {
-                        GameManager.checkGameStart(arenaName);
-                        // Check if we should resume paused countdown
-                        GameManager.checkCountdownResume(arenaName);
-                    }
+                    GameManager.checkGameStart(arenaName);
                 }
 
                 // Mavi Komanda seçimi
@@ -89,25 +92,26 @@ public class TeamListener implements Listener {
                         player.closeInventory();
                         return;
                     }
-                    
+
+                    // STRICT RULE: Check if switching would create imbalance
+                    if (!TeamManager.canSwitchTeam(arenaName, currentTeam, "blue")) {
+                        player.sendMessage("§cBu komandaya keçid komanda balansını pozacaq!");
+                        player.closeInventory();
+                        return;
+                    }
+
                     // Əgər oyunçu başqa komandada idi, oradan çıxarırıq
                     if (currentTeam != null && currentTeam.equals("red")) {
                         player.sendMessage("§eQırmızı Komandasından çıxarıldınız.");
                     }
-                    
-                    playerTeams.put(player.getUniqueId(), "blue");
-                    applyTeamColor(player, "blue");
-                    TeamManager.setupTeam(player, "blue");
-                    ScoreboardManager.updateScoreboard(player);
+
+                    // Use TeamManager to set team
+                    TeamManager.setPlayerTeam(player, arenaName, "blue");
                     player.sendMessage("§aSiz §9Mavi Komandaya§a qoşuldunuz!");
                     player.closeInventory();
-                    
+
                     // Oyun başlama şəraitini yoxlayırıq
-                    if (arenaName != null) {
-                        GameManager.checkGameStart(arenaName);
-                        // Check if we should resume paused countdown
-                        GameManager.checkCountdownResume(arenaName);
-                    }
+                    GameManager.checkGameStart(arenaName);
                 }
             }
         }
@@ -119,7 +123,7 @@ public class TeamListener implements Listener {
             String coloredName = "§c" + player.getName();
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
-            
+
             // Dəri zireh - Qırmızı
             equipLeatherArmor(player, Color.RED);
         } else if (team.equals("blue")) {
@@ -127,7 +131,7 @@ public class TeamListener implements Listener {
             String coloredName = "§9" + player.getName();
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
-            
+
             // Dəri zireh - Mavi
             equipLeatherArmor(player, Color.BLUE);
         }
@@ -169,5 +173,9 @@ public class TeamListener implements Listener {
             boots.setItemMeta(bootsMeta);
         }
         player.getInventory().setBoots(boots);
+    }
+
+    public static void cleanup() {
+        playerTeams.clear();
     }
 }

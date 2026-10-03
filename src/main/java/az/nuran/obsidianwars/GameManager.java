@@ -20,15 +20,83 @@ public class GameManager {
     private static final int COUNTDOWN_SECONDS = 20;
 
     public static void checkGameStart(String arenaName) {
-        if (activeGames.containsKey(arenaName)) {
+        ArenaGame existingGame = activeGames.get(arenaName);
+        if (existingGame != null) {
+            // If game is in COUNTDOWN state, check if we need to cancel
+            if (existingGame.getGameState() == GameState.COUNTDOWN) {
+                // Check if conditions are still met
+                if (!canStartCountdown(arenaName)) {
+                    // Cancel countdown immediately
+                    cancelCountdown(arenaName);
+                }
+            }
             return; // Oyun artıq başlayıb və ya saymaqdadır
         }
 
-        int minPlayers = ArenaConfigManager.getMinPlayers(arenaName);
-        int currentPlayers = getArenaPlayerCount(arenaName);
-
-        if (currentPlayers >= minPlayers) {
+        // Check if we can start countdown
+        if (canStartCountdown(arenaName)) {
             startCountdown(arenaName);
+        }
+    }
+
+    /**
+     * Checks if countdown can start based on requirements:
+     * - Total players >= minPlayers
+     * - Both RED and BLUE teams have at least 1 player each
+     *
+     * @param arenaName The arena name
+     * @return true if countdown can start, false otherwise
+     */
+    private static boolean canStartCountdown(String arenaName) {
+        int minPlayers = ArenaConfigManager.getMinPlayers(arenaName);
+        int totalPlayers = TeamManager.getTotalPlayerCount(arenaName);
+
+        // Check minimum player requirement
+        if (totalPlayers < minPlayers) {
+            return false;
+        }
+
+        // Check that both teams have at least 1 player
+        if (!TeamManager.bothTeamsHavePlayers(arenaName)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Cancels the countdown for an arena immediately.
+     * Used when a player leaves during countdown and conditions are no longer met.
+     *
+     * @param arenaName The arena name
+     */
+    public static void cancelCountdown(String arenaName) {
+        ArenaGame game = activeGames.get(arenaName);
+        if (game != null && game.getGameState() == GameState.COUNTDOWN) {
+            // Cancel the countdown task
+            game.stopCountdown();
+
+            // Remove the game from active games
+            activeGames.remove(arenaName);
+
+            // Broadcast cancellation message
+            broadcastToArena(arenaName, "§cCountdown cancelled! Waiting for players...");
+
+            // Play warning sound
+            String sound = MessagesConfigManager.getSound("countdown_cancelled");
+            Sound cancelSound = Obsidianwars.parseSound(sound);
+            if (cancelSound != null) {
+                for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+                    if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                        Player player = Bukkit.getPlayer(uuid);
+                        if (player != null) {
+                            player.playSound(player.getLocation(), cancelSound, 1.0f, 1.0f);
+                        }
+                    }
+                }
+            }
+
+            Obsidianwars.getInstance().getLogger().info("Countdown cancelled for arena " + arenaName + " - waiting for players");
         }
     }
 
@@ -49,7 +117,7 @@ public class GameManager {
         ArenaGame game = new ArenaGame(arenaName);
         activeGames.put(arenaName, game);
 
-        // Auto-teaming
+        // Auto-teaming for any unassigned players
         autoTeamPlayers(arenaName);
 
         // Lobby items təmizlə
@@ -68,16 +136,6 @@ public class GameManager {
 
         // Countdown başladırıq
         game.startCountdown();
-    }
-
-    private static int getArenaPlayerCount(String arenaName) {
-        int count = 0;
-        for (String arena : ObsidianCommand.playersInArena.values()) {
-            if (arena.equals(arenaName)) {
-                count++;
-            }
-        }
-        return count;
     }
 
     public static void autoTeamPlayers(String arenaName) {
@@ -99,10 +157,8 @@ public class GameManager {
             if (player != null) {
                 // Cüt və tək indekslərə görə komanda bölüşdürürük
                 String team = (i % 2 == 0) ? "red" : "blue";
-                TeamListener.playerTeams.put(uuid, team);
-                TeamListener.applyTeamColor(player, team);
-                TeamManager.setupTeam(player, team);
-                
+                TeamManager.setPlayerTeam(player, arenaName, team);
+
                 String teamName = team.equals("red") ? "Qırmızı" : "Mavi";
                 String teamColor = team.equals("red") ? "§c" : "§9";
                 String message = MessagesConfigManager.getMessage("auto_team", "teamColor", teamColor, "teamName", teamName);
@@ -288,36 +344,21 @@ public class GameManager {
             if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
-                    // Inventory təmizlə
-                    player.getInventory().clear();
-                    player.getInventory().setHelmet(null);
-                    player.getInventory().setChestplate(null);
-                    player.getInventory().setLeggings(null);
-                    player.getInventory().setBoots(null);
-
-                    // Ad rəngini təmizlə
-                    player.setDisplayName(player.getName());
-                    player.setPlayerListName(player.getName());
-
-                    // Komanda sistemindən çıxarırıq
-                    TeamManager.removePlayerFromTeams(player);
-
-                    // GameMode-u təmizlə
-                    player.setGameMode(org.bukkit.GameMode.SURVIVAL);
-
-                    // Scoreboard təmizlə
-                    ScoreboardManager.removeScoreboard(player);
-
-                    // Oyunçunu əsas spawn-a qaytar
+                    // Reset player state and teleport to spawn
                     Location mainSpawn = player.getWorld().getSpawnLocation();
-                    player.teleport(mainSpawn);
+                    PlayerUtils.resetPlayerFull(player, mainSpawn);
 
                     player.sendMessage("§aArena bitdi, əsas spawn-a qayıtdınız!");
                 }
 
                 // Oyunçunu sistemdən çıxarırıq
                 ObsidianCommand.playersInArena.remove(uuid);
-                TeamListener.playerTeams.remove(uuid);
+                if (player != null) {
+                    TeamManager.removePlayerFromTeam(player);
+                } else {
+                    // Player is offline, just remove from team map
+                    TeamListener.playerTeams.remove(uuid);
+                }
 
                 // Clean up wand positions for this player
                 WandListener.pos1Map.remove(uuid);
@@ -350,7 +391,7 @@ public class GameManager {
     private static boolean checkTeamBalance(String arenaName) {
         int redPlayers = 0;
         int bluePlayers = 0;
-        
+
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
             if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
                 String team = TeamListener.playerTeams.get(uuid);
@@ -363,18 +404,14 @@ public class GameManager {
                 }
             }
         }
-        
+
         // Both teams must have at least 1 player
         return redPlayers > 0 && bluePlayers > 0;
     }
 
     public static void checkCountdownResume(String arenaName) {
-        ArenaGame game = activeGames.get(arenaName);
-        if (game != null && game.isCountdownPaused()) {
-            if (checkTeamBalance(arenaName)) {
-                game.resumeCountdown();
-            }
-        }
+        // No longer needed with new countdown logic
+        // Countdowns are cancelled immediately when conditions are not met
     }
 
     private static void verifyAndPlaceObsidianBlocks(String arenaName) {
@@ -398,37 +435,44 @@ public class GameManager {
     }
 
     private static void clearArenaMobs(String arenaName) {
-        // Get the arena's world from the lobby spawn or team spawn
-        Location arenaLocation = ArenaConfigManager.getLobbySpawn(arenaName);
-        if (arenaLocation == null) {
-            arenaLocation = ArenaConfigManager.getTeamSpawn(arenaName, "red");
-        }
-        if (arenaLocation == null) {
-            arenaLocation = ArenaConfigManager.getTeamSpawn(arenaName, "blue");
-        }
-
-        if (arenaLocation == null) {
-            Obsidianwars.getInstance().getLogger().warning("Could not determine arena world for " + arenaName + " - skipping mob clear");
+        // Get arena region bounds from config
+        Location[] region = ArenaConfigManager.getArenaRegion(arenaName, "main");
+        if (region == null) {
+            Obsidianwars.getInstance().getLogger().warning("No arena region defined for " + arenaName + " - skipping mob clear");
             return;
         }
 
-        World world = arenaLocation.getWorld();
+        World world = region[0].getWorld();
         if (world == null) {
             Obsidianwars.getInstance().getLogger().warning("Could not get world for arena " + arenaName + " - skipping mob clear");
             return;
         }
 
-        // Remove all non-player entities (mobs, animals, dropped items, etc.)
+        // Calculate region bounds
+        int minX = Math.min(region[0].getBlockX(), region[1].getBlockX());
+        int maxX = Math.max(region[0].getBlockX(), region[1].getBlockX());
+        int minY = Math.min(region[0].getBlockY(), region[1].getBlockY());
+        int maxY = Math.max(region[0].getBlockY(), region[1].getBlockY());
+        int minZ = Math.min(region[0].getBlockZ(), region[1].getBlockZ());
+        int maxZ = Math.max(region[0].getBlockZ(), region[1].getBlockZ());
+
+        // Remove non-player entities only within arena region bounds
         int clearedCount = 0;
         for (org.bukkit.entity.Entity entity : world.getEntities()) {
             if (!(entity instanceof Player)) {
-                entity.remove();
-                clearedCount++;
+                Location loc = entity.getLocation();
+                // Check if entity is within arena region
+                if (loc.getBlockX() >= minX && loc.getBlockX() <= maxX &&
+                    loc.getBlockY() >= minY && loc.getBlockY() <= maxY &&
+                    loc.getBlockZ() >= minZ && loc.getBlockZ() <= maxZ) {
+                    entity.remove();
+                    clearedCount++;
+                }
             }
         }
 
         if (clearedCount > 0) {
-            Obsidianwars.getInstance().getLogger().info("Cleared " + clearedCount + " non-player entities from arena " + arenaName + " world");
+            Obsidianwars.getInstance().getLogger().info("Cleared " + clearedCount + " entities from arena " + arenaName + " region");
         }
     }
 
@@ -448,6 +492,9 @@ public class GameManager {
             game.cleanup();
         }
         activeGames.clear();
+        disconnectTimes.clear();
+        // Clean up all team data
+        TeamManager.cleanup();
     }
 
     public static int getCountdown(String arenaName) {
@@ -504,19 +551,17 @@ public class GameManager {
         private final String arenaName;
         private GameState gameState;
         private int countdown;
-        private BukkitTask countdownTask;
+        BukkitTask countdownTask;
         private int gameTime;
         private BukkitTask gameTimerTask;
         private final Map<String, Boolean> obsidianDestroyed = new HashMap<>();
-        private boolean countdownPaused = false;
-        private boolean balanceWarningSent = false;
 
         public ArenaGame(String arenaName) {
             this.arenaName = arenaName;
             this.gameState = GameState.WAITING;
             this.countdown = COUNTDOWN_SECONDS;
             this.gameTime = 0;
-            
+
             // Obsidian statuslarını init edirik
             obsidianDestroyed.put("red", false);
             obsidianDestroyed.put("blue", false);
@@ -525,8 +570,6 @@ public class GameManager {
         public void startCountdown() {
             gameState = GameState.COUNTDOWN;
             countdown = COUNTDOWN_SECONDS;
-            countdownPaused = false;
-            balanceWarningSent = false;
 
             Obsidianwars.getInstance().getLogger().info("Starting countdown for arena " + arenaName + " with " + COUNTDOWN_SECONDS + " seconds");
 
@@ -536,40 +579,17 @@ public class GameManager {
 
             countdownTask = Bukkit.getScheduler().runTaskTimer(Obsidianwars.getInstance(), () -> {
                 try {
-                    // If countdown is paused, check if we can resume
-                    if (countdownPaused) {
-                        Obsidianwars.getInstance().getLogger().info("Countdown paused for arena " + arenaName + " - checking team balance");
-                        if (checkTeamBalance(arenaName)) {
-                            // Teams are balanced, resume countdown
-                            countdownPaused = false;
-                            balanceWarningSent = false;
-                            broadcastToArena(arenaName, "§aGame start resumed! Both teams now have players.");
-                            // Reset countdown to 5 seconds to give players time to prepare
-                            countdown = 5;
-                        }
-                        return; // Skip this tick while paused
-                    }
-
                     countdown--;
                     Obsidianwars.getInstance().getLogger().info("Countdown tick: " + countdown + " seconds remaining for arena " + arenaName);
 
                     if (countdown > 0) {
-                        // Enhanced countdown broadcast at 5 seconds and below
+                        // Broadcast countdown messages
                         if (countdown <= 5) {
-                            // Team balance check at 5 seconds
-                            if (countdown == 5) {
-                                if (!checkTeamBalance(arenaName)) {
-                                    // Pause countdown and reset
-                                    pauseCountdown();
-                                    return; // Skip this tick
-                                }
-                            }
-                            
-                            // Chat message
+                            // Enhanced countdown broadcast at 5 seconds and below
                             String countdownMessage = MessagesConfigManager.getMessage("game_countdown", "seconds", String.valueOf(countdown));
                             if (countdownMessage == null) countdownMessage = "§eGame starting in " + countdown + " seconds!";
                             broadcastToArena(arenaName, countdownMessage);
-                            
+
                             // Title/Subtitle broadcast
                             for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
                                 if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
@@ -591,123 +611,33 @@ public class GameManager {
                         }
                         updateArenaScoreboards(arenaName);
                     } else {
-                        // Countdown bitdi
+                        // Countdown finished
                         Obsidianwars.getInstance().getLogger().info("Countdown finished for arena " + arenaName + " - starting game");
-                        
+
                         if (countdownTask != null) {
                             countdownTask.cancel();
+                            countdownTask = null;
                         }
-                        
-                        // Auto-teaming
+
+                        // Auto-teaming for any unassigned players
                         autoTeamPlayers(arenaName);
-                        
+
                         // Lobby items təmizlə
                         clearLobbyItems(arenaName);
-                        
+
                         // Oyunçuları komanda spawnlarına teleport et
                         teleportPlayersToTeamSpawns(arenaName);
-                        
+
                         // Oyunu başlat
                         startGame(arenaName);
-                        
-                        // Preparation phase başlat (walls və timer)
-                        if (WallManager.hasWallConfiguration(arenaName, "red") || WallManager.hasWallConfiguration(arenaName, "blue")) {
-                            WallManager.buildWalls(arenaName);
-                            WallManager.startPreparationTimer(arenaName);
-                        }
                     }
                 } catch (Exception e) {
                     Obsidianwars.getInstance().getLogger().severe("Error in countdown for arena " + arenaName + ": " + e.getMessage());
                     e.printStackTrace();
                 }
             }, 20L, 20L); // Hər 1 saniyə (20 tick)
-            
+
             Obsidianwars.getInstance().getLogger().info("Countdown task started for arena " + arenaName);
-        }
-
-        private void pauseCountdown() {
-            countdownPaused = true;
-            countdown = 6; // Reset to safe state
-            
-            // Send warning message only once
-            if (!balanceWarningSent) {
-                broadcastToArena(arenaName, "§cGame start paused: Opposing team needs at least 1 player!");
-                balanceWarningSent = true;
-                
-                // Attempt auto-balance if only one team has players
-                attemptAutoBalance(arenaName);
-            }
-        }
-
-        private void attemptAutoBalance(String arenaName) {
-            // Count players per team
-            int redPlayers = 0;
-            int bluePlayers = 0;
-            UUID lastRedPlayer = null;
-            UUID lastBluePlayer = null;
-            
-            for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                    String team = TeamListener.playerTeams.get(uuid);
-                    if (team != null) {
-                        if (team.equals("red")) {
-                            redPlayers++;
-                            lastRedPlayer = uuid;
-                        } else if (team.equals("blue")) {
-                            bluePlayers++;
-                            lastBluePlayer = uuid;
-                        }
-                    }
-                }
-            }
-            
-            // Auto-balance: if one team is empty and the other has players, move the last player
-            if (redPlayers > 0 && bluePlayers == 0 && lastRedPlayer != null) {
-                // Move last red player to blue team
-                Player player = Bukkit.getPlayer(lastRedPlayer);
-                if (player != null) {
-                    TeamListener.playerTeams.put(lastRedPlayer, "blue");
-                    TeamListener.applyTeamColor(player, "blue");
-                    TeamManager.setupTeam(player, "blue");
-                    ScoreboardManager.updateScoreboard(player);
-                    player.sendMessage("§aYou were automatically moved to §9Mavi Team§a to balance the game!");
-                    broadcastToArena(arenaName, "§eAuto-balance: Player moved to Mavi Team!");
-                    
-                    // Resume countdown after auto-balance
-                    Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
-                        resumeCountdown();
-                    }, 20L); // 1 second delay before resuming
-                }
-            } else if (bluePlayers > 0 && redPlayers == 0 && lastBluePlayer != null) {
-                // Move last blue player to red team
-                Player player = Bukkit.getPlayer(lastBluePlayer);
-                if (player != null) {
-                    TeamListener.playerTeams.put(lastBluePlayer, "red");
-                    TeamListener.applyTeamColor(player, "red");
-                    TeamManager.setupTeam(player, "red");
-                    ScoreboardManager.updateScoreboard(player);
-                    player.sendMessage("§aYou were automatically moved to §cQırmızı Team§a to balance the game!");
-                    broadcastToArena(arenaName, "§eAuto-balance: Player moved to Qırmızı Team!");
-                    
-                    // Resume countdown after auto-balance
-                    Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
-                        resumeCountdown();
-                    }, 20L); // 1 second delay before resuming
-                }
-            }
-        }
-
-        public boolean isCountdownPaused() {
-            return countdownPaused;
-        }
-
-        public void resumeCountdown() {
-            if (countdownPaused) {
-                countdownPaused = false;
-                balanceWarningSent = false;
-                countdown = 5; // Resume from 5 seconds
-                broadcastToArena(arenaName, "§aGame start resumed! Both teams now have players.");
-            }
         }
 
         public void setGameState(GameState gameState) {
@@ -790,9 +720,16 @@ public class GameManager {
             }
         }
 
+        public boolean isCountdownPaused() {
+            // No longer used with new countdown logic
+            return false;
+        }
+
         public void cleanup() {
             stopGameTimer();
             stopCountdown();
+            // Clear obsidian status
+            obsidianDestroyed.clear();
         }
 
         public void triggerSuddenDeath() {

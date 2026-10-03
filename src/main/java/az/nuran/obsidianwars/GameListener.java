@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars;
 
+import java.util.UUID;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -64,27 +66,18 @@ public class GameListener implements Listener {
             return;
         }
 
-        // Check game state - PvP is disabled during PREPARATION phase
+        // Check game state - PvP is only enabled during PLAYING state
         String arenaName = ObsidianCommand.playersInArena.get(victim.getUniqueId());
         GameManager.ArenaGame game = GameManager.getGame(arenaName);
-        if (game != null) {
-            if (game.getGameState() == GameManager.GameState.PREPARATION) {
-                event.setCancelled(true);
-                damager.sendMessage("§cPvP is disabled during preparation phase!");
-                return;
-            }
-            // Log debug info for PLAYING state
-            if (game.getGameState() == GameManager.GameState.PLAYING) {
-                Obsidianwars.getInstance().getLogger().info("PvP check: Arena " + arenaName + " is in PLAYING state, allowing PvP");
-            }
-        } else {
-            Obsidianwars.getInstance().getLogger().warning("PvP check: Game is null for arena " + arenaName);
+
+        // If game is null or not in PLAYING state, cancel PvP
+        if (game == null || game.getGameState() != GameManager.GameState.PLAYING) {
+            event.setCancelled(true);
+            return;
         }
 
         String victimTeam = TeamListener.playerTeams.get(victim.getUniqueId());
         String damagerTeam = TeamListener.playerTeams.get(damager.getUniqueId());
-
-        Obsidianwars.getInstance().getLogger().info("PvP check: Victim team=" + victimTeam + ", Damager team=" + damagerTeam);
 
         // Eyni komanda üzvləri bir-birinə zərər verə bilməz
         if (victimTeam != null && victimTeam.equals(damagerTeam)) {
@@ -417,28 +410,28 @@ public class GameListener implements Listener {
         player.setGameMode(org.bukkit.GameMode.SURVIVAL);
         player.setAllowFlight(false);
         player.setFlying(false);
-        
+
         // Teleport to team spawn (force teleport to guarantee location)
         player.teleport(teamSpawn);
         Obsidianwars.getInstance().getLogger().info("Respawned " + player.getName() + " at team spawn " + teamSpawn);
-        
+
         // Restore full health and hunger
         player.setHealth(20);
         player.setFoodLevel(20);
-        
+
         // Remove potion effects
         player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
-        
-        // Apply team color and equipment
+
+        // Apply team color and equipment (use TeamListener.applyTeamColor directly since team is already set)
         TeamListener.applyTeamColor(player, team);
-        
+
         // Give spawn protection
         ParticleManager.giveSpawnProtection(player, 3);
-        
+
         // Send respawn message
         String respawnedMessage = MessagesConfigManager.getMessage("respawned");
         player.sendMessage(respawnedMessage);
-        
+
         // Update scoreboard
         ScoreboardManager.updateScoreboard(player);
     }
@@ -472,20 +465,42 @@ public class GameListener implements Listener {
         // Handle disconnect for rejoin grace period
         GameManager.handleDisconnect(player);
 
+        // CANCELLATION LOGIC: If player leaves during COUNTDOWN, check if we need to cancel
+        if (game != null && game.getGameState() == GameManager.GameState.COUNTDOWN) {
+            // Remove player from arena first
+            ObsidianCommand.playersInArena.remove(uuid);
+            TeamManager.removePlayerFromTeam(player);
+            PlayerUtils.resetPlayerArenaLeave(player);
+            ParticleManager.removeSpawnProtection(player);
+
+            // Check if countdown conditions are still met
+            // Cancel if: any team becomes empty OR total players drop below minPlayers
+            if (TeamManager.isAnyTeamEmpty(arenaName) ||
+                TeamManager.getTotalPlayerCount(arenaName) < ArenaConfigManager.getMinPlayers(arenaName)) {
+                // Cancel countdown immediately
+                GameManager.cancelCountdown(arenaName);
+            }
+
+            // Broadcast quit message
+            String quitMessage = MessagesConfigManager.getMessage("player_quit", "player", player.getName());
+            ObsidianCommand.broadcastToArena(arenaName, quitMessage);
+
+            return;
+        }
+
         if (game == null || (game.getGameState() != GameManager.GameState.PLAYING && game.getGameState() != GameManager.GameState.PREPARATION)) {
             // Əgər oyun aktiv deyilsə, sadəcə çıxarırıq
             ObsidianCommand.playersInArena.remove(uuid);
-            TeamListener.playerTeams.remove(uuid);
-            TeamManager.removePlayerFromTeams(player);
-            ScoreboardManager.removeScoreboard(player);
+            TeamManager.removePlayerFromTeam(player);
+            PlayerUtils.resetPlayerArenaLeave(player);
             ParticleManager.removeSpawnProtection(player);
             return;
         }
 
         // Oyunçunu sistemdən çıxarırıq
         ObsidianCommand.playersInArena.remove(uuid);
-        TeamListener.playerTeams.remove(uuid);
-        TeamManager.removePlayerFromTeams(player);
+        TeamManager.removePlayerFromTeam(player);
+        PlayerUtils.resetPlayerArenaLeave(player);
         ParticleManager.removeSpawnProtection(player);
 
         // Broadcast mesajı

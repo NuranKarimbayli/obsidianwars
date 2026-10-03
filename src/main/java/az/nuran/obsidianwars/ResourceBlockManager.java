@@ -200,4 +200,12 @@ public class ResourceBlockManager implements Listener {
     public static int getResourceBlockCount(String arenaName) {
         return ArenaFileManager.getResourceBlockCount(arenaName);
     }
+
+    public static void cleanup() {
+        playersInSetupMode.clear();
+        for (BossBar bossBar : setupModeBossBars.values()) {
+            bossBar.removeAll();
+        }
+        setupModeBossBars.clear();
+    }
 }
