@@ -1,0 +1,4 @@
+arenas: {}
+
+# Respawn wait time in seconds (default: 5)
+respawn-wait-time: 5

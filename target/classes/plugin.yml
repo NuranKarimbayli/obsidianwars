@@ -1,0 +1,12 @@
+name: obsidianwars
+version: '1.0-SNAPSHOT'
+
+main: az.nuran.obsidianwars.Obsidianwars
+api-version: '1.21.1'
+load: POSTWORLD
+
+commands:
+  obsidian:
+    description: Obsidian Savaslari ana emri
+    usage: /obsidian
+    aliases: [o]
