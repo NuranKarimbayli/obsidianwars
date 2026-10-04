@@ -497,45 +497,69 @@ public class GameListener implements Listener {
             return;
         }
 
-        // Oyunçunu sistemdən çıxarırıq
-        ObsidianCommand.playersInArena.remove(uuid);
-        TeamManager.removePlayerFromTeam(player);
-        PlayerUtils.resetPlayerArenaLeave(player);
+        // RECONNECT LOGIC: During PLAYING/PREPARATION, do NOT remove player from tracking
+        // They stay in playersInArena and playerTeams maps for potential rejoin
+        // State is saved in GameManager.handleDisconnect()
+
+        // Remove spawn protection
         ParticleManager.removeSpawnProtection(player);
 
-        // Broadcast mesajı
-        String quitMessage = MessagesConfigManager.getMessage("player_quit", "player", player.getName());
-        ObsidianCommand.broadcastToArena(arenaName, quitMessage);
+        // Broadcast disconnect message with grace period info
+        String teamName = playerTeam.equals("red") ? "Qırmızı" : "Mavi";
+        String teamColor = playerTeam.equals("red") ? "§c" : "§9";
+        String disconnectMessage = teamColor + player.getName() + " §edisconnected! They have 30 seconds to rejoin.";
+        ObsidianCommand.broadcastToArena(arenaName, disconnectMessage);
 
-        // Win condition yoxlaması
+        // Win condition yoxlaması (will check for actual elimination)
         checkWinCondition(arenaName);
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        
-        // Check if player can rejoin
+
+        // Check if player is a disconnected player that can rejoin
         if (GameManager.canRejoin(player)) {
-            // Find the arena they were in
-            String arenaName = null;
-            for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (uuid.equals(player.getUniqueId())) {
-                    arenaName = ObsidianCommand.playersInArena.get(uuid);
-                    break;
+            // Attempt to restore player state
+            boolean restored = GameManager.restoreDisconnectedPlayer(player);
+
+            if (restored) {
+                // Successfully restored
+                String arenaName = GameManager.getDisconnectedPlayerArena(player.getUniqueId());
+                String rejoinMessage = "§aYou have reconnected to the arena!";
+                player.sendMessage(rejoinMessage);
+
+                // Broadcast to arena
+                String broadcastMessage = "§a" + player.getName() + " has reconnected!";
+                ObsidianCommand.broadcastToArena(arenaName, broadcastMessage);
+
+                // Play rejoin sound
+                String sound = MessagesConfigManager.getSound("join_lobby");
+                Sound rejoinSound = Obsidianwars.parseSound(sound);
+                if (rejoinSound != null) {
+                    player.playSound(player.getLocation(), rejoinSound, 1.0f, 1.0f);
                 }
+
+                return;
             }
-            
-            if (arenaName != null) {
-                // Allow rejoin within grace period
-                GameManager.ArenaGame game = GameManager.getGame(arenaName);
-                if (game != null && game.getGameState() == GameManager.GameState.PLAYING) {
-                    String rejoinMessage = MessagesConfigManager.getMessage("rejoin_allowed");
-                    player.sendMessage(rejoinMessage);
-                    
-                    // Clear disconnect record
-                    GameManager.clearDisconnectRecord(player.getUniqueId());
-                }
+        }
+
+        // POST-GAME CLEANUP: If player rejoins after game ended, ensure they are clean
+        // Check if player was in an arena but game is no longer active
+        if (ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
+            String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
+            GameManager.ArenaGame game = GameManager.getGame(arenaName);
+
+            if (game == null || game.getGameState() == GameManager.GameState.ENDED) {
+                // Game ended, clean up player
+                ObsidianCommand.playersInArena.remove(player.getUniqueId());
+                TeamManager.removePlayerFromTeam(player);
+
+                // Reset player state and teleport to spawn
+                Location mainSpawn = player.getWorld().getSpawnLocation();
+                PlayerUtils.resetPlayerFull(player, mainSpawn);
+
+                player.sendMessage("§eThe game has ended. You have been returned to spawn.");
             }
         }
     }

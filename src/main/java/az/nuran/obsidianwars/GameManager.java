@@ -6,6 +6,8 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionEffect;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
@@ -369,6 +371,18 @@ public class GameManager {
             }
         }
 
+        // Also clean up any disconnected players data for this arena
+        disconnectedPlayers.entrySet().removeIf(entry -> {
+            DisconnectedPlayerData data = entry.getValue();
+            if (data.getArenaName().equals(arenaName)) {
+                // Also remove from playersInArena if still there
+                ObsidianCommand.playersInArena.remove(entry.getKey());
+                TeamListener.playerTeams.remove(entry.getKey());
+                return true;
+            }
+            return false;
+        });
+
         // Game-i silirik
         activeGames.remove(arenaName);
     }
@@ -493,6 +507,7 @@ public class GameManager {
         }
         activeGames.clear();
         disconnectTimes.clear();
+        disconnectedPlayers.clear();
         // Clean up all team data
         TeamManager.cleanup();
     }
@@ -512,12 +527,28 @@ public class GameManager {
 
     // Disconnect handling
     private static final Map<UUID, Long> disconnectTimes = new HashMap<>();
+    private static final Map<UUID, DisconnectedPlayerData> disconnectedPlayers = new HashMap<>();
     private static final long REJOIN_GRACE_PERIOD = 30000; // 30 seconds in milliseconds
 
     public static void handleDisconnect(Player player) {
         UUID uuid = player.getUniqueId();
         if (ObsidianCommand.playersInArena.containsKey(uuid)) {
-            disconnectTimes.put(uuid, System.currentTimeMillis());
+            String arenaName = ObsidianCommand.playersInArena.get(uuid);
+            String team = TeamListener.playerTeams.get(uuid);
+
+            // Only save state if in PLAYING or PREPARATION state
+            ArenaGame game = activeGames.get(arenaName);
+            if (game != null && (game.getGameState() == GameState.PLAYING || game.getGameState() == GameState.PREPARATION)) {
+                // Save player state for rejoin
+                DisconnectedPlayerData data = new DisconnectedPlayerData(player, arenaName, team);
+                disconnectedPlayers.put(uuid, data);
+                disconnectTimes.put(uuid, System.currentTimeMillis());
+
+                Obsidianwars.getInstance().getLogger().info("Player " + player.getName() + " disconnected from arena " + arenaName + " - state saved for rejoin");
+            } else {
+                // Not in active game, just record disconnect time for legacy
+                disconnectTimes.put(uuid, System.currentTimeMillis());
+            }
         }
     }
 
@@ -525,26 +556,227 @@ public class GameManager {
         UUID uuid = player.getUniqueId();
         Long disconnectTime = disconnectTimes.get(uuid);
         if (disconnectTime == null) return false;
-        
+
         long elapsed = System.currentTimeMillis() - disconnectTime;
         if (elapsed < REJOIN_GRACE_PERIOD) {
             return true;
         }
-        
+
         disconnectTimes.remove(uuid);
         return false;
     }
 
+    /**
+     * Attempts to restore a disconnected player to their game state.
+     * Returns true if restoration was successful, false otherwise.
+     */
+    public static boolean restoreDisconnectedPlayer(Player player) {
+        UUID uuid = player.getUniqueId();
+        DisconnectedPlayerData data = disconnectedPlayers.get(uuid);
+
+        if (data == null) {
+            return false;
+        }
+
+        // Check if still within grace period
+        long elapsed = System.currentTimeMillis() - data.getDisconnectTime();
+        if (elapsed >= REJOIN_GRACE_PERIOD) {
+            // Grace period expired, clean up
+            disconnectedPlayers.remove(uuid);
+            disconnectTimes.remove(uuid);
+            return false;
+        }
+
+        // Check if game still exists and is in valid state
+        ArenaGame game = activeGames.get(data.getArenaName());
+        if (game == null || (game.getGameState() != GameState.PLAYING && game.getGameState() != GameState.PREPARATION)) {
+            // Game ended or invalid, clean up and return false
+            disconnectedPlayers.remove(uuid);
+            disconnectTimes.remove(uuid);
+            return false;
+        }
+
+        // Restore player state
+        try {
+            // Restore inventory
+            player.getInventory().setContents(data.getInventoryContents());
+            player.getInventory().setArmorContents(data.getArmorContents());
+
+            // Restore health and hunger
+            player.setHealth(data.getHealth());
+            player.setFoodLevel(data.getFoodLevel());
+
+            // Restore potion effects
+            player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
+            for (PotionEffect effect : data.getPotionEffects()) {
+                player.addPotionEffect(effect);
+            }
+
+            // Restore team
+            TeamManager.setPlayerTeam(player, data.getArenaName(), data.getTeam());
+
+            // Restore game mode
+            if (data.wasSpectator()) {
+                player.setGameMode(org.bukkit.GameMode.SPECTATOR);
+                player.setAllowFlight(true);
+                player.setFlying(true);
+                // Teleport to last location or obsidian
+                Location restoreLoc = data.getLastLocation();
+                if (restoreLoc != null) {
+                    player.teleport(restoreLoc);
+                }
+            } else {
+                player.setGameMode(org.bukkit.GameMode.SURVIVAL);
+                player.setAllowFlight(false);
+                player.setFlying(false);
+
+                // Teleport to team spawn with spawn protection
+                Location teamSpawn = ArenaConfigManager.getTeamSpawn(data.getArenaName(), data.getTeam());
+                if (teamSpawn != null) {
+                    player.teleport(teamSpawn);
+                    ParticleManager.giveSpawnProtection(player, 3);
+                } else {
+                    // Fallback to last location
+                    if (data.getLastLocation() != null) {
+                        player.teleport(data.getLastLocation());
+                    }
+                }
+            }
+
+            // Update scoreboard
+            ScoreboardManager.updateScoreboard(player);
+
+            // Clear disconnect records
+            disconnectedPlayers.remove(uuid);
+            disconnectTimes.remove(uuid);
+
+            Obsidianwars.getInstance().getLogger().info("Player " + player.getName() + " successfully restored to arena " + data.getArenaName());
+
+            return true;
+        } catch (Exception e) {
+            Obsidianwars.getInstance().getLogger().severe("Error restoring player " + player.getName() + ": " + e.getMessage());
+            e.printStackTrace();
+            // Clean up on error
+            disconnectedPlayers.remove(uuid);
+            disconnectTimes.remove(uuid);
+            return false;
+        }
+    }
+
+    /**
+     * Permanently removes a disconnected player from the game after grace period expires.
+     */
+    public static void expireDisconnectedPlayer(UUID uuid) {
+        DisconnectedPlayerData data = disconnectedPlayers.remove(uuid);
+        disconnectTimes.remove(uuid);
+
+        if (data != null) {
+            // Remove from arena tracking
+            ObsidianCommand.playersInArena.remove(uuid);
+            TeamListener.playerTeams.remove(uuid);
+
+            // Check if this causes team elimination
+            checkTeamEliminationOnDisconnect(data.getArenaName());
+
+            Obsidianwars.getInstance().getLogger().info("Player " + uuid + " grace period expired - permanently removed from arena " + data.getArenaName());
+        }
+    }
+
+    /**
+     * Checks if a team has been eliminated due to all players being offline.
+     * If so, declares the opposing team as winner.
+     */
+    private static void checkTeamEliminationOnDisconnect(String arenaName) {
+        ArenaGame game = activeGames.get(arenaName);
+        if (game == null || game.getGameState() != GameState.PLAYING) {
+            return;
+        }
+
+        // Count online players per team
+        int redOnline = 0;
+        int blueOnline = 0;
+
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null && player.isOnline()) {
+                    String team = TeamListener.playerTeams.get(uuid);
+                    if (team != null) {
+                        if (team.equals("red")) redOnline++;
+                        else if (team.equals("blue")) blueOnline++;
+                    }
+                }
+            }
+        }
+
+        // Also check disconnected players still in grace period
+        for (DisconnectedPlayerData data : disconnectedPlayers.values()) {
+            if (data.getArenaName().equals(arenaName)) {
+                long elapsed = System.currentTimeMillis() - data.getDisconnectTime();
+                if (elapsed < REJOIN_GRACE_PERIOD) {
+                    // Still in grace period, count as potentially returning
+                    if (data.getTeam().equals("red")) redOnline++;
+                    else if (data.getTeam().equals("blue")) blueOnline++;
+                }
+            }
+        }
+
+        // Check if both teams have at least one player (online or in grace period)
+        if (redOnline == 0 && game.isObsidianDestroyed("red")) {
+            // Red team eliminated
+            broadcastToArena(arenaName, "§cQırmızı komanda tamamilə elimine edildi!");
+            endGame(arenaName, "blue");
+        } else if (blueOnline == 0 && game.isObsidianDestroyed("blue")) {
+            // Blue team eliminated
+            broadcastToArena(arenaName, "§cMavi komanda tamamilə elimine edildi!");
+            endGame(arenaName, "red");
+        }
+    }
+
     public static void clearDisconnectRecord(UUID uuid) {
         disconnectTimes.remove(uuid);
+        disconnectedPlayers.remove(uuid);
     }
 
     public static void cleanupExpiredDisconnectRecords() {
         long currentTime = System.currentTimeMillis();
-        disconnectTimes.entrySet().removeIf(entry -> {
+
+        // Find expired players
+        List<UUID> expired = new ArrayList<>();
+        for (Map.Entry<UUID, Long> entry : disconnectTimes.entrySet()) {
             long elapsed = currentTime - entry.getValue();
-            return elapsed >= REJOIN_GRACE_PERIOD;
-        });
+            if (elapsed >= REJOIN_GRACE_PERIOD) {
+                expired.add(entry.getKey());
+            }
+        }
+
+        // Process expired players
+        for (UUID uuid : expired) {
+            expireDisconnectedPlayer(uuid);
+        }
+    }
+
+    /**
+     * Checks if a player is currently disconnected but within grace period.
+     */
+    public static boolean isPlayerDisconnected(UUID uuid) {
+        return disconnectedPlayers.containsKey(uuid);
+    }
+
+    /**
+     * Gets the arena name for a disconnected player.
+     */
+    public static String getDisconnectedPlayerArena(UUID uuid) {
+        DisconnectedPlayerData data = disconnectedPlayers.get(uuid);
+        return data != null ? data.getArenaName() : null;
+    }
+
+    /**
+     * Public method to check team elimination after a manual leave.
+     * Called when a player uses /obsidian leave during an active game.
+     */
+    public static void checkTeamEliminationOnLeave(String arenaName) {
+        checkTeamEliminationOnDisconnect(arenaName);
     }
 
     static class ArenaGame {
@@ -790,12 +1022,66 @@ public class GameManager {
                 String playerTeam = TeamListener.playerTeams.get(uuid);
                 if (team.equals(playerTeam)) {
                     org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(uuid);
-                    if (player != null && player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
+                    // Count online players who are not spectators
+                    if (player != null && player.isOnline() && player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
                         count++;
+                    }
+                    // Also count disconnected players still in grace period
+                    else if (GameManager.isPlayerDisconnected(uuid)) {
+                        DisconnectedPlayerData data = disconnectedPlayers.get(uuid);
+                        if (data != null && data.getTeam().equals(team)) {
+                            long elapsed = System.currentTimeMillis() - data.getDisconnectTime();
+                            if (elapsed < REJOIN_GRACE_PERIOD) {
+                                count++; // Count as potentially alive
+                            }
+                        }
                     }
                 }
             }
         }
         return count;
+    }
+
+    /**
+     * Data class to store disconnected player state for rejoin restoration.
+     */
+    public static class DisconnectedPlayerData {
+        private final UUID uuid;
+        private final String arenaName;
+        private final String team;
+        private final long disconnectTime;
+        private final ItemStack[] inventoryContents;
+        private final ItemStack[] armorContents;
+        private final double health;
+        private final int foodLevel;
+        private final List<PotionEffect> potionEffects;
+        private final Location lastLocation;
+        private final boolean wasSpectator;
+
+        public DisconnectedPlayerData(Player player, String arenaName, String team) {
+            this.uuid = player.getUniqueId();
+            this.arenaName = arenaName;
+            this.team = team;
+            this.disconnectTime = System.currentTimeMillis();
+            this.inventoryContents = player.getInventory().getContents().clone();
+            this.armorContents = player.getInventory().getArmorContents().clone();
+            this.health = player.getHealth();
+            this.foodLevel = player.getFoodLevel();
+            this.potionEffects = new ArrayList<>(player.getActivePotionEffects());
+            this.lastLocation = player.getLocation().clone();
+            this.wasSpectator = player.getGameMode() == org.bukkit.GameMode.SPECTATOR;
+        }
+
+        public UUID getUuid() { return uuid; }
+        public String getArenaName() { return arenaName; }
+        public String getTeam() { return team; }
+        public long getDisconnectTime() { return disconnectTime; }
+        public ItemStack[] getInventoryContents() { return inventoryContents; }
+        public ItemStack[] getArmorContents() { return armorContents; }
+        public double getHealth() { return health; }
+        public int getFoodLevel() { return foodLevel; }
+        public List<PotionEffect> getPotionEffects() { return potionEffects; }
+        public Location getLastLocation() { return lastLocation; }
+        public boolean wasSpectator() { return wasSpectator; }
     }
 }

@@ -44,7 +44,7 @@ public class PlayerUtils {
         player.setPlayerListName(player.getName());
 
         // Remove from teams
-        TeamManager.removePlayerFromTeams(player);
+        TeamManager.removePlayerFromTeam(player);
 
         // Clear scoreboard
         ScoreboardManager.removeScoreboard(player);
@@ -68,7 +68,7 @@ public class PlayerUtils {
         player.setPlayerListName(player.getName());
 
         // Remove from teams
-        TeamManager.removePlayerFromTeams(player);
+        TeamManager.removePlayerFromTeam(player);
 
         // Clear scoreboard
         ScoreboardManager.removeScoreboard(player);

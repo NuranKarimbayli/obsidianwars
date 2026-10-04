@@ -192,6 +192,10 @@ public class ObsidianCommand implements CommandExecutor {
             // Check if in countdown state
             GameManager.ArenaGame game = GameManager.getGame(arenaName);
             boolean wasInCountdown = (game != null && game.getGameState() == GameManager.GameState.COUNTDOWN);
+            boolean wasInGame = (game != null && (game.getGameState() == GameManager.GameState.PLAYING || game.getGameState() == GameManager.GameState.PREPARATION));
+
+            // Clear disconnect record for this player (manual leave, not disconnect)
+            GameManager.clearDisconnectRecord(player.getUniqueId());
 
             // Oyunçunu arenadan çıxarırıq
             playersInArena.remove(player.getUniqueId());
@@ -213,6 +217,11 @@ public class ObsidianCommand implements CommandExecutor {
                     TeamManager.getTotalPlayerCount(arenaName) < ArenaConfigManager.getMinPlayers(arenaName)) {
                     GameManager.cancelCountdown(arenaName);
                 }
+            }
+
+            // WIN CONDITION: If player left during active game, check for team elimination
+            if (wasInGame) {
+                GameManager.checkTeamEliminationOnLeave(arenaName);
             }
 
             // Oyun statusunu yoxlayırıq
