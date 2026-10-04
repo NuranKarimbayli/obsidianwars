@@ -42,6 +42,7 @@ public class WallManager {
     }
 
     public static void buildWalls(String arenaName) {
+        DebugManager.logDebug("Building defense walls for both teams", arenaName);
         buildTeamWall(arenaName, "red");
         buildTeamWall(arenaName, "blue");
     }
@@ -96,6 +97,7 @@ public class WallManager {
     }
 
     public static void removeWalls(String arenaName) {
+        DebugManager.logDebug("Removing defense walls for both teams", arenaName);
         removeTeamWall(arenaName, "red");
         removeTeamWall(arenaName, "blue");
     }
@@ -150,6 +152,7 @@ public class WallManager {
     }
 
     public static void restoreWalls(String arenaName) {
+        DebugManager.logDebug("Restoring defense walls to BEDROCK", arenaName);
         restoreTeamWall(arenaName, "red");
         restoreTeamWall(arenaName, "blue");
     }
@@ -266,16 +269,20 @@ public class WallManager {
                         });
                         
                         stopPreparationTimer(arenaName);
-                        
+
                         // Transition to PLAYING state
                         GameManager.ArenaGame game = GameManager.getGame(arenaName);
                         if (game != null) {
                             game.setGameState(GameManager.GameState.PLAYING);
+                            DebugManager.logDebug("State transition: PREPARATION -> PLAYING", arenaName);
                             game.startGameTimer();
-                            
+
+                            // Update arena status to PLAYING
+                            ArenaConfigManager.setArenaStatus(arenaName, "PLAYING");
+
                             // Apply world game rules
                             WorldRulesManager.applyGameRules(arenaName);
-                            
+
                             // Start obsidian particles
                             ParticleManager.startObsidianParticles(arenaName);
                         }
@@ -345,9 +352,9 @@ public class WallManager {
                 try {
                     remaining--;
                     suddenDeathRemainingTime.put(arenaName, remaining);
-                    
-                    Obsidianwars.getInstance().getLogger().info("Sudden death tick: " + remaining + " seconds remaining for arena " + arenaName);
-                    
+
+                    DebugManager.logDebug("Sudden death tick: " + remaining + " seconds remaining", arenaName);
+
                     // Update scoreboard with sudden death time (MM:SS format)
                     int minutes = remaining / 60;
                     int seconds = remaining % 60;
@@ -404,6 +411,69 @@ public class WallManager {
             task.cancel();
         }
         currentRemainingTime.remove(arenaName);
+    }
+
+    /**
+     * Forces the preparation phase to skip immediately.
+     * This breaks the walls and transitions to PLAYING state instantly.
+     */
+    public static void forceSkipPreparation(String arenaName) {
+        // Stop the preparation timer
+        stopPreparationTimer(arenaName);
+
+        // Remove walls immediately
+        removeWalls(arenaName);
+
+        // Transition to PLAYING state
+        GameManager.ArenaGame game = GameManager.getGame(arenaName);
+        if (game != null) {
+            game.setGameState(GameManager.GameState.PLAYING);
+            DebugManager.logDebug("State transition: PREPARATION -> PLAYING (forced)", arenaName);
+            game.startGameTimer();
+
+            // Update arena status to PLAYING
+            ArenaConfigManager.setArenaStatus(arenaName, "PLAYING");
+
+            // Apply world game rules
+            WorldRulesManager.applyGameRules(arenaName);
+
+            // Start obsidian particles
+            ParticleManager.startObsidianParticles(arenaName);
+        }
+
+        // Start mob spawning (combat phase)
+        MobSpawnerManager.startMobSpawning(arenaName);
+
+        // Play sound and broadcast message
+        String sound = MessagesConfigManager.getSound("wall_fall");
+        Sound wallSound = Obsidianwars.parseSound(sound);
+        if (wallSound != null) {
+            for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                    org.bukkit.entity.Player player = Bukkit.getPlayer(uuid);
+                    if (player != null && player.isOnline()) {
+                        try {
+                            player.playSound(player.getLocation(), wallSound, 1.0f, 1.0f);
+                            String title = MessagesConfigManager.getMessage("wall_fallen_title");
+                            String subtitle = MessagesConfigManager.getMessage("wall_fallen_subtitle");
+                            if (title == null) title = "§aWALLS FALLEN!";
+                            if (subtitle == null) subtitle = "§eCombat phase begins!";
+                            player.sendTitle(title, subtitle, 10, 60, 20);
+                        } catch (Exception e) {
+                            Obsidianwars.getInstance().getLogger().warning("Failed to play sound for player " + player.getName() + ": " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        }
+
+        String message = MessagesConfigManager.getMessage("preparation_over");
+        if (message == null) message = "§aPreparation phase over! Combat begins!";
+        ObsidianCommand.broadcastToArena(arenaName, message);
+
+        // Start sudden death countdown
+        startSuddenDeathCountdown(arenaName);
     }
 
     public static boolean hasWallConfiguration(String arenaName, String team) {

@@ -1,6 +1,7 @@
 package az.nuran.obsidianwars;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
@@ -8,17 +9,22 @@ import org.bukkit.scoreboard.Score;
 import org.bukkit.scoreboard.Scoreboard;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public class ScoreboardManager {
 
-    private static final String SCOREBOARD_TITLE = "§d§lObsidianWars";
     private static final Map<UUID, Scoreboard> playerScoreboards = new HashMap<>();
     private static final Map<UUID, Long> lastUpdateTime = new HashMap<>();
     private static final long UPDATE_COOLDOWN_MS = 500; // 500ms cooldown
 
     public static void updateScoreboard(Player player) {
+        // Check if scoreboard is enabled in config
+        if (!Obsidianwars.getInstance().getConfig().getBoolean("features.scoreboard", true)) {
+            return;
+        }
+
         // Rate limiter check
         UUID uuid = player.getUniqueId();
         long currentTime = System.currentTimeMillis();
@@ -46,13 +52,8 @@ public class ScoreboardManager {
                 playerScoreboards.put(uuid, scoreboard);
             }
 
-            // Əgər oyun aktivdirsə, oyun scoreboard-u göstəririk
-            if (game != null && game.getGameState() == GameManager.GameState.PLAYING) {
-                updateGameScoreboard(scoreboard, player, arenaName, game);
-            } else {
-                // Əks halda lobby scoreboard-u
-                updateLobbyScoreboard(scoreboard, player, arenaName);
-            }
+            // Update scoreboard with dynamic configuration
+            updateDynamicScoreboard(scoreboard, player, arenaName, game);
 
             player.setScoreboard(scoreboard);
         } catch (Exception e) {
@@ -60,15 +61,19 @@ public class ScoreboardManager {
         }
     }
 
-    private static void updateLobbyScoreboard(Scoreboard scoreboard, Player player, String arenaName) {
+    private static void updateDynamicScoreboard(Scoreboard scoreboard, Player player, String arenaName, GameManager.ArenaGame game) {
         // Clear existing objectives
         scoreboard.clearSlot(DisplaySlot.SIDEBAR);
 
-        Objective objective = scoreboard.getObjective("obsidianwars_lobby");
+        Objective objective = scoreboard.getObjective("obsidianwars_dynamic");
         if (objective == null) {
-            objective = scoreboard.registerNewObjective("obsidianwars_lobby", "dummy");
+            objective = scoreboard.registerNewObjective("obsidianwars_dynamic", "dummy");
         }
-        objective.setDisplayName(SCOREBOARD_TITLE);
+
+        // Get title from config
+        String title = Obsidianwars.getInstance().getConfig().getString("scoreboard.title", "&d&lOBSIDIAN WARS");
+        title = replacePlaceholders(title, player, arenaName, game);
+        objective.setDisplayName(ChatColor.translateAlternateColorCodes('&', title));
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         // Clear existing scores
@@ -76,117 +81,150 @@ public class ScoreboardManager {
             scoreboard.resetScores(entry);
         }
 
-        // Line 1: Empty space
-        Score empty1 = objective.getScore(" ");
-        empty1.setScore(8);
+        // Get lines from config
+        List<String> lines = Obsidianwars.getInstance().getConfig().getStringList("scoreboard.lines");
 
-        // Line 2: Arena Name
-        Score arenaLine = objective.getScore("§6Map: §f" + arenaName);
-        arenaLine.setScore(7);
+        // Set scores (reverse order to display correctly)
+        int lineScore = lines.size();
+        for (String line : lines) {
+            String processedLine = replacePlaceholders(line, player, arenaName, game);
+            processedLine = ChatColor.translateAlternateColorCodes('&', processedLine);
 
-        // Line 3: Empty space
-        Score empty2 = objective.getScore("  ");
-        empty2.setScore(6);
+            // Skip empty lines
+            if (processedLine.trim().isEmpty()) {
+                lineScore--;
+                continue;
+            }
 
-        // Line 4: Player Count
-        int currentPlayers = getArenaPlayerCount(arenaName);
-        int maxPlayers = getMaxPlayers(arenaName);
-        Score playersLine = objective.getScore("§eOyunçular: §f" + currentPlayers + "/" + maxPlayers);
-        playersLine.setScore(5);
-
-        // Line 5: Empty space
-        Score empty3 = objective.getScore("   ");
-        empty3.setScore(4);
-
-        // Line 6: Timer (countdown or preparation)
-        String timerDisplay = getTimerDisplay(arenaName);
-        Score timerLine = objective.getScore("§cVaxt: §f" + timerDisplay);
-        timerLine.setScore(3);
-
-        // Line 7: Empty space
-        Score empty4 = objective.getScore("    ");
-        empty4.setScore(2);
-
-        // Line 8: Selected Team
-        String playerTeam = TeamListener.playerTeams.get(player.getUniqueId());
-        String teamDisplay = playerTeam == null ? "§7Yoxdur" : (playerTeam.equals("red") ? "§cQırmızı" : "§9Mavi");
-        Score teamLine = objective.getScore("§bKomanda: " + teamDisplay);
-        teamLine.setScore(1);
-
-        // Line 9: Footer
-        Score footer = objective.getScore("§7play.obsidianwars.com");
-        footer.setScore(0);
+            Score scoreLine = objective.getScore(processedLine);
+            scoreLine.setScore(lineScore--);
+        }
     }
 
-    private static void updateGameScoreboard(Scoreboard scoreboard, Player player, String arenaName, GameManager.ArenaGame game) {
-        // Clear existing objectives
-        scoreboard.clearSlot(DisplaySlot.SIDEBAR);
+    private static String replacePlaceholders(String text, Player player, String arenaName, GameManager.ArenaGame game) {
+        UUID uuid = player.getUniqueId();
 
-        Objective objective = scoreboard.getObjective("obsidianwars_game");
-        if (objective == null) {
-            objective = scoreboard.registerNewObjective("obsidianwars_game", "dummy");
+        // Get player stats
+        int kills = StatsManager.getKills(uuid);
+        int deaths = StatsManager.getDeaths(uuid);
+
+        // Get arena info
+        String phase = getPhaseDisplay(arenaName, game);
+        String time = getTimeDisplay(arenaName, game);
+
+        // Get team health totals if enabled
+        String redHealth = "0";
+        String blueHealth = "0";
+        if (Obsidianwars.getInstance().getConfig().getBoolean("health-display.scoreboard", true)) {
+            redHealth = getTeamHealth(arenaName, "red");
+            blueHealth = getTeamHealth(arenaName, "blue");
         }
-        objective.setDisplayName(SCOREBOARD_TITLE);
-        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
-        // Clear existing scores
-        for (String entry : scoreboard.getEntries()) {
-            scoreboard.resetScores(entry);
+        // Replace all placeholders
+        text = text.replace("%player%", player.getName());
+        text = text.replace("%arena%", arenaName);
+        text = text.replace("%phase%", phase);
+        text = text.replace("%time%", time);
+        text = text.replace("%kills%", String.valueOf(kills));
+        text = text.replace("%deaths%", String.valueOf(deaths));
+        text = text.replace("%red_health%", redHealth);
+        text = text.replace("%blue_health%", blueHealth);
+
+        return text;
+    }
+
+    private static String getTeamHealth(String arenaName, String team) {
+        if (!Obsidianwars.getInstance().getConfig().getBoolean("health-display.scoreboard", true)) {
+            return "0";
         }
 
-        // Check if sudden death is active
-        int suddenDeathRemaining = WallManager.getSuddenDeathRemainingTime(arenaName);
-        boolean isSuddenDeath = suddenDeathRemaining > 0;
+        double totalHealth = 0;
+        int playerCount = 0;
 
-        int lineScore = 10;
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                String playerTeam = TeamListener.playerTeams.get(uuid);
+                if (playerTeam != null && playerTeam.equals(team)) {
+                    Player player = Bukkit.getPlayer(uuid);
+                    if (player != null && player.isOnline() && player.getGameMode() == org.bukkit.GameMode.SURVIVAL) {
+                        totalHealth += player.getHealth();
+                        playerCount++;
+                    }
+                }
+            }
+        }
 
-        // Line 1: Empty space
-        Score empty1 = objective.getScore(" ");
-        empty1.setScore(lineScore--);
+        if (playerCount == 0) return "0";
 
-        // Line 2: Arena Name
-        Score arenaLine = objective.getScore("§6Map: §f" + arenaName);
-        arenaLine.setScore(lineScore--);
-
-        // Line 3: Empty space
-        Score empty2 = objective.getScore("  ");
-        empty2.setScore(lineScore--);
-
-        // Line 4: Sudden Death Timer (if active) or Game Timer
-        if (isSuddenDeath) {
-            int minutes = suddenDeathRemaining / 60;
-            int seconds = suddenDeathRemaining % 60;
-            String timeStr = String.format("%02d:%02d", minutes, seconds);
-            Score suddenDeathLine = objective.getScore("§c§lSUDDEN DEATH: §f" + timeStr);
-            suddenDeathLine.setScore(lineScore--);
+        // Return average health or total health based on config
+        boolean useAverage = Obsidianwars.getInstance().getConfig().getBoolean("health-display.use-average", true);
+        if (useAverage) {
+            return String.format("%.1f", totalHealth / playerCount);
         } else {
-            Score timerLine = objective.getScore("§eVaxt: §f" + getGameTime(game));
-            timerLine.setScore(lineScore--);
+            return String.format("%.1f", totalHealth);
+        }
+    }
+
+    private static String getPhaseDisplay(String arenaName, GameManager.ArenaGame game) {
+        if (game == null) {
+            // Check if in countdown
+            int countdown = GameManager.getCountdown(arenaName);
+            if (countdown > 0) {
+                return "Countdown";
+            }
+            return "Waiting";
         }
 
-        // Line 5: Empty space
-        Score empty3 = objective.getScore("   ");
-        empty3.setScore(lineScore--);
+        if (game.getGameState() == GameManager.GameState.COUNTDOWN) {
+            return "Countdown";
+        } else if (game.getGameState() == GameManager.GameState.PREPARATION) {
+            return "Preparation";
+        } else if (game.getGameState() == GameManager.GameState.PLAYING) {
+            // Check if sudden death is active
+            int suddenDeathRemaining = WallManager.getSuddenDeathRemainingTime(arenaName);
+            if (suddenDeathRemaining > 0) {
+                return "Sudden Death";
+            }
+            return "Playing";
+        } else if (game.getGameState() == GameManager.GameState.ENDED) {
+            return "Ended";
+        }
 
-        // Line 6: Red Team Status
-        String redStatus = game.isObsidianDestroyed("red") ? "§c✘" : "§a✔";
-        int redPlayers = getTeamPlayerCount(arenaName, "red");
-        Score redLine = objective.getScore("§cQırmızı: " + redStatus + " §f(" + redPlayers + ")");
-        redLine.setScore(lineScore--);
+        return "Waiting";
+    }
 
-        // Line 7: Blue Team Status
-        String blueStatus = game.isObsidianDestroyed("blue") ? "§c✘" : "§a✔";
-        int bluePlayers = getTeamPlayerCount(arenaName, "blue");
-        Score blueLine = objective.getScore("§9Mavi: " + blueStatus + " §f(" + bluePlayers + ")");
-        blueLine.setScore(lineScore--);
+    private static String getTimeDisplay(String arenaName, GameManager.ArenaGame game) {
+        if (game == null) {
+            int countdown = GameManager.getCountdown(arenaName);
+            if (countdown > 0) {
+                return countdown + "s";
+            }
+            return "--:--";
+        }
 
-        // Line 8: Empty space
-        Score empty4 = objective.getScore("    ");
-        empty4.setScore(lineScore--);
+        if (game.getGameState() == GameManager.GameState.COUNTDOWN) {
+            int countdown = GameManager.getCountdown(arenaName);
+            return countdown + "s";
+        } else if (game.getGameState() == GameManager.GameState.PREPARATION) {
+            int prepTime = WallManager.getTimer(arenaName);
+            return prepTime + "m";
+        } else if (game.getGameState() == GameManager.GameState.PLAYING) {
+            // Check if sudden death is active
+            int suddenDeathRemaining = WallManager.getSuddenDeathRemainingTime(arenaName);
+            if (suddenDeathRemaining > 0) {
+                int minutes = suddenDeathRemaining / 60;
+                int seconds = suddenDeathRemaining % 60;
+                return String.format("%02d:%02d", minutes, seconds);
+            }
 
-        // Line 9: Footer
-        Score footer = objective.getScore("§7play.obsidianwars.com");
-        footer.setScore(lineScore--);
+            // Return game time
+            int gameTime = game.getGameTime();
+            int minutes = gameTime / 60;
+            int seconds = gameTime % 60;
+            return String.format("%02d:%02d", minutes, seconds);
+        }
+
+        return "--:--";
     }
 
     public static void removeScoreboard(Player player) {
@@ -199,76 +237,5 @@ public class ScoreboardManager {
     public static void cleanup() {
         playerScoreboards.clear();
         lastUpdateTime.clear();
-    }
-
-    private static int getArenaPlayerCount(String arenaName) {
-        int count = 0;
-        for (String arena : ObsidianCommand.playersInArena.values()) {
-            if (arena.equals(arenaName)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private static int getTeamPlayerCount(String arenaName, String team) {
-        int count = 0;
-        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                String playerTeam = TeamListener.playerTeams.get(uuid);
-                if (team.equals(playerTeam)) {
-                    Player player = Bukkit.getPlayer(uuid);
-                    if (player != null && player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
-                        count++;
-                    }
-                }
-            }
-        }
-        return count;
-    }
-
-    private static int getMaxPlayers(String arenaName) {
-        return ArenaConfigManager.getMaxPlayers(arenaName);
-    }
-
-    private static String getGameCountdown(String arenaName) {
-        int countdown = GameManager.getCountdown(arenaName);
-        if (countdown > 0) {
-            int minutes = countdown / 60;
-            int seconds = countdown % 60;
-            return String.format("%02d:%02d", minutes, seconds);
-        }
-        return "Gözləyir...";
-    }
-
-    private static String getTimerDisplay(String arenaName) {
-        // Check if game is in countdown phase
-        int countdown = GameManager.getCountdown(arenaName);
-        if (countdown > 0) {
-            return getGameCountdown(arenaName);
-        }
-        
-        // Check if game is in preparation phase
-        GameManager.ArenaGame game = GameManager.getGame(arenaName);
-        if (game != null && game.getGameState() == GameManager.GameState.PLAYING) {
-            // Check if preparation timer is running (can be determined from WallManager)
-            int prepTime = WallManager.getTimer(arenaName);
-            if (prepTime > 0) {
-                // Format as MM:SS (assuming prep time is in minutes)
-                return String.format("%02d:00", prepTime);
-            }
-            // Return game time
-            return getGameTime(game);
-        }
-        
-        return "Gözləyir...";
-    }
-
-    private static String getGameTime(GameManager.ArenaGame game) {
-        // Oyun vaxtını hesablayırıq (MM:SS format)
-        int totalSeconds = game.getGameTime();
-        int minutes = totalSeconds / 60;
-        int seconds = totalSeconds % 60;
-        return String.format("%02d:%02d", minutes, seconds);
     }
 }

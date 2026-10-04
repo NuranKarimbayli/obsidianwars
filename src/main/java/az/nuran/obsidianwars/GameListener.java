@@ -13,8 +13,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -60,12 +63,6 @@ public class GameListener implements Listener {
             return;
         }
 
-        // Spectators can't damage or be damaged
-        if (victim.getGameMode() == org.bukkit.GameMode.SPECTATOR || damager.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
-            event.setCancelled(true);
-            return;
-        }
-
         // Check game state - PvP is only enabled during PLAYING state
         String arenaName = ObsidianCommand.playersInArena.get(victim.getUniqueId());
         GameManager.ArenaGame game = GameManager.getGame(arenaName);
@@ -83,6 +80,38 @@ public class GameListener implements Listener {
         if (victimTeam != null && victimTeam.equals(damagerTeam)) {
             event.setCancelled(true);
             damager.sendMessage("§cEyni komanda üzvlərinə zərər verə bilməzsiniz!");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onEntityDamage(EntityDamageEvent event) {
+        // Check if victim is a player
+        if (!(event.getEntity() instanceof Player)) {
+            return;
+        }
+
+        Player player = (Player) event.getEntity();
+
+        // Only process arena players
+        if (!ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
+            return;
+        }
+
+        String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
+        GameManager.ArenaGame game = GameManager.getGame(arenaName);
+
+        // Lobby invincibility: Cancel all damage during WAITING and STARTING (COUNTDOWN) states
+        if (game != null && (game.getGameState() == GameManager.GameState.WAITING ||
+                           game.getGameState() == GameManager.GameState.COUNTDOWN)) {
+            event.setCancelled(true);
+            return;
+        }
+
+        // Cancel damage during PREPARATION and ENDED states as well
+        if (game != null && (game.getGameState() == GameManager.GameState.PREPARATION ||
+                           game.getGameState() == GameManager.GameState.ENDED)) {
+            event.setCancelled(true);
+            return;
         }
     }
 
@@ -108,13 +137,13 @@ public class GameListener implements Listener {
         // Obsidian blokunu yoxlayırıq
         if (block.getType() == Material.OBSIDIAN) {
             event.setCancelled(true); // Blok qırmağı ləğv edirik, biz logic aparacağıq
-            
+
             // Obsidian can only be destroyed during PLAYING state (not PREPARATION)
             if (game.getGameState() != GameManager.GameState.PLAYING) {
                 player.sendMessage("§cObsidian can only be destroyed after preparation phase!");
                 return;
             }
-            
+
             // Bu blokun arena obsidianı olub-olmadığını yoxlayırıq
             String team = isArenaObsidian(arenaName, block.getLocation());
             if (team != null) {
@@ -145,12 +174,67 @@ public class GameListener implements Listener {
                 player.sendMessage(Obsidianwars.getInstance().getConfig().getString("messages.cant_break_block"));
                 return;
             }
-            
+
             if (isResourceBlock) {
                 // Resource blok - spawn color-matched particle effect
                 ParticleManager.spawnResourceBreakParticle(block.getLocation(), block.getType());
+            } else {
+                // Track block break for snapshot restoration (store ORIGINAL block data before break)
+                // NOTE: The ArenaSnapshotManager now handles this in its own event listener
+                // We don't need to track here anymore to avoid duplication
             }
             // REMOVED: No longer restrict block breaking - players can break any blocks anywhere
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockPlace(BlockPlaceEvent event) {
+        Player player = event.getPlayer();
+
+        // Spectators are handled by SpectatorListener
+        if (SpectatorManager.isSpectator(player)) {
+            return;
+        }
+
+        // Yalnız arenadakı oyunçular üçün
+        if (!ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
+            return;
+        }
+
+        String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
+        GameManager.ArenaGame game = GameManager.getGame(arenaName);
+
+        // Əgər oyun aktiv deyilsə və ya preparation deyilsə, blok qoymağı qadağan edirik
+        if (game == null || (game.getGameState() != GameManager.GameState.PLAYING && game.getGameState() != GameManager.GameState.PREPARATION)) {
+            event.setCancelled(true);
+            return;
+        }
+
+        // NOTE: Block tracking is now handled by ArenaSnapshotManager's own event listeners
+        // We don't need to track here anymore to avoid duplication
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerDropItem(PlayerDropItemEvent event) {
+        Player player = event.getPlayer();
+
+        // Spectators are handled by SpectatorListener
+        if (SpectatorManager.isSpectator(player)) {
+            return;
+        }
+
+        // Yalnız arenadakı oyunçular üçün
+        if (!ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
+            return;
+        }
+
+        String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
+        GameManager.ArenaGame game = GameManager.getGame(arenaName);
+
+        // Əgər oyun aktiv deyilsə və ya preparation deyilsə, item drop edilməsini qadağan edirik
+        if (game == null || (game.getGameState() != GameManager.GameState.PLAYING && game.getGameState() != GameManager.GameState.PREPARATION)) {
+            event.setCancelled(true);
+            return;
         }
     }
 
@@ -180,6 +264,10 @@ public class GameListener implements Listener {
 
         // Obsidian statusunu məhv edildi kimi qeyd edirik
         game.setObsidianDestroyed(team, true);
+
+        // Track stats - obsidian destroyed
+        StatsManager.PlayerStats stats = StatsManager.getPlayerStats(destroyer);
+        stats.addObsidianDestroyed();
 
         // Stop particles for the destroyed obsidian
         ParticleManager.stopObsidianParticles(arenaName, team);
@@ -229,14 +317,24 @@ public class GameListener implements Listener {
             "teamColor", teamColor, "teamName", teamName, "player", destroyer.getName());
         ObsidianCommand.broadcastToArena(arenaName, broadcastMessage);
 
-        // Win condition yoxlaması
-        checkWinCondition(arenaName);
+        DebugManager.logDebug("Obsidian destroyed: " + teamColor + " team obsidian broken by " + destroyer.getName(), arenaName);
+
+        // Win condition yoxlaması - check immediately after obsidian destruction
+        // Delay by 1 tick to ensure any pending spectator mode changes are processed
+        Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
+            checkWinCondition(arenaName);
+        }, 1L);
+
+        // Also check after a longer delay to catch any edge cases
+        Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
+            checkWinCondition(arenaName);
+        }, 5L);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
-        
+
         // Yalnız arenadakı oyunçular üçün
         if (!ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
             return;
@@ -252,7 +350,43 @@ public class GameListener implements Listener {
         String playerTeam = TeamListener.playerTeams.get(player.getUniqueId());
         if (playerTeam == null) return;
 
-        // Death message gizlədirik
+        DebugManager.logDebug("Player death: " + player.getName() + " (" + playerTeam + " team)", arenaName);
+
+        // Track death stat
+        StatsManager.PlayerStats stats = StatsManager.getPlayerStats(player);
+        stats.addDeath();
+
+        // Reset victim's kill streak
+        game.resetKillStreak(player.getUniqueId());
+
+        // Track kill for the killer if it was a player
+        if (player.getKiller() instanceof Player) {
+            Player killer = (Player) player.getKiller();
+            if (ObsidianCommand.playersInArena.containsKey(killer.getUniqueId())) {
+                StatsManager.PlayerStats killerStats = StatsManager.getPlayerStats(killer);
+                killerStats.addKill();
+
+                // Add to kill streak
+                game.addKill(killer.getUniqueId());
+
+                // Update longest streak in stats
+                int currentStreak = game.getKillStreak(killer.getUniqueId());
+                if (currentStreak > killerStats.getLongestKillStreak()) {
+                    killerStats.setLongestKillStreak(currentStreak);
+                }
+
+                DebugManager.logDebug("Kill: " + killer.getName() + " killed " + player.getName() + " (streak: " + currentStreak + ")", arenaName);
+
+                // Send custom death message
+                sendDeathMessage(arenaName, killer, player, event);
+            }
+        } else {
+            // Death by other means (void, fall, etc.)
+            DebugManager.logDebug("Player death by non-player cause: " + player.getName(), arenaName);
+            sendDeathMessage(arenaName, null, player, event);
+        }
+
+        // Death message gizlədirik (we send our own)
         event.setDeathMessage(null);
 
         // During PREPARATION, just respawn at team spawn without spectating
@@ -285,27 +419,23 @@ public class GameListener implements Listener {
             return;
         }
 
-        // Əgər obsidianı məhv edilibsə, spectator mode near obsidian
+        // Əgər obsidianı məhv edilibsə, spectator mode at spectator spawn
         if (game.isObsidianDestroyed(playerTeam)) {
             // Delay gamemode change and teleport by 1 tick to avoid Paper API conflicts
             Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
                 if (player.isOnline()) {
-                    player.setGameMode(org.bukkit.GameMode.SPECTATOR);
-                    player.setAllowFlight(true);
-                    player.setFlying(true);
-                    player.teleport(obsidianLoc);
-                    
-                    // Give spectator items
-                    giveSpectatorItems(player, arenaName);
-                    
+                    SpectatorManager.setSpectatorMode(player, arenaName);
+
                     String diedTitle = MessagesConfigManager.getMessage("you_died");
                     String finalElim = MessagesConfigManager.getMessage("final_elimination");
                     player.sendTitle(diedTitle, finalElim, 10, 40, 20);
                     player.sendMessage("§cSiz final olaraq elimine edildiniz!");
-                    
+
                     // Scoreboard yenilə
                     ScoreboardManager.updateScoreboard(player);
                 }
+                // CRITICAL: Check win condition AFTER spectator mode is set
+                checkWinCondition(arenaName);
             }, 1L);
         } else {
             // Obsidianı sağdırsa, respawn with spectator countdown near obsidian (delayed by 1 tick)
@@ -315,9 +445,6 @@ public class GameListener implements Listener {
                 }
             }, 1L);
         }
-
-        // Win condition yoxlaması
-        checkWinCondition(arenaName);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -422,18 +549,129 @@ public class GameListener implements Listener {
         // Remove potion effects
         player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
 
-        // Apply team color and equipment (use TeamListener.applyTeamColor directly since team is already set)
-        TeamListener.applyTeamColor(player, team);
+        // Apply team color without leather armor (false parameter)
+        TeamListener.applyTeamColor(player, team, false);
 
         // Give spawn protection
         ParticleManager.giveSpawnProtection(player, 3);
+    }
 
-        // Send respawn message
-        String respawnedMessage = MessagesConfigManager.getMessage("respawned");
-        player.sendMessage(respawnedMessage);
+    private void sendDeathMessage(String arenaName, Player killer, Player victim, PlayerDeathEvent event) {
+        String weapon = getWeaponName(event);
+        String distance = "";
+        String messageType = "sword"; // default
 
-        // Update scoreboard
-        ScoreboardManager.updateScoreboard(player);
+        if (killer != null) {
+            distance = calculateDistance(killer, victim);
+            messageType = determineMessageType(killer, victim, event);
+        } else {
+            // Death by non-player (void, fall, etc.)
+            messageType = determineNonPlayerDeathType(event);
+        }
+
+        String message = getDeathMessageFromConfig(messageType, killer, victim, weapon, distance);
+        if (message != null && !message.isEmpty()) {
+            // Check if it's a final kill
+            GameManager.ArenaGame game = GameManager.getGame(arenaName);
+            if (game != null) {
+                String victimTeam = TeamListener.playerTeams.get(victim.getUniqueId());
+                if (victimTeam != null && game.isObsidianDestroyed(victimTeam)) {
+                    String finalKillMsg = Obsidianwars.getInstance().getConfig().getString("death-messages.final-kill",
+                        "§4§lFINAL KILL! §c%killer% §7eliminated §c%victim%!");
+                    if (killer != null) {
+                        finalKillMsg = finalKillMsg.replace("%killer%", killer.getName());
+                    } else {
+                        finalKillMsg = finalKillMsg.replace("%killer%", "Void");
+                    }
+                    finalKillMsg = finalKillMsg.replace("%victim%", victim.getName());
+                    ObsidianCommand.broadcastToArena(arenaName, finalKillMsg);
+                    return;
+                }
+            }
+
+            ObsidianCommand.broadcastToArena(arenaName, message);
+        }
+    }
+
+    private String getWeaponName(PlayerDeathEvent event) {
+        ItemStack item = event.getEntity().getInventory().getItemInMainHand();
+        if (item == null || item.getType() == Material.AIR) {
+            return "fists";
+        }
+        return item.getType().name().toLowerCase().replace("_", " ");
+    }
+
+    private String calculateDistance(Player killer, Player victim) {
+        double distance = killer.getLocation().distance(victim.getLocation());
+        return String.format("%.1f", distance);
+    }
+
+    private String determineMessageType(Player killer, Player victim, PlayerDeathEvent event) {
+        ItemStack item = killer.getInventory().getItemInMainHand();
+        if (item == null || item.getType() == Material.AIR) {
+            return "fists";
+        }
+
+        Material type = item.getType();
+        if (type.name().contains("SWORD")) {
+            return "sword";
+        } else if (type.name().contains("AXE")) {
+            return "axe";
+        } else if (type == Material.BOW || type == Material.CROSSBOW) {
+            return "bow";
+        } else if (type == Material.TRIDENT) {
+            return "trident";
+        } else {
+            return "sword"; // default fallback
+        }
+    }
+
+    private String determineNonPlayerDeathType(PlayerDeathEvent event) {
+        EntityDamageEvent.DamageCause cause = event.getEntity().getLastDamageCause() != null ?
+            event.getEntity().getLastDamageCause().getCause() : null;
+
+        if (cause == null) return "generic";
+
+        switch (cause) {
+            case VOID:
+                return "void";
+            case FALL:
+                return "fall";
+            case LAVA:
+            case FIRE:
+            case FIRE_TICK:
+                return "fire";
+            case DROWNING:
+                return "drown";
+            case STARVATION:
+                return "starve";
+            case SUFFOCATION:
+                return "suffocate";
+            default:
+                return "generic";
+        }
+    }
+
+    private String getDeathMessageFromConfig(String type, Player killer, Player victim, String weapon, String distance) {
+        String path = "death-messages." + type;
+        String message = Obsidianwars.getInstance().getConfig().getString(path);
+
+        if (message == null || message.isEmpty()) {
+            // Fallback default message
+            if (killer != null) {
+                return "§c" + killer.getName() + " §7killed §c" + victim.getName();
+            } else {
+                return "§c" + victim.getName() + " §7died";
+            }
+        }
+
+        // Replace placeholders
+        message = message.replace("%killer%", killer != null ? killer.getName() : "Void");
+        message = message.replace("%victim%", victim.getName());
+        message = message.replace("%weapon%", weapon);
+        message = message.replace("%distance%", distance);
+
+        return message;
     }
 
     private Location getTeamSpawn(String arenaName, String team) {
@@ -540,6 +778,9 @@ public class GameListener implements Listener {
                     player.playSound(player.getLocation(), rejoinSound, 1.0f, 1.0f);
                 }
 
+                // Hide existing spectators from the rejoining player
+                hideExistingSpectatorsFromPlayer(player, arenaName);
+
                 return;
             }
         }
@@ -564,10 +805,22 @@ public class GameListener implements Listener {
         }
     }
 
+    /**
+     * Hides all existing spectators from a player who just joined.
+     *
+     * @param player The player who joined
+     * @param arenaName The arena name
+     */
+    private void hideExistingSpectatorsFromPlayer(Player player, String arenaName) {
+        for (Player spectator : SpectatorManager.getSpectatorsInArena(arenaName)) {
+            player.hidePlayer(Obsidianwars.getInstance(), spectator);
+        }
+    }
+
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
-        
+
         // Yalnız arenadakı oyunçular üçün
         if (!ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
             return;
@@ -575,6 +828,13 @@ public class GameListener implements Listener {
 
         String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
         GameManager.ArenaGame game = GameManager.getGame(arenaName);
+
+        // Check waiting region boundary during waiting/countdown phase
+        if (game == null || game.getGameState() == GameManager.GameState.WAITING ||
+            game.getGameState() == GameManager.GameState.COUNTDOWN) {
+            checkWaitingRegionBoundary(player, arenaName);
+            return;
+        }
 
         if (game == null || (game.getGameState() != GameManager.GameState.PLAYING && game.getGameState() != GameManager.GameState.PREPARATION)) {
             return;
@@ -584,6 +844,44 @@ public class GameListener implements Listener {
         if (player.getLocation().getY() <= 0) {
             // Handle void death
             handleVoidDeath(player, arenaName);
+        }
+    }
+
+    /**
+     * Checks if player is outside the waiting region and teleports them back if so
+     */
+    private void checkWaitingRegionBoundary(Player player, String arenaName) {
+        Location[] waitingRegion = ArenaConfigManager.getWaitingRegion(arenaName);
+        if (waitingRegion == null) return; // No waiting region set, no enforcement
+
+        Location playerLoc = player.getLocation();
+        Location pos1 = waitingRegion[0];
+        Location pos2 = waitingRegion[1];
+
+        // Calculate region bounds
+        int minX = Math.min(pos1.getBlockX(), pos2.getBlockX());
+        int maxX = Math.max(pos1.getBlockX(), pos2.getBlockX());
+        int minY = Math.min(pos1.getBlockY(), pos2.getBlockY());
+        int maxY = Math.max(pos1.getBlockY(), pos2.getBlockY());
+        int minZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
+        int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
+
+        // Check if player is outside bounds (with 1 block tolerance)
+        int px = playerLoc.getBlockX();
+        int py = playerLoc.getBlockY();
+        int pz = playerLoc.getBlockZ();
+
+        if (px < minX - 1 || px > maxX + 1 || py < minY - 1 || py > maxY + 1 || pz < minZ - 1 || pz > maxZ + 1) {
+            // Player is outside waiting region - teleport back to waiting spawn
+            Location waitingSpawn = ArenaConfigManager.getWaitingSpawn(arenaName);
+            if (waitingSpawn == null) {
+                waitingSpawn = ArenaConfigManager.getLobbySpawn(arenaName);
+            }
+
+            if (waitingSpawn != null) {
+                player.teleport(waitingSpawn);
+                player.sendMessage("§cLobi sahəsindən kənara çıxa bilməzsiniz!");
+            }
         }
     }
 
@@ -622,25 +920,21 @@ public class GameListener implements Listener {
 
         // Əgər obsidianı məhv edilibsə, final elimination
         if (game.isObsidianDestroyed(playerTeam)) {
-            // Final elimination - spectator mode near obsidian with 1-tick delay
+            // Final elimination - spectator mode at spectator spawn with 1-tick delay
             Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
                 if (player.isOnline()) {
-                    player.setGameMode(org.bukkit.GameMode.SPECTATOR);
-                    player.setAllowFlight(true);
-                    player.setFlying(true);
-                    player.teleport(obsidianLoc);
-                    
-                    // Give spectator items
-                    giveSpectatorItems(player, arenaName);
-                    
+                    SpectatorManager.setSpectatorMode(player, arenaName);
+
                     String diedTitle = MessagesConfigManager.getMessage("you_died");
                     String finalElim = MessagesConfigManager.getMessage("final_elimination");
                     player.sendTitle(diedTitle, finalElim, 10, 40, 20);
                     player.sendMessage("§cSiz boşluğa düşdünüz və final olaraq elimine edildiniz!");
-                    
+
                     // Scoreboard yenilə
                     ScoreboardManager.updateScoreboard(player);
                 }
+                // Check win condition AFTER spectator mode is set
+                checkWinCondition(arenaName);
             }, 1L);
         } else {
             // Obsidianı sağdırsa, respawn with countdown near obsidian (delayed by 1 tick)
@@ -650,9 +944,6 @@ public class GameListener implements Listener {
                 }
             }, 1L);
         }
-
-        // Win condition yoxlaması
-        checkWinCondition(arenaName);
     }
 
     private void checkWinCondition(String arenaName) {
@@ -661,171 +952,11 @@ public class GameListener implements Listener {
     }
 
     private void giveSpectatorItems(Player player, String arenaName) {
-        // Clear inventory
+        // Use SpectatorManager to give items
         player.getInventory().clear();
-        
-        // Give teleport compass (teleport to teammates GUI)
-        ItemStack compass = new ItemStack(Material.COMPASS);
-        ItemMeta compassMeta = compass.getItemMeta();
-        if (compassMeta != null) {
-            compassMeta.setDisplayName("§eKomanda Yoldaşlarına Teleport");
-            compassMeta.setLore(java.util.Arrays.asList("§7Canlı komanda yoldaşlarına teleport"));
-            compass.setItemMeta(compassMeta);
-        }
-        player.getInventory().setItem(0, compass);
-        
-        // Give obsidian return item
-        ItemStack obsidianEye = new ItemStack(Material.ENDER_EYE);
-        ItemMeta eyeMeta = obsidianEye.getItemMeta();
-        if (eyeMeta != null) {
-            eyeMeta.setDisplayName("§cObsidianya Qayıt");
-            eyeMeta.setLore(java.util.Arrays.asList("§7Öz komandanızın obsidianına teleport"));
-            obsidianEye.setItemMeta(eyeMeta);
-        }
-        player.getInventory().setItem(4, obsidianEye);
-        
-        // Give enemy spectate item
-        ItemStack enemyCompass = new ItemStack(Material.REDSTONE);
-        ItemMeta enemyMeta = enemyCompass.getItemMeta();
-        if (enemyMeta != null) {
-            enemyMeta.setDisplayName("§cDüşmən Komandasına Bax");
-            enemyMeta.setLore(java.util.Arrays.asList("§7Düşmən komandasına teleport"));
-            enemyCompass.setItemMeta(enemyMeta);
-        }
-        player.getInventory().setItem(8, enemyCompass);
-    }
-
-    @EventHandler
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        Player player = event.getPlayer();
-        ItemStack item = event.getItem();
-
-        if (item == null || !item.hasItemMeta()) {
-            return;
-        }
-
-        String itemName = item.getItemMeta().getDisplayName();
-        
-        // Spectator compass interaction - teleport to teammates
-        if (itemName.equals("§eKomanda Yoldaşlarına Teleport")) {
-            if (player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
-                return;
-            }
-
-            if (!ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
-                return;
-            }
-
-            String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
-            String playerTeam = TeamListener.playerTeams.get(player.getUniqueId());
-
-            if (playerTeam == null) {
-                player.sendMessage("§cSiz heç bir komandada deyilsiniz!");
-                return;
-            }
-
-            // Find alive teammates
-            java.util.List<Player> teammates = new java.util.ArrayList<>();
-            for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                    String team = TeamListener.playerTeams.get(uuid);
-                    if (team != null && team.equals(playerTeam)) {
-                        Player teammate = Bukkit.getPlayer(uuid);
-                        if (teammate != null && teammate.isOnline() && teammate.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
-                            teammates.add(teammate);
-                        }
-                    }
-                }
-            }
-
-            if (teammates.isEmpty()) {
-                player.sendMessage("§cCanlı komanda yoldaşı yoxdur!");
-                return;
-            }
-
-            // Teleport to random teammate
-            Player target = teammates.get(new java.util.Random().nextInt(teammates.size()));
-            player.teleport(target.getLocation());
-            player.sendMessage("§a" + target.getName() + "-a teleport oldunuz!");
-            event.setCancelled(true);
-        }
-        
-        // Obsidian return interaction
-        if (itemName.equals("§cObsidianya Qayıt")) {
-            if (player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
-                return;
-            }
-
-            if (!ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
-                return;
-            }
-
-            String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
-            String playerTeam = TeamListener.playerTeams.get(player.getUniqueId());
-
-            if (playerTeam == null) {
-                player.sendMessage("§cSiz heç bir komandada deyilsiniz!");
-                return;
-            }
-
-            Location obsidianLoc = getObsidianLocation(arenaName, playerTeam);
-            if (obsidianLoc != null) {
-                player.teleport(obsidianLoc);
-                player.sendMessage("§aÖz komandanızın obsidianına teleport oldunuz!");
-            }
-            event.setCancelled(true);
-        }
-        
-        // Enemy spectate interaction
-        if (itemName.equals("§cDüşmən Komandasına Bax")) {
-            if (player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
-                return;
-            }
-
-            if (!ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
-                return;
-            }
-
-            String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
-            String playerTeam = TeamListener.playerTeams.get(player.getUniqueId());
-
-            if (playerTeam == null) {
-                player.sendMessage("§cSiz heç bir komandada deyilsiniz!");
-                return;
-            }
-
-            String enemyTeam = playerTeam.equals("red") ? "blue" : "red";
-            
-            // Find alive enemy players
-            java.util.List<Player> enemies = new java.util.ArrayList<>();
-            for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                    String team = TeamListener.playerTeams.get(uuid);
-                    if (team != null && team.equals(enemyTeam)) {
-                        Player enemy = Bukkit.getPlayer(uuid);
-                        if (enemy != null && enemy.isOnline() && enemy.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
-                            enemies.add(enemy);
-                        }
-                    }
-                }
-            }
-
-            if (enemies.isEmpty()) {
-                // If no alive enemies, teleport to enemy obsidian
-                Location enemyObsidian = getObsidianLocation(arenaName, enemyTeam);
-                if (enemyObsidian != null) {
-                    player.teleport(enemyObsidian);
-                    player.sendMessage("§aDüşmən komandasının obsidianına teleport oldunuz!");
-                } else {
-                    player.sendMessage("§cDüşmən komandasında canlı oyunçu yoxdur!");
-                }
-            } else {
-                // Teleport to random enemy
-                Player target = enemies.get(new java.util.Random().nextInt(enemies.size()));
-                player.teleport(target.getLocation());
-                player.sendMessage("§a" + target.getName() + "-a (düşmən) teleport oldunuz!");
-            }
-            event.setCancelled(true);
-        }
+        player.getInventory().setItem(0, SpectatorManager.createTeleporterCompass());
+        player.getInventory().setItem(3, SpectatorManager.createFlySpeedFeather(player));
+        player.getInventory().setItem(4, SpectatorManager.createNightVisionToggle(player));
+        player.getInventory().setItem(8, SpectatorManager.createLeaveItem());
     }
 }

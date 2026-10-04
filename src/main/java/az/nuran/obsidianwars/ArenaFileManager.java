@@ -15,7 +15,7 @@ import java.util.logging.Level;
 public class ArenaFileManager {
 
     private static final String ARENAS_FOLDER = "arenas";
-    private static final String CONFIG_FILE = "config.yml";
+    private static final String SETTINGS_FILE = "settings.yml";
     private static final String RESOURCE_BLOCKS_FILE = "resource_blocks.yml";
     private static File arenasFolder;
     private static final Obsidianwars plugin = Obsidianwars.getInstance();
@@ -35,7 +35,7 @@ public class ArenaFileManager {
     }
 
     public static File getArenaConfigFile(String arenaName) {
-        return new File(getArenaFolder(arenaName), CONFIG_FILE);
+        return new File(getArenaFolder(arenaName), SETTINGS_FILE);
     }
 
     public static File getResourceBlocksFile(String arenaName) {
@@ -67,9 +67,9 @@ public class ArenaFileManager {
         arenaFolder.mkdirs();
         plugin.getLogger().info("Arena folder created: " + arenaFolder.getPath());
 
-        // Create config.yml
+        // Create settings.yml
         createArenaConfigFile(arenaName);
-        
+
         // Create empty resource_blocks.yml
         createResourceBlocksFile(arenaName);
     }
@@ -83,19 +83,58 @@ public class ArenaFileManager {
         try {
             arenaConfigFile.createNewFile();
             FileConfiguration config = YamlConfiguration.loadConfiguration(arenaConfigFile);
-            
+
             // Set default arena structure
             config.set("arena.name", arenaName);
             config.set("arena.status", "SETUP");
             config.set("arena.world", "world");
             config.set("arena.min-players", 2);
             config.set("arena.max-players", 8);
-            
+
             config.save(arenaConfigFile);
-            plugin.getLogger().info("Created arena config: " + arenaName);
+            plugin.getLogger().info("Created arena settings: " + arenaName);
         } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to create arena config for " + arenaName, e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to create arena settings for " + arenaName, e);
         }
+    }
+
+    /**
+     * Creates arena folder and config with initial parameters.
+     * This ensures the arena exists immediately after creation.
+     */
+    public static void createArenaWithParams(String arenaName, int minPlayers, int maxPlayers) {
+        File arenaFolder = getArenaFolder(arenaName);
+        if (arenaFolder.exists()) {
+            return;
+        }
+
+        arenaFolder.mkdirs();
+        plugin.getLogger().info("Arena folder created: " + arenaFolder.getPath());
+
+        // Create settings.yml with provided parameters
+        File arenaConfigFile = getArenaConfigFile(arenaName);
+        try {
+            arenaConfigFile.createNewFile();
+            FileConfiguration config = YamlConfiguration.loadConfiguration(arenaConfigFile);
+
+            // Set arena structure with provided parameters
+            config.set("arena.name", arenaName);
+            config.set("arena.status", "SETUP");
+            config.set("arena.world", "world");
+            config.set("arena.min-players", minPlayers);
+            config.set("arena.max-players", maxPlayers);
+
+            // Timer values will be loaded from global config.yml defaults
+            // No need to set them here anymore
+
+            config.save(arenaConfigFile);
+            plugin.getLogger().info("Created arena settings with params: " + arenaName + " (min: " + minPlayers + ", max: " + maxPlayers + ")");
+        } catch (IOException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to create arena settings for " + arenaName, e);
+        }
+
+        // Create empty resource_blocks.yml
+        createResourceBlocksFile(arenaName);
     }
 
     private static void createResourceBlocksFile(String arenaName) {
@@ -422,8 +461,15 @@ public class ArenaFileManager {
 
     public static int getPreparationTimer(String arenaName) {
         FileConfiguration config = getArenaConfig(arenaName);
-        if (config == null) return 10;
-        return config.getInt("arena.preparation.duration", 10);
+        if (config == null) {
+            // Load from global config.yml default
+            return parseTimeFromConfig("timers.default-preparation", 10);
+        }
+        // Check if arena has custom timer, otherwise use global default
+        if (config.contains("arena.preparation.duration")) {
+            return config.getInt("arena.preparation.duration");
+        }
+        return parseTimeFromConfig("timers.default-preparation", 10);
     }
 
     public static boolean hasWallConfiguration(String arenaName, String team) {
@@ -604,8 +650,15 @@ public class ArenaFileManager {
 
     public static int getTimeLimit(String arenaName) {
         FileConfiguration config = getArenaConfig(arenaName);
-        if (config == null) return 30; // Default 30 minutes
-        return config.getInt("arena.time-limit", 30);
+        if (config == null) {
+            // Load from global config.yml default
+            return parseTimeFromConfig("timers.game-time", 30);
+        }
+        // Check if arena has custom timer, otherwise use global default
+        if (config.contains("arena.time-limit")) {
+            return config.getInt("arena.time-limit");
+        }
+        return parseTimeFromConfig("timers.game-time", 30);
     }
 
     public static void setSuddenDeathTimer(String arenaName, int minutes) {
@@ -618,7 +671,160 @@ public class ArenaFileManager {
 
     public static int getSuddenDeathTimer(String arenaName) {
         FileConfiguration config = getArenaConfig(arenaName);
-        if (config == null) return 5; // Default 5 minutes
-        return config.getInt("arena.sudden-death-duration", 5);
+        if (config == null) {
+            // Load from global config.yml default
+            return parseTimeFromConfig("timers.sudden-death", 30);
+        }
+        // Check if arena has custom timer, otherwise use global default
+        if (config.contains("arena.sudden-death-duration")) {
+            return config.getInt("arena.sudden-death-duration");
+        }
+        return parseTimeFromConfig("timers.sudden-death", 30);
+    }
+
+    /**
+     * Parses time from config.yml format (e.g., "10m" = 10 minutes, "30s" = 30 seconds)
+     * @param configPath Path to the config value
+     * @param defaultMinutes Default value in minutes if parsing fails
+     * @return Time in minutes
+     */
+    private static int parseTimeFromConfig(String configPath, int defaultMinutes) {
+        String timeString = Obsidianwars.getInstance().getConfig().getString(configPath);
+        if (timeString == null) return defaultMinutes;
+
+        try {
+            timeString = timeString.toLowerCase().trim();
+            if (timeString.endsWith("m")) {
+                // Minutes format: "10m"
+                return Integer.parseInt(timeString.substring(0, timeString.length() - 1));
+            } else if (timeString.endsWith("s")) {
+                // Seconds format: "600s" -> convert to minutes
+                int seconds = Integer.parseInt(timeString.substring(0, timeString.length() - 1));
+                return seconds / 60;
+            } else {
+                // Plain number, assume minutes
+                return Integer.parseInt(timeString);
+            }
+        } catch (NumberFormatException e) {
+            plugin.getLogger().warning("Invalid time format for " + configPath + ": " + timeString + ". Using default: " + defaultMinutes + " minutes");
+            return defaultMinutes;
+        }
+    }
+
+    public static void setWaitingSpawn(String arenaName, Location location) {
+        FileConfiguration config = getArenaConfig(arenaName);
+        if (config == null) return;
+
+        String path = "arena.waiting-spawn.";
+        config.set(path + "world", location.getWorld().getName());
+        config.set(path + "x", location.getBlockX());
+        config.set(path + "y", location.getBlockY());
+        config.set(path + "z", location.getBlockZ());
+        config.set(path + "yaw", location.getYaw());
+        config.set(path + "pitch", location.getPitch());
+
+        saveArenaConfig(arenaName, config);
+    }
+
+    public static Location getWaitingSpawn(String arenaName) {
+        FileConfiguration config = getArenaConfig(arenaName);
+        if (config == null) return null;
+
+        String path = "arena.waiting-spawn.";
+        if (!config.contains(path + "world")) {
+            return null; // Return null if not set (fallback to lobby spawn)
+        }
+
+        String worldName = config.getString(path + "world");
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) return null;
+
+        double x = config.getDouble(path + "x");
+        double y = config.getDouble(path + "y");
+        double z = config.getDouble(path + "z");
+        float yaw = (float) config.getDouble(path + "yaw");
+        float pitch = (float) config.getDouble(path + "pitch");
+
+        return new Location(world, x, y, z, yaw, pitch);
+    }
+
+    public static void setSpectatorSpawn(String arenaName, Location location) {
+        FileConfiguration config = getArenaConfig(arenaName);
+        if (config == null) return;
+
+        String path = "arena.spectator-spawn.";
+        config.set(path + "world", location.getWorld().getName());
+        config.set(path + "x", location.getBlockX());
+        config.set(path + "y", location.getBlockY());
+        config.set(path + "z", location.getBlockZ());
+        config.set(path + "yaw", location.getYaw());
+        config.set(path + "pitch", location.getPitch());
+
+        saveArenaConfig(arenaName, config);
+    }
+
+    public static Location getSpectatorSpawn(String arenaName) {
+        FileConfiguration config = getArenaConfig(arenaName);
+        if (config == null) return null;
+
+        String path = "arena.spectator-spawn.";
+        if (!config.contains(path + "world")) {
+            return null; // Return null if not set
+        }
+
+        String worldName = config.getString(path + "world");
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) return null;
+
+        double x = config.getDouble(path + "x");
+        double y = config.getDouble(path + "y");
+        double z = config.getDouble(path + "z");
+        float yaw = (float) config.getDouble(path + "yaw");
+        float pitch = (float) config.getDouble(path + "pitch");
+
+        return new Location(world, x, y, z, yaw, pitch);
+    }
+
+    public static void setWaitingRegion(String arenaName, Location pos1, Location pos2) {
+        FileConfiguration config = getArenaConfig(arenaName);
+        if (config == null) return;
+
+        String path = "arena.waiting-region.";
+        config.set(path + "world", pos1.getWorld().getName());
+        config.set(path + "pos1.x", pos1.getBlockX());
+        config.set(path + "pos1.y", pos1.getBlockY());
+        config.set(path + "pos1.z", pos1.getBlockZ());
+        config.set(path + "pos2.x", pos2.getBlockX());
+        config.set(path + "pos2.y", pos2.getBlockY());
+        config.set(path + "pos2.z", pos2.getBlockZ());
+
+        saveArenaConfig(arenaName, config);
+    }
+
+    public static Location[] getWaitingRegion(String arenaName) {
+        FileConfiguration config = getArenaConfig(arenaName);
+        if (config == null) return null;
+
+        String path = "arena.waiting-region.";
+        String worldName = config.getString(path + "world");
+        if (worldName == null) return null;
+
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) {
+            plugin.getLogger().warning("World '" + worldName + "' not found for arena " + arenaName + " waiting region. Check if world is loaded.");
+            return null;
+        }
+
+        int x1 = config.getInt(path + "pos1.x");
+        int y1 = config.getInt(path + "pos1.y");
+        int z1 = config.getInt(path + "pos1.z");
+        int x2 = config.getInt(path + "pos2.x");
+        int y2 = config.getInt(path + "pos2.y");
+        int z2 = config.getInt(path + "pos2.z");
+
+        return new Location[] {
+            new Location(world, x1, y1, z1),
+            new Location(world, x2, y2, z2)
+        };
     }
 }

@@ -7,7 +7,6 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.potion.PotionEffect;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
@@ -81,11 +80,25 @@ public class GameManager {
             // Remove the game from active games
             activeGames.remove(arenaName);
 
+            // Reset arena status to READY
+            ArenaConfigManager.setArenaStatus(arenaName, "READY");
+
+            // Reset XP bar for all players
+            for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                    Player player = Bukkit.getPlayer(uuid);
+                    if (player != null && player.isOnline()) {
+                        player.setLevel(0);
+                        player.setExp(0.0f);
+                    }
+                }
+            }
+
             // Broadcast cancellation message
             broadcastToArena(arenaName, "§cCountdown cancelled! Waiting for players...");
 
             // Play warning sound
-            String sound = MessagesConfigManager.getSound("countdown_cancelled");
+            String sound = Obsidianwars.getInstance().getConfig().getString("sounds.countdown_cancelled", "ENTITY_VILLAGER_NO");
             Sound cancelSound = Obsidianwars.parseSound(sound);
             if (cancelSound != null) {
                 for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
@@ -132,9 +145,48 @@ public class GameManager {
         startGame(arenaName);
     }
 
+    public static void cancelCountdownAndForceStart(String arenaName) {
+        ArenaGame game = activeGames.get(arenaName);
+        if (game != null && game.getGameState() == GameState.COUNTDOWN) {
+            // Cancel the countdown task
+            game.stopCountdown();
+
+            // Remove the game from active games
+            activeGames.remove(arenaName);
+
+            // Reset XP bar for all players
+            for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                    Player player = Bukkit.getPlayer(uuid);
+                    if (player != null && player.isOnline()) {
+                        player.setLevel(0);
+                        player.setExp(0.0f);
+                    }
+                }
+            }
+
+            // Force start the game
+            forceStartGame(arenaName);
+        }
+    }
+
+    public static boolean hasPlayersInArena(String arenaName) {
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void startCountdown(String arenaName) {
         ArenaGame game = new ArenaGame(arenaName);
         activeGames.put(arenaName, game);
+
+        // Set arena status to STARTING (orange color)
+        ArenaConfigManager.setArenaStatus(arenaName, "STARTING");
+
+        DebugManager.logDebug("State transition: WAITING -> STARTING", arenaName);
 
         // Countdown başladırıq
         game.startCountdown();
@@ -211,6 +263,16 @@ public class GameManager {
     public static void startGame(String arenaName) {
         ArenaGame game = activeGames.get(arenaName);
         if (game != null) {
+            DebugManager.logDebug("Starting game for arena " + arenaName);
+
+            // Take snapshot of arena before game starts
+            boolean snapshotSuccess = ArenaSnapshotManager.takeSnapshot(arenaName);
+            if (snapshotSuccess) {
+                DebugManager.logDebug("Arena snapshot taken successfully", arenaName);
+            } else {
+                Obsidianwars.getInstance().getLogger().severe("Failed to take snapshot for arena " + arenaName + " - blocks may not be restored after game ends!");
+            }
+
             // Clear all non-player entities (mobs, animals, etc.) in the arena's world
             clearArenaMobs(arenaName);
 
@@ -223,12 +285,17 @@ public class GameManager {
             if (hasWalls) {
                 // Set to PREPARATION state and start preparation timer
                 game.setGameState(GameState.PREPARATION);
+                DebugManager.logDebug("State transition: STARTING -> PREPARATION", arenaName);
                 WallManager.buildWalls(arenaName);
                 WallManager.startPreparationTimer(arenaName);
             } else {
                 // No walls - go directly to PLAYING state
                 game.setGameState(GameState.PLAYING);
+                DebugManager.logDebug("State transition: STARTING -> PLAYING", arenaName);
                 game.startGameTimer();
+
+                // Update arena status to PLAYING
+                ArenaConfigManager.setArenaStatus(arenaName, "PLAYING");
 
                 // Apply world game rules
                 WorldRulesManager.applyGameRules(arenaName);
@@ -279,19 +346,9 @@ public class GameManager {
         ArenaGame game = activeGames.get(arenaName);
         if (game != null) {
             game.setGameState(GameState.ENDED);
+            DebugManager.logDebug("State transition: PLAYING -> ENDED (winner: " + winningTeam + ")", arenaName);
 
-            // Stop all arena-related tasks
-            ParticleManager.stopAllArenaTasks(arenaName);
-
-            // Stop mob spawning
-            MobSpawnerManager.stopMobSpawning(arenaName);
-
-            // Restore world rules
-            WorldRulesManager.restoreWorldRules(arenaName);
-
-            // Stop timers and restore walls to BEDROCK
-            WallManager.stopPreparationTimer(arenaName);
-            WallManager.stopSuddenDeathCountdown(arenaName);
+            // Restore walls to BEDROCK immediately
             WallManager.restoreWalls(arenaName);
 
             // Victory mesajı
@@ -301,6 +358,30 @@ public class GameManager {
 
                 String victoryMessage = MessagesConfigManager.getMessage("victory_message", "teamColor", teamColor, "teamName", teamName);
                 broadcastToArena(arenaName, MessagesConfigManager.getMessage("victory") + " " + victoryMessage);
+
+                // Track stats - wins for winning team, losses for losing team
+                for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+                    if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                        Player player = Bukkit.getPlayer(uuid);
+                        if (player != null) {
+                            String playerTeam = TeamListener.playerTeams.get(uuid);
+                            StatsManager.PlayerStats stats = StatsManager.getPlayerStats(player);
+                            if (winningTeam.equals(playerTeam)) {
+                                stats.addWin();
+                            } else {
+                                stats.addLoss();
+                            }
+                        }
+                    }
+                }
+
+                // Send post-game chat summary (wrapped in try-catch to ensure cleanup always completes)
+                try {
+                    sendPostGameSummary(arenaName, winningTeam);
+                } catch (Exception e) {
+                    Obsidianwars.getInstance().getLogger().severe("Error sending post-game summary for arena " + arenaName + ": " + e.getMessage());
+                    e.printStackTrace();
+                }
 
                 // UI_TOAST_CHALLENGE_COMPLETE sound for all players
                 Sound victorySound = Obsidianwars.parseSound("UI_TOAST_CHALLENGE_COMPLETE");
@@ -336,9 +417,51 @@ public class GameManager {
     }
 
     private static void cleanupArena(String arenaName) {
+        Obsidianwars.getInstance().getLogger().info("Starting arena cleanup for " + arenaName);
+
         ArenaGame game = activeGames.get(arenaName);
         if (game != null) {
             game.cleanup();
+        }
+
+        // Stop all arena-related tasks including fireworks
+        ParticleManager.stopAllArenaTasks(arenaName);
+
+        // Stop mob spawning
+        MobSpawnerManager.stopMobSpawning(arenaName);
+
+        // Stop wall-related timers (preparation and sudden death)
+        WallManager.stopPreparationTimer(arenaName);
+        WallManager.stopSuddenDeathCountdown(arenaName);
+
+        // Restore world rules
+        WorldRulesManager.restoreWorldRules(arenaName);
+
+        // Clear any lingering fireworks entities in the arena
+        clearArenaFireworks(arenaName);
+
+        // Restore arena snapshot using efficient runtime tracking
+        // This now iterates through tracked changes and restores essential elements
+        DebugManager.logDebug("Restoring arena snapshot", arenaName);
+        boolean restoreSuccess = ArenaSnapshotManager.restoreSnapshot(arenaName);
+        if (restoreSuccess) {
+            DebugManager.logDebug("Arena snapshot restored successfully", arenaName);
+        } else {
+            DebugManager.logDebug("Arena snapshot restoration failed or no snapshot found", arenaName);
+        }
+
+        // Update arena status back to READY
+        ArenaConfigManager.setArenaStatus(arenaName, "READY");
+
+        // Collect all players in arena first for visibility reset
+        java.util.List<Player> arenaPlayers = new ArrayList<>();
+        for (UUID uuid : new ArrayList<>(ObsidianCommand.playersInArena.keySet())) {
+            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null) {
+                    arenaPlayers.add(player);
+                }
+            }
         }
 
         // Bütün oyunçuları təmizləyirik
@@ -346,6 +469,19 @@ public class GameManager {
             if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
+                    // Remove spectator mode if player was a spectator
+                    if (SpectatorManager.isSpectator(player)) {
+                        SpectatorManager.removeSpectatorMode(player);
+                    }
+
+                    // Show player to all other players in the arena (fixes visibility issue)
+                    for (Player otherPlayer : arenaPlayers) {
+                        if (otherPlayer != player && otherPlayer.isOnline()) {
+                            player.showPlayer(Obsidianwars.getInstance(), otherPlayer);
+                            otherPlayer.showPlayer(Obsidianwars.getInstance(), player);
+                        }
+                    }
+
                     // Reset player state and teleport to spawn
                     Location mainSpawn = player.getWorld().getSpawnLocation();
                     PlayerUtils.resetPlayerFull(player, mainSpawn);
@@ -490,6 +626,48 @@ public class GameManager {
         }
     }
 
+    private static void clearArenaFireworks(String arenaName) {
+        // Get arena region bounds from config
+        Location[] region = ArenaConfigManager.getArenaRegion(arenaName, "main");
+        if (region == null) {
+            Obsidianwars.getInstance().getLogger().warning("No arena region defined for " + arenaName + " - skipping fireworks clear");
+            return;
+        }
+
+        World world = region[0].getWorld();
+        if (world == null) {
+            Obsidianwars.getInstance().getLogger().warning("Could not get world for arena " + arenaName + " - skipping fireworks clear");
+            return;
+        }
+
+        // Calculate region bounds
+        int minX = Math.min(region[0].getBlockX(), region[1].getBlockX());
+        int maxX = Math.max(region[0].getBlockX(), region[1].getBlockX());
+        int minY = Math.min(region[0].getBlockY(), region[1].getBlockY());
+        int maxY = Math.max(region[0].getBlockY(), region[1].getBlockY());
+        int minZ = Math.min(region[0].getBlockZ(), region[1].getBlockZ());
+        int maxZ = Math.max(region[0].getBlockZ(), region[1].getBlockZ());
+
+        // Remove fireworks entities within arena region bounds
+        int clearedCount = 0;
+        for (org.bukkit.entity.Entity entity : world.getEntities()) {
+            if (entity instanceof org.bukkit.entity.Firework) {
+                Location loc = entity.getLocation();
+                // Check if entity is within arena region
+                if (loc.getBlockX() >= minX && loc.getBlockX() <= maxX &&
+                    loc.getBlockY() >= minY && loc.getBlockY() <= maxY &&
+                    loc.getBlockZ() >= minZ && loc.getBlockZ() <= maxZ) {
+                    entity.remove();
+                    clearedCount++;
+                }
+            }
+        }
+
+        if (clearedCount > 0) {
+            Obsidianwars.getInstance().getLogger().info("Cleared " + clearedCount + " fireworks from arena " + arenaName + " region");
+        }
+    }
+
     public static ArenaGame getGame(String arenaName) {
         return activeGames.get(arenaName);
     }
@@ -515,6 +693,57 @@ public class GameManager {
     public static int getCountdown(String arenaName) {
         ArenaGame game = activeGames.get(arenaName);
         return game != null ? game.getCountdown() : -1;
+    }
+
+    /**
+     * Sends a post-game chat summary to all players in the arena.
+     * Includes winner, MVP, and individual player stats.
+     */
+    private static void sendPostGameSummary(String arenaName, String winningTeam) {
+        // Find MVP (player with most kills)
+        UUID mvpUuid = null;
+        int maxKills = -1;
+
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                int kills = StatsManager.getKills(uuid);
+                if (kills > maxKills) {
+                    maxKills = kills;
+                    mvpUuid = uuid;
+                }
+            }
+        }
+
+        // Broadcast winner
+        String teamName = winningTeam.equals("red") ? "Qırmızı" : "Mavi";
+        String teamColor = winningTeam.equals("red") ? "§c" : "§9";
+        broadcastToArena(arenaName, "§6§l=== MATCH SUMMARY ===");
+        broadcastToArena(arenaName, teamColor + "§lWinner: " + teamName + " Team");
+
+        // Broadcast MVP
+        if (mvpUuid != null) {
+            Player mvpPlayer = Bukkit.getPlayer(mvpUuid);
+            if (mvpPlayer != null) {
+                broadcastToArena(arenaName, "§e§lMVP: §f" + mvpPlayer.getName() + " §ewith §e" + maxKills + " §eKills");
+            }
+        }
+
+        // Broadcast individual stats
+        broadcastToArena(arenaName, "§7--------------------");
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null) {
+                    int kills = StatsManager.getKills(uuid);
+                    int deaths = StatsManager.getDeaths(uuid);
+                    String playerTeam = TeamListener.playerTeams.get(uuid);
+                    // Safe null-check for playerTeam (spectators or players with cleared team)
+                    String teamPrefix = (playerTeam != null && playerTeam.equals("red")) ? "§c" : "§9";
+                    player.sendMessage(teamPrefix + player.getName() + " §7- §eKills: " + kills + " §7| §cDeaths: " + deaths);
+                }
+            }
+        }
+        broadcastToArena(arenaName, "§7--------------------");
     }
 
     enum GameState {
@@ -608,12 +837,12 @@ public class GameManager {
 
             // Restore potion effects
             player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
-            for (PotionEffect effect : data.getPotionEffects()) {
+            for (org.bukkit.potion.PotionEffect effect : data.getPotionEffects()) {
                 player.addPotionEffect(effect);
             }
 
-            // Restore team
-            TeamManager.setPlayerTeam(player, data.getArenaName(), data.getTeam());
+            // Restore team (without armor to prevent leather armor on respawn)
+            TeamManager.setPlayerTeam(player, data.getArenaName(), data.getTeam(), false);
 
             // Restore game mode
             if (data.wasSpectator()) {
@@ -724,10 +953,12 @@ public class GameManager {
         // Check if both teams have at least one player (online or in grace period)
         if (redOnline == 0 && game.isObsidianDestroyed("red")) {
             // Red team eliminated
+            DebugManager.logDebug("Team elimination: Red team eliminated (0 players alive, obsidian destroyed)", arenaName);
             broadcastToArena(arenaName, "§cQırmızı komanda tamamilə elimine edildi!");
             endGame(arenaName, "blue");
         } else if (blueOnline == 0 && game.isObsidianDestroyed("blue")) {
             // Blue team eliminated
+            DebugManager.logDebug("Team elimination: Blue team eliminated (0 players alive, obsidian destroyed)", arenaName);
             broadcastToArena(arenaName, "§cMavi komanda tamamilə elimine edildi!");
             endGame(arenaName, "red");
         }
@@ -787,6 +1018,7 @@ public class GameManager {
         private int gameTime;
         private BukkitTask gameTimerTask;
         private final Map<String, Boolean> obsidianDestroyed = new HashMap<>();
+        private final Map<UUID, Integer> killStreaks = new HashMap<>();
 
         public ArenaGame(String arenaName) {
             this.arenaName = arenaName;
@@ -812,9 +1044,35 @@ public class GameManager {
             countdownTask = Bukkit.getScheduler().runTaskTimer(Obsidianwars.getInstance(), () -> {
                 try {
                     countdown--;
-                    Obsidianwars.getInstance().getLogger().info("Countdown tick: " + countdown + " seconds remaining for arena " + arenaName);
+                    DebugManager.logDebug("Countdown tick: " + countdown + " seconds remaining", arenaName);
 
                     if (countdown > 0) {
+                        // Update XP bar for all players in arena
+                        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+                            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                                Player player = Bukkit.getPlayer(uuid);
+                                if (player != null && player.isOnline()) {
+                                    // Set XP level to remaining countdown seconds
+                                    player.setLevel(countdown);
+                                    // Set XP progress to full bar
+                                    player.setExp(1.0f);
+
+                                    // Play sound effect in last 5 seconds
+                                    if (countdown <= 5) {
+                                        String sound = Obsidianwars.getInstance().getConfig().getString("sounds.countdown_tick", "BLOCK_NOTE_BLOCK_PLING");
+                                        Sound tickSound = Obsidianwars.parseSound(sound);
+                                        if (tickSound == null) {
+                                            // Fallback to BLOCK_NOTE_BLOCK_PLING with high pitch
+                                            tickSound = Sound.BLOCK_NOTE_BLOCK_PLING;
+                                        }
+                                        if (tickSound != null) {
+                                            player.playSound(player.getLocation(), tickSound, 1.0f, 2.0f);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Broadcast countdown messages
                         if (countdown <= 5) {
                             // Enhanced countdown broadcast at 5 seconds and below
@@ -849,6 +1107,17 @@ public class GameManager {
                         if (countdownTask != null) {
                             countdownTask.cancel();
                             countdownTask = null;
+                        }
+
+                        // Reset XP bar for all players
+                        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+                            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                                Player player = Bukkit.getPlayer(uuid);
+                                if (player != null && player.isOnline()) {
+                                    player.setLevel(0);
+                                    player.setExp(0.0f);
+                                }
+                            }
                         }
 
                         // Auto-teaming for any unassigned players
@@ -906,8 +1175,8 @@ public class GameManager {
             gameTimerTask = Bukkit.getScheduler().runTaskTimer(Obsidianwars.getInstance(), () -> {
                 try {
                     gameTime++;
-                    Obsidianwars.getInstance().getLogger().info("Game time tick: " + gameTime + " seconds for arena " + arenaName);
-                    
+                    DebugManager.logDebug("Game time tick: " + gameTime + " seconds", arenaName);
+
                     // Check time limit
                     int timeLimitMinutes = ArenaConfigManager.getTimeLimit(arenaName);
                     int timeLimitSeconds = timeLimitMinutes * 60;
@@ -962,12 +1231,130 @@ public class GameManager {
             stopCountdown();
             // Clear obsidian status
             obsidianDestroyed.clear();
+            // Clear kill streaks
+            killStreaks.clear();
+            // Reset game state to WAITING
+            gameState = GameState.WAITING;
+            // Reset countdown and game time
+            countdown = COUNTDOWN_SECONDS;
+            gameTime = 0;
+        }
+
+        // Kill Streak Methods
+        public void addKill(UUID uuid) {
+            int streak = killStreaks.getOrDefault(uuid, 0) + 1;
+            killStreaks.put(uuid, streak);
+            DebugManager.logDebug("Kill streak updated for UUID " + uuid + ": now " + streak + " kills", getArenaName());
+            checkKillStreakRewards(uuid, streak);
+        }
+
+        public void resetKillStreak(UUID uuid) {
+            killStreaks.remove(uuid);
+        }
+
+        public int getKillStreak(UUID uuid) {
+            return killStreaks.getOrDefault(uuid, 0);
+        }
+
+        private void checkKillStreakRewards(UUID uuid, int streak) {
+            DebugManager.logDebug("Checking kill streak rewards for UUID " + uuid + " at streak " + streak, getArenaName());
+
+            if (!Obsidianwars.getInstance().getConfig().getBoolean("kill-streaks.enabled", true)) {
+                DebugManager.logDebug("Kill streaks disabled in config", getArenaName());
+                return;
+            }
+
+            Player player = Bukkit.getPlayer(uuid);
+            if (player == null || !player.isOnline()) {
+                DebugManager.logDebug("Player is null or offline", getArenaName());
+                return;
+            }
+
+            // Check rewards from config
+            try {
+                var rewardsSection = Obsidianwars.getInstance().getConfig().getConfigurationSection("kill-streaks.rewards");
+                if (rewardsSection == null) {
+                    DebugManager.logDebug("kill-streaks.rewards section not found in config", getArenaName());
+                    return;
+                }
+
+                DebugManager.logDebug("Available reward thresholds: " + rewardsSection.getKeys(false), getArenaName());
+
+                for (String key : rewardsSection.getKeys(false)) {
+                    int threshold = Integer.parseInt(key);
+                    DebugManager.logDebug("Checking threshold " + threshold + " against streak " + streak, getArenaName());
+                    if (streak == threshold) {
+                        DebugManager.logDebug("Applying reward for threshold " + threshold, getArenaName());
+                        applyKillStreakReward(player, threshold, streak);
+                    }
+                }
+            } catch (Exception e) {
+                DebugManager.logDebug("Error checking kill streak rewards: " + e.getMessage(), getArenaName());
+                e.printStackTrace();
+            }
+        }
+
+        private void applyKillStreakReward(Player player, int threshold, int streak) {
+            String path = "kill-streaks.rewards." + threshold;
+
+            // Points reward
+            int points = Obsidianwars.getInstance().getConfig().getInt(path + ".points", 0);
+            if (points > 0) {
+                // Assuming points will be used when shop is implemented
+                player.sendMessage("§a+" + points + " points for " + streak + " kill streak!");
+            }
+
+            // Message to player
+            String message = Obsidianwars.getInstance().getConfig().getString(path + ".message", "");
+            if (!message.isEmpty()) {
+                message = message.replace("%player%", player.getName()).replace("%streak%", String.valueOf(streak));
+                player.sendMessage(message);
+            }
+
+            // Broadcast message
+            boolean broadcast = Obsidianwars.getInstance().getConfig().getBoolean(path + ".broadcast", false);
+            if (broadcast) {
+                String broadcastMsg = Obsidianwars.getInstance().getConfig().getString(path + ".broadcast-message", "");
+                if (!broadcastMsg.isEmpty()) {
+                    broadcastMsg = broadcastMsg.replace("%player%", player.getName()).replace("%streak%", String.valueOf(streak));
+                    broadcastToArena(arenaName, broadcastMsg);
+                }
+            }
+
+            // Potion effect reward
+            String effectType = Obsidianwars.getInstance().getConfig().getString(path + ".effect", "");
+            if (!effectType.isEmpty()) {
+                int duration = Obsidianwars.getInstance().getConfig().getInt(path + ".duration", 30);
+                int amplifier = Obsidianwars.getInstance().getConfig().getInt(path + ".amplifier", 0);
+                try {
+                    org.bukkit.potion.PotionEffectType type = org.bukkit.potion.PotionEffectType.getByName(effectType);
+                    if (type == null) {
+                        Obsidianwars.getInstance().getLogger().warning("Invalid potion effect type: " + effectType);
+                    } else {
+                        player.addPotionEffect(new org.bukkit.potion.PotionEffect(type, duration * 20, amplifier));
+                        player.sendMessage("§eYou received " + effectType + " for " + duration + " seconds!");
+                    }
+                } catch (Exception e) {
+                    Obsidianwars.getInstance().getLogger().warning("Invalid potion effect type: " + effectType);
+                }
+            }
+
+            // Glow effect for high streaks
+            if (streak >= 5) {
+                player.setGlowing(true);
+                // Remove glow after 10 seconds
+                Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
+                    player.setGlowing(false);
+                }, 200L);
+            }
         }
 
         public void triggerSuddenDeath() {
+            DebugManager.logDebug("SUDDEN DEATH triggered - breaking all obsidians in 10 seconds", arenaName);
+
             // Broadcast sudden death message
             broadcastToArena(arenaName, "§c§lSUDDEN DEATH! Bütün obsidianlar qırılacaq!");
-            
+
             // Break both obsidians after 10 seconds
             Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
                 // Get obsidian locations
@@ -979,20 +1366,24 @@ public class GameManager {
                     redObsidian.getBlock().setType(Material.AIR);
                     setObsidianDestroyed("red", true);
                     ParticleManager.stopObsidianParticles(arenaName, "red");
+                    DebugManager.logDebug("Sudden death: Red team obsidian destroyed", arenaName);
                 }
-                
+
                 // Break blue obsidian
                 if (blueObsidian != null && !isObsidianDestroyed("blue")) {
                     blueObsidian.getBlock().setType(Material.AIR);
                     setObsidianDestroyed("blue", true);
                     ParticleManager.stopObsidianParticles(arenaName, "blue");
+                    DebugManager.logDebug("Sudden death: Blue team obsidian destroyed", arenaName);
                 }
                 
                 // Broadcast message
                 broadcastToArena(arenaName, "§cBütün obsidianlar qırıldı! Final eliminations başladı!");
-                
-                // Check win condition by calling the static method
-                checkArenaWinCondition(arenaName);
+
+                // Check win condition by calling the static method after both obsidians are destroyed
+                Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
+                    checkArenaWinCondition(arenaName);
+                }, 2L); // Small delay to ensure spectator mode changes are processed
             }, 200L); // 10 seconds (200 ticks)
         }
     }
@@ -1005,18 +1396,25 @@ public class GameManager {
         int redAlive = getAliveTeamPlayers(arenaName, "red");
         int blueAlive = getAliveTeamPlayers(arenaName, "blue");
 
+        DebugManager.logDebug("Win condition check: Red alive=" + redAlive + ", Blue alive=" + blueAlive +
+            ", Red obsidian destroyed=" + game.isObsidianDestroyed("red") + ", Blue obsidian destroyed=" + game.isObsidianDestroyed("blue"), arenaName);
+
         // Əgər bir komanda tamamilə elimine edilibsə
         if (redAlive == 0 && game.isObsidianDestroyed("red")) {
             // Mavi komanda qalib gəldi
+            Obsidianwars.getInstance().getLogger().info("Blue team wins! Red team eliminated.");
             GameManager.endGame(arenaName, "blue");
         } else if (blueAlive == 0 && game.isObsidianDestroyed("blue")) {
             // Qırmızı komanda qalib gəldi
+            Obsidianwars.getInstance().getLogger().info("Red team wins! Blue team eliminated.");
             GameManager.endGame(arenaName, "red");
         }
     }
 
     private static int getAliveTeamPlayers(String arenaName, String team) {
         int count = 0;
+        ArenaGame game = activeGames.get(arenaName);
+
         for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
             if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
                 String playerTeam = TeamListener.playerTeams.get(uuid);
@@ -1026,13 +1424,14 @@ public class GameManager {
                     if (player != null && player.isOnline() && player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
                         count++;
                     }
-                    // Also count disconnected players still in grace period
-                    else if (GameManager.isPlayerDisconnected(uuid)) {
+                    // Only count disconnected players in grace period if their obsidian is NOT destroyed
+                    // If obsidian is destroyed, they can't respawn even if they rejoin, so they're eliminated
+                    else if (GameManager.isPlayerDisconnected(uuid) && game != null && !game.isObsidianDestroyed(team)) {
                         DisconnectedPlayerData data = disconnectedPlayers.get(uuid);
                         if (data != null && data.getTeam().equals(team)) {
                             long elapsed = System.currentTimeMillis() - data.getDisconnectTime();
                             if (elapsed < REJOIN_GRACE_PERIOD) {
-                                count++; // Count as potentially alive
+                                count++; // Count as potentially alive only if obsidian is intact
                             }
                         }
                     }
@@ -1054,7 +1453,7 @@ public class GameManager {
         private final ItemStack[] armorContents;
         private final double health;
         private final int foodLevel;
-        private final List<PotionEffect> potionEffects;
+        private final List<org.bukkit.potion.PotionEffect> potionEffects;
         private final Location lastLocation;
         private final boolean wasSpectator;
 
@@ -1080,7 +1479,7 @@ public class GameManager {
         public ItemStack[] getArmorContents() { return armorContents; }
         public double getHealth() { return health; }
         public int getFoodLevel() { return foodLevel; }
-        public List<PotionEffect> getPotionEffects() { return potionEffects; }
+        public List<org.bukkit.potion.PotionEffect> getPotionEffects() { return potionEffects; }
         public Location getLastLocation() { return lastLocation; }
         public boolean wasSpectator() { return wasSpectator; }
     }

@@ -30,28 +30,28 @@ public class ParticleManager {
     private static double resourceScale = 1.0;
 
     public static void loadConfig() {
-        // Load from messages.yml instead of config.yml
-        if (MessagesConfigManager.getMessagesConfig() == null) return;
+        // Load from config.yml
+        if (Obsidianwars.getInstance().getConfig() == null) return;
 
         // Load obsidian particle settings
-        obsidianParticleType = MessagesConfigManager.getMessagesConfig().getString("particles.obsidian_target.type", "dust_color_transition");
-        obsidianFromR = MessagesConfigManager.getMessagesConfig().getDouble("particles.obsidian_target.from_color.0", 0.7);
-        obsidianFromG = MessagesConfigManager.getMessagesConfig().getDouble("particles.obsidian_target.from_color.1", 0.0);
-        obsidianFromB = MessagesConfigManager.getMessagesConfig().getDouble("particles.obsidian_target.from_color.2", 1.0);
-        obsidianToR = MessagesConfigManager.getMessagesConfig().getDouble("particles.obsidian_target.to_color.0", 1.0);
-        obsidianToG = MessagesConfigManager.getMessagesConfig().getDouble("particles.obsidian_target.to_color.1", 0.0);
-        obsidianToB = MessagesConfigManager.getMessagesConfig().getDouble("particles.obsidian_target.to_color.2", 0.2);
-        obsidianScale = MessagesConfigManager.getMessagesConfig().getDouble("particles.obsidian_target.scale", 2.0);
+        obsidianParticleType = Obsidianwars.getInstance().getConfig().getString("particles.obsidian_target.type", "dust_color_transition");
+        obsidianFromR = Obsidianwars.getInstance().getConfig().getDouble("particles.obsidian_target.from_color.0", 0.7);
+        obsidianFromG = Obsidianwars.getInstance().getConfig().getDouble("particles.obsidian_target.from_color.1", 0.0);
+        obsidianFromB = Obsidianwars.getInstance().getConfig().getDouble("particles.obsidian_target.from_color.2", 1.0);
+        obsidianToR = Obsidianwars.getInstance().getConfig().getDouble("particles.obsidian_target.to_color.0", 1.0);
+        obsidianToG = Obsidianwars.getInstance().getConfig().getDouble("particles.obsidian_target.to_color.1", 0.0);
+        obsidianToB = Obsidianwars.getInstance().getConfig().getDouble("particles.obsidian_target.to_color.2", 0.2);
+        obsidianScale = Obsidianwars.getInstance().getConfig().getDouble("particles.obsidian_target.scale", 2.0);
 
         // Load resource particle settings
-        resourceParticleType = MessagesConfigManager.getMessagesConfig().getString("particles.resource_break.type", "dust_color_transition");
-        resourceFromR = MessagesConfigManager.getMessagesConfig().getDouble("particles.resource_break.from_color.0", 0.9);
-        resourceFromG = MessagesConfigManager.getMessagesConfig().getDouble("particles.resource_break.from_color.1", 0.8);
-        resourceFromB = MessagesConfigManager.getMessagesConfig().getDouble("particles.resource_break.from_color.2", 0.7);
-        resourceToR = MessagesConfigManager.getMessagesConfig().getDouble("particles.resource_break.to_color.0", 1.0);
-        resourceToG = MessagesConfigManager.getMessagesConfig().getDouble("particles.resource_break.to_color.1", 1.0);
-        resourceToB = MessagesConfigManager.getMessagesConfig().getDouble("particles.resource_break.to_color.2", 1.0);
-        resourceScale = MessagesConfigManager.getMessagesConfig().getDouble("particles.resource_break.scale", 1.0);
+        resourceParticleType = Obsidianwars.getInstance().getConfig().getString("particles.resource_break.type", "dust_color_transition");
+        resourceFromR = Obsidianwars.getInstance().getConfig().getDouble("particles.resource_break.from_color.0", 0.9);
+        resourceFromG = Obsidianwars.getInstance().getConfig().getDouble("particles.resource_break.from_color.1", 0.8);
+        resourceFromB = Obsidianwars.getInstance().getConfig().getDouble("particles.resource_break.from_color.2", 0.7);
+        resourceToR = Obsidianwars.getInstance().getConfig().getDouble("particles.resource_break.to_color.0", 1.0);
+        resourceToG = Obsidianwars.getInstance().getConfig().getDouble("particles.resource_break.to_color.1", 1.0);
+        resourceToB = Obsidianwars.getInstance().getConfig().getDouble("particles.resource_break.to_color.2", 1.0);
+        resourceScale = Obsidianwars.getInstance().getConfig().getDouble("particles.resource_break.scale", 1.0);
     }
 
     public static void startObsidianParticles(String arenaName) {

@@ -15,6 +15,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -23,24 +24,27 @@ public class ResourceBlockManager implements Listener {
 
     private static final Map<UUID, String> playersInSetupMode = new HashMap<>();
     private static final Map<UUID, BossBar> setupModeBossBars = new HashMap<>();
-    
-    // İcazə verilən resource blok növləri
+
+    // İcazə verilən resource blok növləri (loaded from config)
     private static final Set<Material> ALLOWED_RESOURCE_BLOCKS = new HashSet<>();
-    
-    static {
-        ALLOWED_RESOURCE_BLOCKS.add(Material.OAK_LOG);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.SPRUCE_LOG);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.BIRCH_LOG);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.JUNGLE_LOG);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.ACACIA_LOG);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.DARK_OAK_LOG);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.STONE);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.COAL_ORE);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.IRON_ORE);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.GOLD_ORE);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.DIAMOND_ORE);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.EMERALD_ORE);
-        ALLOWED_RESOURCE_BLOCKS.add(Material.LAPIS_ORE);
+
+    /**
+     * Loads allowed resource blocks from config.yml
+     */
+    public static void loadAllowedResourceBlocks() {
+        ALLOWED_RESOURCE_BLOCKS.clear();
+
+        List<String> allowedBlocks = Obsidianwars.getInstance().getConfig().getStringList("allowed-resource-blocks");
+        for (String blockName : allowedBlocks) {
+            try {
+                Material material = Material.valueOf(blockName);
+                ALLOWED_RESOURCE_BLOCKS.add(material);
+            } catch (IllegalArgumentException e) {
+                Obsidianwars.getInstance().getLogger().warning("Invalid material in allowed-resource-blocks: " + blockName);
+            }
+        }
+
+        Obsidianwars.getInstance().getLogger().info("Loaded " + ALLOWED_RESOURCE_BLOCKS.size() + " allowed resource blocks from config");
     }
 
     public static void enterSetupMode(Player player, String arenaName) {
@@ -55,28 +59,34 @@ public class ResourceBlockManager implements Listener {
         
         // Oyunçunu Creative mode-a keçiririk
         player.setGameMode(org.bukkit.GameMode.CREATIVE);
-        
+
         player.sendMessage("§aResource Block Setup Mode-a daxil oldunuz!");
-        player.sendMessage("§eİcazə verilən bloklar: Wood, Stone, Coal, Iron, Gold, Diamond, Emerald, Lapis");
+        player.sendMessage("§eİcazə verilən bloklar (config.yml-dən yüklənib):");
+        for (Material material : ALLOWED_RESOURCE_BLOCKS) {
+            player.sendMessage("§7- " + material.name());
+        }
         player.sendMessage("§eHansı bloku qoymaq istəyirsinizsə, yerləşdirin!");
     }
 
     public static void exitSetupMode(Player player) {
         UUID uuid = player.getUniqueId();
-        
+
         if (playersInSetupMode.containsKey(uuid)) {
-            playersInSetupMode.remove(uuid);
-            
+            String arenaName = playersInSetupMode.remove(uuid);
+
             // BossBar silirik
             BossBar bossBar = setupModeBossBars.remove(uuid);
             if (bossBar != null) {
                 bossBar.removeAll();
             }
-            
-            // Oyunçunu Survival mode-a qaytarırıq
-            player.setGameMode(org.bukkit.GameMode.SURVIVAL);
-            
+
+            // Oyunçunu Creative mode-a qaytarırıq
+            player.setGameMode(org.bukkit.GameMode.CREATIVE);
+
             player.sendMessage("§aResource Block Setup Mode-dan çıxdınız!");
+
+            // Suggest next setup step
+            ObsidianCommand.suggestNextSetupStep(player, arenaName, "resourceblocks");
         }
     }
 
@@ -102,7 +112,11 @@ public class ResourceBlockManager implements Listener {
         // Yalnız icazə verilən resource bloklarını qəbul edirik
         if (!ALLOWED_RESOURCE_BLOCKS.contains(blockType)) {
             event.setCancelled(true);
-            player.sendMessage("§cBu blok resource kimi qeyd edilə bilməz! İcazə verilən: Wood, Stone, Coal, Iron, Gold, Diamond, Emerald, Lapis");
+            player.sendMessage("§cBu blok resource kimi qeyd edilə bilməz!");
+            player.sendMessage("§eİcazə verilən bloklar (config.yml-dən):");
+            for (Material material : ALLOWED_RESOURCE_BLOCKS) {
+                player.sendMessage("§7- " + material.name());
+            }
             return;
         }
 
@@ -158,11 +172,14 @@ public class ResourceBlockManager implements Listener {
             // Resource blokudur - delayed respawn based on material type
             Material originalType = event.getBlock().getType();
             long respawnDelay = getRespawnDelay(originalType);
-            
+
+            DebugManager.logDebug("Resource block broken: " + originalType.name() + " by " + player.getName() + " (respawn in " + (respawnDelay/20.0) + "s)", arenaName);
+
             // Bloğu qırmağı icazə veririk (drop vermək üçün)
             // Respawn delay-dən sonra
             Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
                 event.getBlock().setType(originalType);
+                DebugManager.logDebug("Resource block respawned: " + originalType.name(), arenaName);
             }, respawnDelay); // Material tipinə görə respawn
         }
     }
@@ -181,17 +198,26 @@ public class ResourceBlockManager implements Listener {
             case COBBLESTONE:
                 return 10L; // 0.5 seconds
             case COAL_ORE:
+            case DEEPSLATE_COAL_ORE:
                 return 20L; // 1 second
             case IRON_ORE:
+            case DEEPSLATE_IRON_ORE:
                 return 30L; // 1.5 seconds
             case GOLD_ORE:
+            case DEEPSLATE_GOLD_ORE:
                 return 40L; // 2 seconds
             case LAPIS_ORE:
+            case DEEPSLATE_LAPIS_ORE:
                 return 50L; // 2.5 seconds
             case DIAMOND_ORE:
+            case DEEPSLATE_DIAMOND_ORE:
                 return 60L; // 3 seconds
             case EMERALD_ORE:
+            case DEEPSLATE_EMERALD_ORE:
                 return 80L; // 4 seconds
+            case REDSTONE_ORE:
+            case DEEPSLATE_REDSTONE_ORE:
+                return 30L; // 1.5 seconds
             default:
                 return 20L; // Default 1 second
         }

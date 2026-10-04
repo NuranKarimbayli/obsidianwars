@@ -53,7 +53,8 @@ public class MessagesConfigManager {
     }
 
     public static String getSound(String key) {
-        return getMessagesConfig().getString("sounds." + key);
+        // Read sounds from config.yml instead of messages.yml
+        return plugin.getConfig().getString("sounds." + key);
     }
 
     public static void saveMessagesConfig() {

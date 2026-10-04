@@ -10,8 +10,24 @@ load: POSTWORLD
 commands:
   obsidian:
     description: Main command for ObsidianWars
-    usage: /obsidian <join|leave|arena|setblocks>
+    usage: /obsidian <subcommand>
     aliases: [o, obsidianwars]
+  join:
+    description: Join an arena (alias for /o play)
+    usage: /join [arena]
+    aliases: [play]
+  leave:
+    description: Leave current arena (alias for /o leave)
+    usage: /leave
+  stats:
+    description: View player statistics
+    usage: /stats [player]
+  rejoin:
+    description: Rejoin after disconnect
+    usage: /rejoin
+  spectate:
+    description: Spectate an arena or player
+    usage: /spectate <arena|player>
 
 permissions:
   obsidianwars.*:

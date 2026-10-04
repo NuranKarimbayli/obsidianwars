@@ -118,22 +118,30 @@ public class TeamListener implements Listener {
     }
 
     public static void applyTeamColor(Player player, String team) {
+        applyTeamColor(player, team, true);
+    }
+
+    public static void applyTeamColor(Player player, String team, boolean equipArmor) {
         if (team.equals("red")) {
             // Ad rəngi - Qırmızı
             String coloredName = "§c" + player.getName();
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 
-            // Dəri zireh - Qırmızı
-            equipLeatherArmor(player, Color.RED);
+            // Dəri zireh - Qırmızı (only if equipArmor is true)
+            if (equipArmor) {
+                equipLeatherArmor(player, Color.RED);
+            }
         } else if (team.equals("blue")) {
             // Ad rəngi - Mavi
             String coloredName = "§9" + player.getName();
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 
-            // Dəri zireh - Mavi
-            equipLeatherArmor(player, Color.BLUE);
+            // Dəri zireh - Mavi (only if equipArmor is true)
+            if (equipArmor) {
+                equipLeatherArmor(player, Color.BLUE);
+            }
         }
     }
 

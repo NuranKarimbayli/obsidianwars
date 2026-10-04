@@ -53,11 +53,23 @@ public class TeamManager {
      * @param team The team to assign ("red" or "blue")
      */
     public static void setPlayerTeam(Player player, String arenaName, String team) {
+        setPlayerTeam(player, arenaName, team, true);
+    }
+
+    /**
+     * Sets a player's team with visual effects (optionally armor, scoreboard, tablist).
+     *
+     * @param player The player
+     * @param arenaName The arena name
+     * @param team The team to assign ("red" or "blue")
+     * @param equipArmor Whether to equip leather armor
+     */
+    public static void setPlayerTeam(Player player, String arenaName, String team, boolean equipArmor) {
         // Store in TeamListener's map (legacy compatibility)
         TeamListener.playerTeams.put(player.getUniqueId(), team);
 
         // Apply visual effects
-        applyTeamColor(player, team);
+        applyTeamColor(player, team, equipArmor);
         setupScoreboardTeam(player, team);
 
         // Update scoreboard
@@ -177,22 +189,37 @@ public class TeamManager {
      * @param team The team ("red" or "blue")
      */
     private static void applyTeamColor(Player player, String team) {
+        applyTeamColor(player, team, true);
+    }
+
+    /**
+     * Applies team color effects (optionally leather armor, colored name, tablist).
+     *
+     * @param player The player
+     * @param team The team ("red" or "blue")
+     * @param equipArmor Whether to equip leather armor
+     */
+    private static void applyTeamColor(Player player, String team, boolean equipArmor) {
         if (team.equals("red")) {
             // Name color - Red
             String coloredName = "§c" + player.getName();
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 
-            // Leather armor - Red
-            equipLeatherArmor(player, Color.RED);
+            // Leather armor - Red (only if equipArmor is true)
+            if (equipArmor) {
+                equipLeatherArmor(player, Color.RED);
+            }
         } else if (team.equals("blue")) {
             // Name color - Blue
             String coloredName = "§9" + player.getName();
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 
-            // Leather armor - Blue
-            equipLeatherArmor(player, Color.BLUE);
+            // Leather armor - Blue (only if equipArmor is true)
+            if (equipArmor) {
+                equipLeatherArmor(player, Color.BLUE);
+            }
         }
     }
 
@@ -317,7 +344,7 @@ public class TeamManager {
      *
      * @param player The player
      */
-    private static void removePlayerScoreboard(Player player) {
+    public static void removePlayerScoreboard(Player player) {
         playerScoreboards.remove(player.getUniqueId());
         player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
     }

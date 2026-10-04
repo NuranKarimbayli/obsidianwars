@@ -25,6 +25,10 @@ public class ArenaConfigManager {
         ArenaFileManager.createArenaFolder(arenaName);
     }
 
+    public static void createArenaConfigWithParams(String arenaName, int minPlayers, int maxPlayers) {
+        ArenaFileManager.createArenaWithParams(arenaName, minPlayers, maxPlayers);
+    }
+
     public static void deleteArenaConfig(String arenaName) {
         ArenaFileManager.deleteArenaFolder(arenaName);
     }
@@ -149,5 +153,29 @@ public class ArenaConfigManager {
 
     public static int getSuddenDeathTimer(String arenaName) {
         return ArenaFileManager.getSuddenDeathTimer(arenaName);
+    }
+
+    public static void setWaitingSpawn(String arenaName, Location location) {
+        ArenaFileManager.setWaitingSpawn(arenaName, location);
+    }
+
+    public static Location getWaitingSpawn(String arenaName) {
+        return ArenaFileManager.getWaitingSpawn(arenaName);
+    }
+
+    public static void setSpectatorSpawn(String arenaName, Location location) {
+        ArenaFileManager.setSpectatorSpawn(arenaName, location);
+    }
+
+    public static Location getSpectatorSpawn(String arenaName) {
+        return ArenaFileManager.getSpectatorSpawn(arenaName);
+    }
+
+    public static void setWaitingRegion(String arenaName, Location pos1, Location pos2) {
+        ArenaFileManager.setWaitingRegion(arenaName, pos1, pos2);
+    }
+
+    public static Location[] getWaitingRegion(String arenaName) {
+        return ArenaFileManager.getWaitingRegion(arenaName);
     }
 }

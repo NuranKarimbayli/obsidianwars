@@ -1,28 +1,7 @@
 # ObsidianWars Localization File
-# Customize all messages, sounds, and particle effects here
-
-sounds:
-  join_lobby: "minecraft:ui.toast.in"
-  match_start: "minecraft:block.note_block.pling"
-  obsidian_destroyed: "minecraft:entity.wither.death"
-  wall_fall: "minecraft:entity.ender_dragon.growl"
-  protection_warn: "minecraft:entity.villager.no"
-  win_victory: "minecraft:ui.toast.challenge_complete"
-  countdown_tick: "minecraft:block.note_block.hat"
-  countdown_final: "minecraft:block.note_block.pling"
-
-particles:
-  obsidian_target:
-    type: "dust_color_transition"
-    from_color: [0.7, 0.0, 1.0]
-    to_color: [1.0, 0.0, 0.2]
-    scale: 2.0
-  
-  resource_break:
-    type: "dust_color_transition"
-    from_color: [0.9, 0.8, 0.7]
-    to_color: [1.0, 1.0, 1.0]
-    scale: 1.0
+# Customize all messages here
+# Sounds are now configured in config.yml
+# Particle effects are now configured in config.yml
 
 messages:
   # General messages

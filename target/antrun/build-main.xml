@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="maven-antrun-" default="main">
+  <target name="main">
+    <copy file="C:\Users\nuran\IdeaProjects\obsidianwars\target/obsidianwars-1.0.0.jar" todir="C:\Users\nuran\Desktop\obsidianwars\plugins" overwrite="true" verbose="true" />
+    <echo message="Copied obsidianwars-1.0.0.jar to test server plugins directory" />
+  </target>
+</project>

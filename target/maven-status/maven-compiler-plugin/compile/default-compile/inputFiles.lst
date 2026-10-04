@@ -1,5 +1,8 @@
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\ArenaConfigManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\ArenaFileManager.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\ArenaSelectorGUIListener.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\ArenaSnapshotManager.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\DebugManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\GameListener.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\GameManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\LobbyItemClickListener.java
@@ -12,6 +15,13 @@ C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\Par
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\PlayerUtils.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\ResourceBlockManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\ScoreboardManager.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\SpectatorListener.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\SpectatorManager.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\SpectatorTeleporterGUI.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\SpectatorTeleporterGUIListener.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\StatsGUIListener.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\StatsManager.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\TabListManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\TeamListener.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\TeamManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\WallManager.java
