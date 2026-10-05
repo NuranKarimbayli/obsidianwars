@@ -1,0 +1,24 @@
+# Kill Streaks Configuration
+kill-streaks:
+  enabled: true
+  rewards:
+    3:
+      points: 50
+      message: "§e%player% is on a %streak% kill streak!"
+      broadcast: false
+    5:
+      points: 100
+      message: "§6%player% is dominating with %streak% kills!"
+      broadcast: true
+      broadcast-message: "§6§l%player% §eis on a §6§l%streak% §ekill streak!"
+      effect: "SPEED"
+      duration: 30
+      amplifier: 0
+    10:
+      points: 200
+      message: "§c§l%player% is UNSTOPPABLE with %streak% kills!"
+      broadcast: true
+      broadcast-message: "§c§l%player% §eis on a §c§l%streak% §ekill streak!"
+      effect: "STRENGTH"
+      duration: 20
+      amplifier: 0

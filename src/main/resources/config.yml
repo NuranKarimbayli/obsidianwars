@@ -26,49 +26,6 @@ language: "english"
 # Respawn wait time in seconds (default: 5)
 respawn-wait-time: 5
 
-# Kill Streaks Configuration
-kill-streaks:
-  enabled: true
-  rewards:
-    3:
-      points: 50
-      message: "§e%player% is on a %streak% kill streak!"
-      broadcast: false
-    5:
-      points: 100
-      message: "§6%player% is dominating with %streak% kills!"
-      broadcast: true
-      broadcast-message: "§6§l%player% §eis on a §6§l%streak% §ekill streak!"
-      effect: "SPEED"
-      duration: 30
-      amplifier: 0
-    10:
-      points: 200
-      message: "§c§l%player% is UNSTOPPABLE with %streak% kills!"
-      broadcast: true
-      broadcast-message: "§c§l%player% §eis on a §c§l%streak% §ekill streak!"
-      effect: "STRENGTH"
-      duration: 20
-      amplifier: 0
-
-# Death Messages Configuration
-death-messages:
-  enabled: true
-  sword: "§c%killer% §7slayed §c%victim% §7with a sword"
-  axe: "§c%killer% §7axed §c%victim% §7to death"
-  bow: "§c%killer% §7shot §c%victim% §7from %distance% blocks away"
-  trident: "§c%killer% §7impaled §c%victim% §7with a trident"
-  fists: "§c%killer% §7punched §c%victim% §7to death"
-  void: "§c%victim% §7fell into the void"
-  fall: "§c%victim% §7hit the ground too hard"
-  fire: "§c%victim% §7burned to death"
-  drown: "§c%victim% §7drowned"
-  starve: "§c%victim% §7starved to death"
-  suffocate: "§c%victim% §7suffocated"
-  generic: "§c%victim% §7died"
-  final-kill: "§4§lFINAL KILL! §c%killer% §7eliminated §c%victim%!"
-  obsidian: "§c%killer% §7destroyed §c%victim%'s §cobsidian!"
-
 # Health Display Configuration
 health-display:
   tablist: true
@@ -86,31 +43,6 @@ timers:
   sudden-death: "30m"
   # Default total maximum game duration
   game-time: "45m"
-
-# Allowed Resource Ore Types for /o arena setblocks
-allowed-resource-blocks:
-  - "COAL_ORE"
-  - "DEEPSLATE_COAL_ORE"
-  - "IRON_ORE"
-  - "DEEPSLATE_IRON_ORE"
-  - "GOLD_ORE"
-  - "DEEPSLATE_GOLD_ORE"
-  - "DIAMOND_ORE"
-  - "DEEPSLATE_DIAMOND_ORE"
-  - "EMERALD_ORE"
-  - "DEEPSLATE_EMERALD_ORE"
-  - "LAPIS_ORE"
-  - "DEEPSLATE_LAPIS_ORE"
-  - "REDSTONE_ORE"
-  - "DEEPSLATE_REDSTONE_ORE"
-  - "OAK_LOG"
-  - "SPRUCE_LOG"
-  - "BIRCH_LOG"
-  - "JUNGLE_LOG"
-  - "ACACIA_LOG"
-  - "DARK_OAK_LOG"
-  - "STONE"
-  - "COBBLESTONE"
 
 # Sound Effects Configuration
 # Spigot Sound Reference: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Sound.html
@@ -163,7 +95,7 @@ tab:
     - "&7Kills: &a%kills% &7| Deaths: &c%deaths%"
 
 # Scoreboard Configuration
-# Placeholders: %player%, %arena%, %phase%, %time%, %kills%, %deaths%, %red_health%, %blue_health%
+# Placeholders: %player%, %arena%, %phase%, %time%, %kills%, %deaths%, %red_health%, %blue_health%, %level%, %level_formatted%, %xp%, %req_xp%, %progress_bar%
 scoreboard:
   title: "&d&lOBSIDIAN WARS"
   lines:
@@ -178,3 +110,48 @@ scoreboard:
     - "&fKills: &a%kills%"
     - "&fDeaths: &c%deaths%"
     - "&7-------------------"
+
+# Lobby Scoreboard Configuration
+# Placeholders: {player}, {date}, {server_id}, {level}, {level_formatted}, {xp}, {current_xp_k}, {req_xp}, {req_xp_k}, {progress_bar}, {kills}, {wins}, {winstreak}, {server_address}
+lobby-scoreboard:
+  enabled: true
+  server-id: "L26E"
+  server-address: "yourserver.net"
+  title: "&e&lOBSIDIAN WARS"
+  lines:
+    - "&7{date} &8{server_id}"
+    - ""
+    - "Level: &f{level_formatted}"
+    - ""
+    - "Progress: &b{current_xp_k}&7/&a{req_xp_k}"
+    - "&8[{progress_bar}&8]"
+    - ""
+    - "Total Kills: &a{kills}"
+    - "Total Wins: &a{wins}"
+    - "Winstreak: &a{winstreak}"
+    - ""
+    - "&e{server_address}"
+
+# XP Rewards Configuration
+# Adjust these values to control how much XP players earn for various actions
+xp-rewards:
+  kill: 10
+  final-kill: 20
+  obsidian-broken: 50
+  win: 100
+  per-minute-played: 5
+
+# Level-Up Configuration
+level-up:
+  # Broadcast level-up to entire server (true) or just the player (false)
+  broadcast: false
+  # Title shown to player when leveling up
+  title: "&a&lLEVEL UP!"
+  # Subtitle shown to player when leveling up (placeholders: {level}, {player})
+  subtitle: "&7You are now Level &e{level}"
+  # Sound effect played on level-up
+  sound: "ENTITY_PLAYER_LEVELUP"
+  # Chat message sent to player (placeholders: {level}, {player})
+  message: "&aCongratulations! You are now Level &e{level}!"
+  # Broadcast message sent to server if broadcast is true (placeholders: {level}, {player})
+  broadcast-message: "&e{player} &ahas reached Level &e{level}!"

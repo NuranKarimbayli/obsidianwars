@@ -94,6 +94,8 @@ public class GameManager {
                 }
             }
 
+            // Note: Players stay in arena lobby after countdown cancellation, so no lobby scoreboard update needed
+
             // Broadcast cancellation message
             broadcastToArena(arenaName, "§cCountdown cancelled! Waiting for players...");
 
@@ -302,6 +304,9 @@ public class GameManager {
 
                 // Start obsidian particles
                 ParticleManager.startObsidianParticles(arenaName);
+
+                // Start per-minute XP task
+                XPAwardListener.startPerMinuteTask(arenaName);
             }
 
             // Bütün oyunçulara xəbər veririk
@@ -348,6 +353,9 @@ public class GameManager {
             game.setGameState(GameState.ENDED);
             DebugManager.logDebug("State transition: PLAYING -> ENDED (winner: " + winningTeam + ")", arenaName);
 
+            // Stop per-minute XP task
+            XPAwardListener.stopPerMinuteTask(arenaName);
+
             // Restore walls to BEDROCK immediately
             WallManager.restoreWalls(arenaName);
 
@@ -368,6 +376,8 @@ public class GameManager {
                             StatsManager.PlayerStats stats = StatsManager.getPlayerStats(player);
                             if (winningTeam.equals(playerTeam)) {
                                 stats.addWin();
+                                // Award XP for winning
+                                XPAwardListener.awardWinXP(player);
                             } else {
                                 stats.addLoss();
                             }
@@ -489,6 +499,9 @@ public class GameManager {
                     PlayerUtils.resetPlayerFull(player, mainSpawn);
 
                     player.sendMessage("§aArena bitdi, əsas spawn-a qayıtdınız!");
+
+                    // Update lobby scoreboard after game ends
+                    LobbyScoreboardManager.updateLobbyScoreboard(player);
                 }
 
                 // Oyunçunu sistemdən çıxarırıq
@@ -1270,7 +1283,7 @@ public class GameManager {
         private void checkKillStreakRewards(UUID uuid, int streak) {
             DebugManager.logDebug("Checking kill streak rewards for UUID " + uuid + " at streak " + streak, getArenaName());
 
-            if (!Obsidianwars.getInstance().getConfig().getBoolean("kill-streaks.enabled", true)) {
+            if (!KillStreaksConfigManager.getKillStreaksConfig().getBoolean("kill-streaks.enabled", true)) {
                 DebugManager.logDebug("Kill streaks disabled in config", getArenaName());
                 return;
             }
@@ -1283,7 +1296,7 @@ public class GameManager {
 
             // Check rewards from config
             try {
-                var rewardsSection = Obsidianwars.getInstance().getConfig().getConfigurationSection("kill-streaks.rewards");
+                var rewardsSection = KillStreaksConfigManager.getKillStreaksConfig().getConfigurationSection("kill-streaks.rewards");
                 if (rewardsSection == null) {
                     DebugManager.logDebug("kill-streaks.rewards section not found in config", getArenaName());
                     return;
@@ -1309,23 +1322,23 @@ public class GameManager {
             String path = "kill-streaks.rewards." + threshold;
 
             // Points reward
-            int points = Obsidianwars.getInstance().getConfig().getInt(path + ".points", 0);
+            int points = KillStreaksConfigManager.getKillStreaksConfig().getInt(path + ".points", 0);
             if (points > 0) {
                 // Assuming points will be used when shop is implemented
                 player.sendMessage("§a+" + points + " points for " + streak + " kill streak!");
             }
 
             // Message to player
-            String message = Obsidianwars.getInstance().getConfig().getString(path + ".message", "");
+            String message = KillStreaksConfigManager.getKillStreaksConfig().getString(path + ".message", "");
             if (!message.isEmpty()) {
                 message = message.replace("%player%", player.getName()).replace("%streak%", String.valueOf(streak));
                 player.sendMessage(message);
             }
 
             // Broadcast message
-            boolean broadcast = Obsidianwars.getInstance().getConfig().getBoolean(path + ".broadcast", false);
+            boolean broadcast = KillStreaksConfigManager.getKillStreaksConfig().getBoolean(path + ".broadcast", false);
             if (broadcast) {
-                String broadcastMsg = Obsidianwars.getInstance().getConfig().getString(path + ".broadcast-message", "");
+                String broadcastMsg = KillStreaksConfigManager.getKillStreaksConfig().getString(path + ".broadcast-message", "");
                 if (!broadcastMsg.isEmpty()) {
                     broadcastMsg = broadcastMsg.replace("%player%", player.getName()).replace("%streak%", String.valueOf(streak));
                     broadcastToArena(arenaName, broadcastMsg);
@@ -1333,10 +1346,10 @@ public class GameManager {
             }
 
             // Potion effect reward
-            String effectType = Obsidianwars.getInstance().getConfig().getString(path + ".effect", "");
+            String effectType = KillStreaksConfigManager.getKillStreaksConfig().getString(path + ".effect", "");
             if (!effectType.isEmpty()) {
-                int duration = Obsidianwars.getInstance().getConfig().getInt(path + ".duration", 30);
-                int amplifier = Obsidianwars.getInstance().getConfig().getInt(path + ".amplifier", 0);
+                int duration = KillStreaksConfigManager.getKillStreaksConfig().getInt(path + ".duration", 30);
+                int amplifier = KillStreaksConfigManager.getKillStreaksConfig().getInt(path + ".amplifier", 0);
                 try {
                     org.bukkit.potion.PotionEffectType type = org.bukkit.potion.PotionEffectType.getByName(effectType);
                     if (type == null) {

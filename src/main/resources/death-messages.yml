@@ -1,0 +1,17 @@
+# Death Messages Configuration
+death-messages:
+  enabled: true
+  sword: "§c%killer% §7slayed §c%victim% §7with a sword"
+  axe: "§c%killer% §7axed §c%victim% §7to death"
+  bow: "§c%killer% §7shot §c%victim% §7from %distance% blocks away"
+  trident: "§c%killer% §7impaled §c%victim% §7with a trident"
+  fists: "§c%killer% §7punched §c%victim% §7to death"
+  void: "§c%victim% §7fell into the void"
+  fall: "§c%victim% §7hit the ground too hard"
+  fire: "§c%victim% §7burned to death"
+  drown: "§c%victim% §7drowned"
+  starve: "§c%victim% §7starved to death"
+  suffocate: "§c%victim% §7suffocated"
+  generic: "§c%victim% §7died"
+  final-kill: "§4§lFINAL KILL! §c%killer% §7eliminated §c%victim%!"
+  obsidian: "§c%killer% §7destroyed §c%victim%'s §cobsidian!"

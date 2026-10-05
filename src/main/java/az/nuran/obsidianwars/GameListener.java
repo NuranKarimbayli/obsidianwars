@@ -269,6 +269,9 @@ public class GameListener implements Listener {
         StatsManager.PlayerStats stats = StatsManager.getPlayerStats(destroyer);
         stats.addObsidianBroken();
 
+        // Award XP for breaking obsidian
+        XPAwardListener.awardObsidianXP(destroyer);
+
         // Stop particles for the destroyed obsidian
         ParticleManager.stopObsidianParticles(arenaName, team);
 
@@ -390,6 +393,11 @@ public class GameListener implements Listener {
                 if (game.isObsidianDestroyed(playerTeam)) {
                     killerStats.addFinalKill();
                     DebugManager.logDebug("Final kill: " + killer.getName() + " killed " + player.getName() + " (obsidian destroyed)", arenaName);
+                    // Award XP for final kill
+                    XPAwardListener.awardFinalKillXP(killer);
+                } else {
+                    // Award XP for regular kill
+                    XPAwardListener.awardKillXP(killer);
                 }
 
                 // Add to kill streak
@@ -608,7 +616,7 @@ public class GameListener implements Listener {
             if (game != null) {
                 String victimTeam = TeamListener.playerTeams.get(victim.getUniqueId());
                 if (victimTeam != null && game.isObsidianDestroyed(victimTeam)) {
-                    String finalKillMsg = Obsidianwars.getInstance().getConfig().getString("death-messages.final-kill",
+                    String finalKillMsg = DeathMessagesConfigManager.getDeathMessagesConfig().getString("death-messages.final-kill",
                         "§4§lFINAL KILL! §c%killer% §7eliminated §c%victim%!");
                     if (killer != null) {
                         finalKillMsg = finalKillMsg.replace("%killer%", killer.getName());
@@ -686,7 +694,7 @@ public class GameListener implements Listener {
 
     private String getDeathMessageFromConfig(String type, Player killer, Player victim, String weapon, String distance) {
         String path = "death-messages." + type;
-        String message = Obsidianwars.getInstance().getConfig().getString(path);
+        String message = DeathMessagesConfigManager.getDeathMessagesConfig().getString(path);
 
         if (message == null || message.isEmpty()) {
             // Fallback default message
@@ -743,6 +751,9 @@ public class GameListener implements Listener {
             PlayerUtils.resetPlayerArenaLeave(player);
             ParticleManager.removeSpawnProtection(player);
 
+            // Update lobby scoreboard after leaving
+            LobbyScoreboardManager.updateLobbyScoreboard(player);
+
             // Check if countdown conditions are still met
             // Cancel if: any team becomes empty OR total players drop below minPlayers
             if (TeamManager.isAnyTeamEmpty(arenaName) ||
@@ -764,6 +775,10 @@ public class GameListener implements Listener {
             TeamManager.removePlayerFromTeam(player);
             PlayerUtils.resetPlayerArenaLeave(player);
             ParticleManager.removeSpawnProtection(player);
+
+            // Update lobby scoreboard after leaving
+            LobbyScoreboardManager.updateLobbyScoreboard(player);
+
             return;
         }
 
@@ -830,7 +845,13 @@ public class GameListener implements Listener {
                 PlayerUtils.resetPlayerFull(player, mainSpawn);
 
                 player.sendMessage("§eThe game has ended. You have been returned to spawn.");
+
+                // Update lobby scoreboard
+                LobbyScoreboardManager.updateLobbyScoreboard(player);
             }
+        } else {
+            // Player is not in any arena, show lobby scoreboard
+            LobbyScoreboardManager.updateLobbyScoreboard(player);
         }
     }
 

@@ -25,8 +25,19 @@ public class ScoreboardManager {
             return;
         }
 
-        // Rate limiter check
         UUID uuid = player.getUniqueId();
+
+        // If player is not in arena, remove game scoreboard and let lobby scoreboard handle it
+        if (!ObsidianCommand.playersInArena.containsKey(uuid)) {
+            removeScoreboard(player);
+            LobbyScoreboardManager.updateLobbyScoreboard(player);
+            return;
+        }
+
+        // Remove lobby scoreboard if player is in arena
+        LobbyScoreboardManager.removeLobbyScoreboard(player);
+
+        // Rate limiter check
         long currentTime = System.currentTimeMillis();
         Long lastUpdate = lastUpdateTime.get(uuid);
 
@@ -37,11 +48,6 @@ public class ScoreboardManager {
         lastUpdateTime.put(uuid, currentTime);
 
         try {
-            if (!ObsidianCommand.playersInArena.containsKey(uuid)) {
-                removeScoreboard(player);
-                return;
-            }
-
             String arenaName = ObsidianCommand.playersInArena.get(uuid);
             GameManager.ArenaGame game = GameManager.getGame(arenaName);
 
@@ -108,6 +114,13 @@ public class ScoreboardManager {
         int kills = StatsManager.getKills(uuid);
         int deaths = StatsManager.getDeaths(uuid);
 
+        // Get player level info
+        int level = LevelManager.getLevel(uuid);
+        String levelFormatted = LevelManager.getFormattedLevel(uuid);
+        int currentXp = LevelManager.getCurrentXp(uuid);
+        int requiredXp = LevelManager.getRequiredXp(uuid);
+        String progressBar = LevelManager.getProgressBar(uuid);
+
         // Get arena info
         String phase = getPhaseDisplay(arenaName, game);
         String time = getTimeDisplay(arenaName, game);
@@ -129,6 +142,11 @@ public class ScoreboardManager {
         text = text.replace("%deaths%", String.valueOf(deaths));
         text = text.replace("%red_health%", redHealth);
         text = text.replace("%blue_health%", blueHealth);
+        text = text.replace("%level%", String.valueOf(level));
+        text = text.replace("%level_formatted%", levelFormatted);
+        text = text.replace("%xp%", String.valueOf(currentXp));
+        text = text.replace("%req_xp%", String.valueOf(requiredXp));
+        text = text.replace("%progress_bar%", progressBar);
 
         return text;
     }

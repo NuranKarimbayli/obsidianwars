@@ -55,7 +55,7 @@ public class ObsidianTabCompleter implements TabCompleter {
             List<String> subcommands = Arrays.asList(
                 "play", "join", "leave", "rejoin", "stats", "gui", "cmds", "arenalist",
                 "team", "wand", "arena", "create", "delete", "force", "forceend", "forcestart", "forceprep",
-                "disableArena", "enableArena", "spectate"
+                "disableArena", "enableArena", "spectate", "admin", "debug"
             );
             return filterCompletions(subcommands, args[0]);
         }
@@ -142,6 +142,34 @@ public class ObsidianTabCompleter implements TabCompleter {
             suggestions.addAll(getActivePlayingPlayerNames());
             suggestions.addAll(getArenaNames());
             return filterCompletions(suggestions, args[1]);
+        }
+
+        // ==================== ADMIN COMMAND ====================
+        if (args[0].equalsIgnoreCase("admin")) {
+            if (args.length == 2) {
+                // Suggest admin subcommands
+                List<String> adminSubcommands = Arrays.asList(
+                    "addexp", "addlevel", "removexp", "removelevel", "setexp", "setlevel"
+                );
+                return filterCompletions(adminSubcommands, args[1]);
+            }
+            if (args.length == 3) {
+                // Suggest player names
+                return filterCompletions(getOnlinePlayerNames(), args[2]);
+            }
+            if (args.length == 4) {
+                // Suggest amount placeholder
+                return Arrays.asList("<amount>");
+            }
+        }
+
+        // ==================== DEBUG COMMAND ====================
+        if (args[0].equalsIgnoreCase("debug")) {
+            if (args.length == 2) {
+                // Suggest debug modes
+                List<String> debugModes = Arrays.asList("console", "chat", "both", "off");
+                return filterCompletions(debugModes, args[1]);
+            }
         }
 
         return completions;

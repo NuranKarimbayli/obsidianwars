@@ -62,13 +62,15 @@ public class TabListManager {
 
         UUID uuid = player.getUniqueId();
         if (!ObsidianCommand.playersInArena.containsKey(uuid)) {
-            // Not in arena, remove health display
-            player.setPlayerListName(player.getName());
+            // Not in arena, remove health display but keep level
+            String levelFormatted = LevelManager.getFormattedLevel(uuid);
+            player.setPlayerListName(levelFormatted + " " + player.getName());
             return;
         }
 
         String healthDisplay = getHealthDisplay(player);
-        player.setPlayerListName(player.getName() + " " + healthDisplay);
+        String levelFormatted = LevelManager.getFormattedLevel(uuid);
+        player.setPlayerListName(levelFormatted + " " + player.getName() + " " + healthDisplay);
     }
 
     private static String getHealthDisplay(Player player) {
@@ -99,6 +101,13 @@ public class TabListManager {
         int kills = StatsManager.getKills(uuid);
         int deaths = StatsManager.getDeaths(uuid);
         int ping = getPing(player);
+
+        // Get player level info
+        int level = LevelManager.getLevel(uuid);
+        String levelFormatted = LevelManager.getFormattedLevel(uuid);
+        int currentXp = LevelManager.getCurrentXp(uuid);
+        int requiredXp = LevelManager.getRequiredXp(uuid);
+        String progressBar = LevelManager.getProgressBar(uuid);
 
         // Get arena info if player is in arena
         String arenaName = "None";
@@ -137,6 +146,11 @@ public class TabListManager {
         text = text.replace("%arena%", arenaName);
         text = text.replace("%phase%", phase);
         text = text.replace("%time%", time);
+        text = text.replace("%level%", String.valueOf(level));
+        text = text.replace("%level_formatted%", levelFormatted);
+        text = text.replace("%xp%", String.valueOf(currentXp));
+        text = text.replace("%req_xp%", String.valueOf(requiredXp));
+        text = text.replace("%progress_bar%", progressBar);
 
         return text;
     }

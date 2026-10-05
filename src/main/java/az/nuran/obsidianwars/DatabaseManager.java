@@ -41,6 +41,10 @@ public class DatabaseManager {
             config.setUsername(username);
             config.setPassword(password);
             config.setMaximumPoolSize(poolSize);
+            config.setMinimumIdle(Math.max(1, poolSize / 2)); // Keep at least half the pool ready
+            config.setConnectionTimeout(30000); // 30 seconds connection timeout
+            config.setIdleTimeout(600000); // 10 minutes idle timeout
+            config.setMaxLifetime(1800000); // 30 minutes max connection lifetime
             config.setPoolName("ObsidianWars-MySQL-Pool");
 
             Obsidianwars.getInstance().getLogger().info("Database: Using MySQL connection to " + host + ":" + port + "/" + database);
@@ -51,6 +55,10 @@ public class DatabaseManager {
 
             config.setJdbcUrl("jdbc:sqlite:" + dbPath);
             config.setMaximumPoolSize(1); // SQLite doesn't support concurrent writes
+            config.setMinimumIdle(1); // Keep one connection ready
+            config.setConnectionTimeout(30000); // 30 seconds connection timeout
+            config.setIdleTimeout(600000); // 10 minutes idle timeout
+            config.setMaxLifetime(1800000); // 30 minutes max connection lifetime
             config.setPoolName("ObsidianWars-SQLite-Pool");
 
             Obsidianwars.getInstance().getLogger().info("Database: Using SQLite file at " + dbPath);
@@ -84,12 +92,33 @@ public class DatabaseManager {
                         obsidian_lost INT DEFAULT 0,
                         winstreak INT DEFAULT 0,
                         longest_kill_streak INT DEFAULT 0,
+                        level INT DEFAULT 1,
+                        xp INT DEFAULT 0,
                         last_updated BIGINT
                     )
                     """;
 
                 try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                     stmt.execute();
+                }
+
+                // Add level and xp columns if they don't exist (for existing databases)
+                try {
+                    String alterSql = "ALTER TABLE player_stats ADD COLUMN level INT DEFAULT 1";
+                    try (PreparedStatement alterStmt = conn.prepareStatement(alterSql)) {
+                        alterStmt.execute();
+                    }
+                } catch (SQLException e) {
+                    // Column already exists, ignore
+                }
+
+                try {
+                    String alterSql = "ALTER TABLE player_stats ADD COLUMN xp INT DEFAULT 0";
+                    try (PreparedStatement alterStmt = conn.prepareStatement(alterSql)) {
+                        alterStmt.execute();
+                    }
+                } catch (SQLException e) {
+                    // Column already exists, ignore
                 }
 
                 // Create time-framed stats table

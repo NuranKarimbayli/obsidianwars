@@ -21,27 +21,35 @@ public class StatsDAO {
         try (Connection conn = DatabaseManager.getConnection()) {
             String sql = """
                 SELECT games_played, wins, losses, kills, deaths, final_kills, final_deaths,
-                       obsidian_broken, obsidian_lost, winstreak, longest_kill_streak
+                       obsidian_broken, obsidian_lost, winstreak, longest_kill_streak, level, xp
                 FROM player_stats
                 WHERE uuid = ?
                 """;
 
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, uuid.toString());
-                ResultSet rs = stmt.executeQuery();
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        stats.setGamesPlayed(rs.getInt("games_played"));
+                        stats.setWins(rs.getInt("wins"));
+                        stats.setLosses(rs.getInt("losses"));
+                        stats.setKills(rs.getInt("kills"));
+                        stats.setDeaths(rs.getInt("deaths"));
+                        stats.setFinalKills(rs.getInt("final_kills"));
+                        stats.setFinalDeaths(rs.getInt("final_deaths"));
+                        stats.setObsidianBroken(rs.getInt("obsidian_broken"));
+                        stats.setObsidianLost(rs.getInt("obsidian_lost"));
+                        stats.setWinstreak(rs.getInt("winstreak"));
+                        stats.setLongestKillStreak(rs.getInt("longest_kill_streak"));
 
-                if (rs.next()) {
-                    stats.setGamesPlayed(rs.getInt("games_played"));
-                    stats.setWins(rs.getInt("wins"));
-                    stats.setLosses(rs.getInt("losses"));
-                    stats.setKills(rs.getInt("kills"));
-                    stats.setDeaths(rs.getInt("deaths"));
-                    stats.setFinalKills(rs.getInt("final_kills"));
-                    stats.setFinalDeaths(rs.getInt("final_deaths"));
-                    stats.setObsidianBroken(rs.getInt("obsidian_broken"));
-                    stats.setObsidianLost(rs.getInt("obsidian_lost"));
-                    stats.setWinstreak(rs.getInt("winstreak"));
-                    stats.setLongestKillStreak(rs.getInt("longest_kill_streak"));
+                        // Load level data
+                        int level = rs.getInt("level");
+                        int xp = rs.getInt("xp");
+                        LevelManager.loadPlayerLevel(uuid, level, xp);
+                    } else {
+                        // New player, initialize level to 1 with 0 XP
+                        LevelManager.loadPlayerLevel(uuid, 1, 0);
+                    }
                 }
             }
 
@@ -52,6 +60,8 @@ public class StatsDAO {
 
         } catch (SQLException e) {
             Obsidianwars.getInstance().getLogger().warning("Failed to load stats for " + uuid + ": " + e.getMessage());
+            // Initialize level to 1 with 0 XP on error
+            LevelManager.loadPlayerLevel(uuid, 1, 0);
         }
 
         return stats;
@@ -70,21 +80,21 @@ public class StatsDAO {
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, uuid.toString());
             stmt.setString(2, period);
-            ResultSet rs = stmt.executeQuery();
-
-            if (rs.next()) {
-                if (period.equals("daily")) {
-                    stats.setDailyWins(rs.getInt("wins"));
-                    stats.setDailyObsidianBroken(rs.getInt("obsidian_broken"));
-                    stats.setDailyFinalKills(rs.getInt("final_kills"));
-                } else if (period.equals("weekly")) {
-                    stats.setWeeklyWins(rs.getInt("wins"));
-                    stats.setWeeklyObsidianBroken(rs.getInt("obsidian_broken"));
-                    stats.setWeeklyFinalKills(rs.getInt("final_kills"));
-                } else if (period.equals("monthly")) {
-                    stats.setMonthlyWins(rs.getInt("wins"));
-                    stats.setMonthlyObsidianBroken(rs.getInt("obsidian_broken"));
-                    stats.setMonthlyFinalKills(rs.getInt("final_kills"));
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    if (period.equals("daily")) {
+                        stats.setDailyWins(rs.getInt("wins"));
+                        stats.setDailyObsidianBroken(rs.getInt("obsidian_broken"));
+                        stats.setDailyFinalKills(rs.getInt("final_kills"));
+                    } else if (period.equals("weekly")) {
+                        stats.setWeeklyWins(rs.getInt("wins"));
+                        stats.setWeeklyObsidianBroken(rs.getInt("obsidian_broken"));
+                        stats.setWeeklyFinalKills(rs.getInt("final_kills"));
+                    } else if (period.equals("monthly")) {
+                        stats.setMonthlyWins(rs.getInt("wins"));
+                        stats.setMonthlyObsidianBroken(rs.getInt("obsidian_broken"));
+                        stats.setMonthlyFinalKills(rs.getInt("final_kills"));
+                    }
                 }
             }
         }
@@ -116,22 +126,84 @@ public class StatsDAO {
     }
 
     /**
+     * Saves player level data asynchronously.
+     */
+    public static void savePlayerLevel(UUID uuid) {
+        DatabaseManager.executeAsync(conn -> {
+            try {
+                LevelManager.PlayerLevel playerLevel = LevelManager.getPlayerLevel(uuid);
+                if (playerLevel == null) return;
+
+                if (DatabaseManager.getStorageType().equals("mysql")) {
+                    savePlayerLevelMySQL(conn, uuid, playerLevel);
+                } else {
+                    savePlayerLevelSQLite(conn, uuid, playerLevel);
+                }
+            } catch (SQLException e) {
+                Obsidianwars.getInstance().getLogger().severe("Failed to save level for " + uuid + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+    }
+
+    /**
+     * Saves player level data using MySQL syntax.
+     */
+    private static void savePlayerLevelMySQL(Connection conn, UUID uuid, LevelManager.PlayerLevel playerLevel) throws SQLException {
+        String sql = """
+            UPDATE player_stats
+            SET level = ?, xp = ?, last_updated = ?
+            WHERE uuid = ?
+            """;
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            long now = System.currentTimeMillis();
+            stmt.setInt(1, playerLevel.getLevel());
+            stmt.setInt(2, playerLevel.getCurrentXp());
+            stmt.setLong(3, now);
+            stmt.setString(4, uuid.toString());
+            stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Saves player level data using SQLite syntax.
+     */
+    private static void savePlayerLevelSQLite(Connection conn, UUID uuid, LevelManager.PlayerLevel playerLevel) throws SQLException {
+        String sql = """
+            UPDATE player_stats
+            SET level = ?, xp = ?, last_updated = ?
+            WHERE uuid = ?
+            """;
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            long now = System.currentTimeMillis();
+            stmt.setInt(1, playerLevel.getLevel());
+            stmt.setInt(2, playerLevel.getCurrentXp());
+            stmt.setLong(3, now);
+            stmt.setString(4, uuid.toString());
+            stmt.executeUpdate();
+        }
+    }
+
+    /**
      * Saves player stats using MySQL syntax.
      */
     private static void savePlayerStatsMySQL(Connection conn, UUID uuid, String username, StatsManager.PlayerStats stats) throws SQLException {
         String sql = """
             INSERT INTO player_stats (uuid, username, games_played, wins, losses, kills, deaths,
                                           final_kills, final_deaths, obsidian_broken, obsidian_lost,
-                                          winstreak, longest_kill_streak, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                          winstreak, longest_kill_streak, level, xp, last_updated)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 username = ?, games_played = ?, wins = ?, losses = ?, kills = ?, deaths = ?,
                 final_kills = ?, final_deaths = ?, obsidian_broken = ?, obsidian_lost = ?,
-                winstreak = ?, longest_kill_streak = ?, last_updated = ?
+                winstreak = ?, longest_kill_streak = ?, level = ?, xp = ?, last_updated = ?
             """;
 
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             long now = System.currentTimeMillis();
+            LevelManager.PlayerLevel playerLevel = LevelManager.getPlayerLevel(uuid);
 
             stmt.setString(1, uuid.toString());
             stmt.setString(2, username);
@@ -146,22 +218,26 @@ public class StatsDAO {
             stmt.setInt(11, stats.getObsidianLost());
             stmt.setInt(12, stats.getWinstreak());
             stmt.setInt(13, stats.getLongestKillStreak());
-            stmt.setLong(14, now);
+            stmt.setInt(14, playerLevel != null ? playerLevel.getLevel() : 1);
+            stmt.setInt(15, playerLevel != null ? playerLevel.getCurrentXp() : 0);
+            stmt.setLong(16, now);
 
             // Update values
-            stmt.setString(15, username);
-            stmt.setInt(16, stats.getGamesPlayed());
-            stmt.setInt(17, stats.getWins());
-            stmt.setInt(18, stats.getLosses());
-            stmt.setInt(19, stats.getKills());
-            stmt.setInt(20, stats.getDeaths());
-            stmt.setInt(21, stats.getFinalKills());
-            stmt.setInt(22, stats.getFinalDeaths());
-            stmt.setInt(23, stats.getObsidianBroken());
-            stmt.setInt(24, stats.getObsidianLost());
-            stmt.setInt(25, stats.getWinstreak());
-            stmt.setInt(26, stats.getLongestKillStreak());
-            stmt.setLong(27, now);
+            stmt.setString(17, username);
+            stmt.setInt(18, stats.getGamesPlayed());
+            stmt.setInt(19, stats.getWins());
+            stmt.setInt(20, stats.getLosses());
+            stmt.setInt(21, stats.getKills());
+            stmt.setInt(22, stats.getDeaths());
+            stmt.setInt(23, stats.getFinalKills());
+            stmt.setInt(24, stats.getFinalDeaths());
+            stmt.setInt(25, stats.getObsidianBroken());
+            stmt.setInt(26, stats.getObsidianLost());
+            stmt.setInt(27, stats.getWinstreak());
+            stmt.setInt(28, stats.getLongestKillStreak());
+            stmt.setInt(29, playerLevel != null ? playerLevel.getLevel() : 1);
+            stmt.setInt(30, playerLevel != null ? playerLevel.getCurrentXp() : 0);
+            stmt.setLong(31, now);
 
             stmt.executeUpdate();
         }
@@ -174,16 +250,17 @@ public class StatsDAO {
         String sql = """
             INSERT INTO player_stats (uuid, username, games_played, wins, losses, kills, deaths,
                                           final_kills, final_deaths, obsidian_broken, obsidian_lost,
-                                          winstreak, longest_kill_streak, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                          winstreak, longest_kill_streak, level, xp, last_updated)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(uuid) DO UPDATE SET
                 username = ?, games_played = ?, wins = ?, losses = ?, kills = ?, deaths = ?,
                 final_kills = ?, final_deaths = ?, obsidian_broken = ?, obsidian_lost = ?,
-                winstreak = ?, longest_kill_streak = ?, last_updated = ?
+                winstreak = ?, longest_kill_streak = ?, level = ?, xp = ?, last_updated = ?
             """;
 
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             long now = System.currentTimeMillis();
+            LevelManager.PlayerLevel playerLevel = LevelManager.getPlayerLevel(uuid);
 
             stmt.setString(1, uuid.toString());
             stmt.setString(2, username);
@@ -198,22 +275,26 @@ public class StatsDAO {
             stmt.setInt(11, stats.getObsidianLost());
             stmt.setInt(12, stats.getWinstreak());
             stmt.setInt(13, stats.getLongestKillStreak());
-            stmt.setLong(14, now);
+            stmt.setInt(14, playerLevel != null ? playerLevel.getLevel() : 1);
+            stmt.setInt(15, playerLevel != null ? playerLevel.getCurrentXp() : 0);
+            stmt.setLong(16, now);
 
             // Update values
-            stmt.setString(15, username);
-            stmt.setInt(16, stats.getGamesPlayed());
-            stmt.setInt(17, stats.getWins());
-            stmt.setInt(18, stats.getLosses());
-            stmt.setInt(19, stats.getKills());
-            stmt.setInt(20, stats.getDeaths());
-            stmt.setInt(21, stats.getFinalKills());
-            stmt.setInt(22, stats.getFinalDeaths());
-            stmt.setInt(23, stats.getObsidianBroken());
-            stmt.setInt(24, stats.getObsidianLost());
-            stmt.setInt(25, stats.getWinstreak());
-            stmt.setInt(26, stats.getLongestKillStreak());
-            stmt.setLong(27, now);
+            stmt.setString(17, username);
+            stmt.setInt(18, stats.getGamesPlayed());
+            stmt.setInt(19, stats.getWins());
+            stmt.setInt(20, stats.getLosses());
+            stmt.setInt(21, stats.getKills());
+            stmt.setInt(22, stats.getDeaths());
+            stmt.setInt(23, stats.getFinalKills());
+            stmt.setInt(24, stats.getFinalDeaths());
+            stmt.setInt(25, stats.getObsidianBroken());
+            stmt.setInt(26, stats.getObsidianLost());
+            stmt.setInt(27, stats.getWinstreak());
+            stmt.setInt(28, stats.getLongestKillStreak());
+            stmt.setInt(29, playerLevel != null ? playerLevel.getLevel() : 1);
+            stmt.setInt(30, playerLevel != null ? playerLevel.getCurrentXp() : 0);
+            stmt.setLong(31, now);
 
             stmt.executeUpdate();
         }

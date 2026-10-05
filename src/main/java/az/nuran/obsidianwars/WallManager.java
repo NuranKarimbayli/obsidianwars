@@ -285,6 +285,9 @@ public class WallManager {
 
                             // Start obsidian particles
                             ParticleManager.startObsidianParticles(arenaName);
+
+                            // Start per-minute XP task
+                            XPAwardListener.startPerMinuteTask(arenaName);
                         }
                         
                         // Start mob spawning (combat phase)
@@ -439,6 +442,9 @@ public class WallManager {
 
             // Start obsidian particles
             ParticleManager.startObsidianParticles(arenaName);
+
+            // Start per-minute XP task
+            XPAwardListener.startPerMinuteTask(arenaName);
         }
 
         // Start mob spawning (combat phase)

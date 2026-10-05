@@ -355,10 +355,31 @@ public class StatsManager {
     }
 
     /**
+     * Gets the number of wins for a player.
+     */
+    public static int getWins(UUID uuid) {
+        PlayerStats stats = playerStats.get(uuid);
+        return stats != null ? stats.getWins() : 0;
+    }
+
+    /**
+     * Gets the current winstreak for a player.
+     */
+    public static int getWinstreak(UUID uuid) {
+        PlayerStats stats = playerStats.get(uuid);
+        return stats != null ? stats.getWinstreak() : 0;
+    }
+
+    /**
      * Cleanup method called on plugin disable.
      */
     public static void cleanup() {
         saveAllStats();
+        // Save all player levels
+        for (UUID uuid : playerStats.keySet()) {
+            StatsDAO.savePlayerLevel(uuid);
+        }
         playerStats.clear();
+        LevelManager.cleanup();
     }
 }

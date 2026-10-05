@@ -50,6 +50,9 @@ public final class Obsidianwars extends JavaPlugin {
         // Initialize managers
         ArenaConfigManager.initialize();
         MessagesConfigManager.initialize();
+        KillStreaksConfigManager.initialize();
+        DeathMessagesConfigManager.initialize();
+        ResourceBlocksConfigManager.initialize();
         ParticleManager.loadConfig();
         ResourceBlockManager.loadAllowedResourceBlocks();
 
@@ -92,9 +95,13 @@ public final class Obsidianwars extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new SpectatorListener(), this);
         getServer().getPluginManager().registerEvents(new ArenaSnapshotManager(), this);
         getServer().getPluginManager().registerEvents(new StatsListener(), this);
+        getServer().getPluginManager().registerEvents(new XPAwardListener(), this);
 
         // Initialize TabListManager
         TabListManager.initialize();
+
+        // Initialize LobbyScoreboardManager
+        LobbyScoreboardManager.initialize();
 
         // Start periodic cleanup task for expired disconnect records
         startCleanupTask();
@@ -139,6 +146,7 @@ public final class Obsidianwars extends JavaPlugin {
         WallManager.cleanup();
         MobSpawnerManager.cleanup();
         ScoreboardManager.cleanup();
+        LobbyScoreboardManager.cleanup();
         ResourceBlockManager.cleanup();
         WorldRulesManager.cleanup();
         TeamManager.cleanup();
@@ -146,6 +154,7 @@ public final class Obsidianwars extends JavaPlugin {
         ArenaSnapshotManager.cleanup();
         DebugManager.cleanup();
         StatsManager.cleanup();
+        XPAwardListener.cleanup();
         DatabaseManager.close();
     }
 

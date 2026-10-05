@@ -212,6 +212,12 @@ public class ObsidianCommand implements CommandExecutor {
             return true;
         }
 
+        // ==================== ADMIN COMMANDS ====================
+        if (subCommand.equals("admin")) {
+            handleAdminCommand(player, args);
+            return true;
+        }
+
         // ==================== UNKNOWN COMMAND ====================
         player.sendMessage("§cUnknown command. Use /o cmds for help.");
         return true;
@@ -367,6 +373,9 @@ public class ObsidianCommand implements CommandExecutor {
 
         player.sendMessage(getMessage("game_ended"));
 
+        // Update lobby scoreboard after leaving arena
+        LobbyScoreboardManager.updateLobbyScoreboard(player);
+
         // CANCELLATION LOGIC: If player left during countdown, check if we need to cancel
         if (wasInCountdown) {
             if (TeamManager.isAnyTeamEmpty(arenaName) ||
@@ -416,14 +425,15 @@ public class ObsidianCommand implements CommandExecutor {
     private void handleStatsCommand(Player player, String[] args) {
         Player target = player;
 
-        if (args.length > 1) {
-            target = Bukkit.getPlayer(args[1]);
+        if (args.length > 0) {
+            target = Bukkit.getPlayer(args[0]);
             if (target == null) {
-                player.sendMessage("§cPlayer not found: " + args[1]);
+                player.sendMessage("§cPlayer not found: " + args[0]);
                 return;
             }
         }
 
+        DebugManager.logDebug("Opening stats GUI: viewer=" + player.getName() + ", target=" + target.getName(), null);
         StatsManager.openStatsGUI(player, target);
     }
 
@@ -465,6 +475,10 @@ public class ObsidianCommand implements CommandExecutor {
         player.sendMessage("  §a/o arena setspectspawn <arena> §7- Set spectator spawn");
         player.sendMessage("  §a/o wand §7- Get arena setup wand");
         player.sendMessage("  §a/o arenalist §7- List all arenas");
+        player.sendMessage("  §a/o admin addexp <player> <amount> §7- Add XP to player");
+        player.sendMessage("  §a/o admin addlevel <player> <amount> §7- Add levels to player");
+        player.sendMessage("  §a/o admin removexp <player> <amount> §7- Remove XP from player");
+        player.sendMessage("  §a/o admin removelevel <player> <amount> §7- Remove levels from player");
         player.sendMessage("  §a/o debug <console|chat|both|off> §7- Toggle debug logging");
         player.sendMessage("  §a/o cmds §7- Show this command list");
     }
@@ -1088,6 +1102,9 @@ public class ObsidianCommand implements CommandExecutor {
                     PlayerUtils.resetPlayerFull(arenaPlayer, mainSpawn);
 
                     arenaPlayer.sendMessage("§cArena silindi, siz arenadan çıxarıldınız!");
+
+                    // Update lobby scoreboard
+                    LobbyScoreboardManager.updateLobbyScoreboard(arenaPlayer);
                 }
             }
         }
@@ -1630,6 +1647,107 @@ public class ObsidianCommand implements CommandExecutor {
         List<String> welcomeLines = MessagesConfigManager.getMessagesConfig().getStringList("messages.welcome_message");
         for (String line : welcomeLines) {
             player.sendMessage(line);
+        }
+    }
+
+    private void handleAdminCommand(Player player, String[] args) {
+        // Check permission
+        if (!player.hasPermission("obsidianwars.admin")) {
+            player.sendMessage("§cYou don't have permission to use admin commands.");
+            return;
+        }
+
+        if (args.length < 2) {
+            player.sendMessage("§cUsage: /o admin <addexp|addlevel|removexp|removelevel|setexp|setlevel> <player> <amount>");
+            return;
+        }
+
+        String action = args[1].toLowerCase();
+
+        if (args.length < 4) {
+            player.sendMessage("§cUsage: /o admin " + action + " <player> <amount>");
+            return;
+        }
+
+        String targetName = args[2];
+        Player target = Bukkit.getPlayer(targetName);
+
+        if (target == null || !target.isOnline()) {
+            player.sendMessage("§cPlayer '" + targetName + "' is not online.");
+            return;
+        }
+
+        int amount;
+        try {
+            amount = Integer.parseInt(args[3]);
+        } catch (NumberFormatException e) {
+            player.sendMessage("§cInvalid amount: " + args[3]);
+            return;
+        }
+
+        UUID targetUuid = target.getUniqueId();
+
+        switch (action) {
+            case "addexp":
+                LevelManager.addXp(target, amount);
+                player.sendMessage("§aAdded " + amount + " XP to " + target.getName());
+                target.sendMessage("§eYou received " + amount + " XP from an admin!");
+                break;
+
+            case "addlevel":
+                LevelManager.PlayerLevel playerLevel = LevelManager.getPlayerLevel(targetUuid);
+                int newLevel = playerLevel.getLevel() + amount;
+                playerLevel.setLevel(newLevel);
+                player.sendMessage("§aSet " + target.getName() + "'s level to " + newLevel);
+                target.sendMessage("§eYour level has been set to " + newLevel + " by an admin!");
+                // Save to database
+                StatsDAO.savePlayerLevel(targetUuid);
+                break;
+
+            case "removexp":
+                LevelManager.PlayerLevel xpLevel = LevelManager.getPlayerLevel(targetUuid);
+                int currentXp = xpLevel.getCurrentXp();
+                int newXP = Math.max(0, currentXp - amount);
+                xpLevel.setXp(newXP);
+                player.sendMessage("§aRemoved " + (currentXp - newXP) + " XP from " + target.getName());
+                target.sendMessage("§e" + (currentXp - newXP) + " XP was removed by an admin!");
+                // Save to database
+                StatsDAO.savePlayerLevel(targetUuid);
+                break;
+
+            case "removelevel":
+                LevelManager.PlayerLevel levelData = LevelManager.getPlayerLevel(targetUuid);
+                int currentLevel = levelData.getLevel();
+                int newLevel2 = Math.max(1, currentLevel - amount);
+                levelData.setLevel(newLevel2);
+                player.sendMessage("§aReduced " + target.getName() + "'s level to " + newLevel2);
+                target.sendMessage("§eYour level has been reduced to " + newLevel2 + " by an admin!");
+                // Save to database
+                StatsDAO.savePlayerLevel(targetUuid);
+                break;
+
+            case "setexp":
+                LevelManager.PlayerLevel setXpLevel = LevelManager.getPlayerLevel(targetUuid);
+                setXpLevel.setXp(Math.max(0, amount));
+                player.sendMessage("§aSet " + target.getName() + "'s XP to " + amount);
+                target.sendMessage("§eYour XP has been set to " + amount + " by an admin!");
+                // Save to database
+                StatsDAO.savePlayerLevel(targetUuid);
+                break;
+
+            case "setlevel":
+                LevelManager.PlayerLevel setLevelData = LevelManager.getPlayerLevel(targetUuid);
+                setLevelData.setLevel(Math.max(1, amount));
+                player.sendMessage("§aSet " + target.getName() + "'s level to " + amount);
+                target.sendMessage("§eYour level has been set to " + amount + " by an admin!");
+                // Save to database
+                StatsDAO.savePlayerLevel(targetUuid);
+                break;
+
+            default:
+                player.sendMessage("§cUnknown admin action: " + action);
+                player.sendMessage("§cAvailable actions: addexp, addlevel, removexp, removelevel, setexp, setlevel");
+                break;
         }
     }
 

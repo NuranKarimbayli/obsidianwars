@@ -29,12 +29,12 @@ public class ResourceBlockManager implements Listener {
     private static final Set<Material> ALLOWED_RESOURCE_BLOCKS = new HashSet<>();
 
     /**
-     * Loads allowed resource blocks from config.yml
+     * Loads allowed resource blocks from resource-blocks.yml
      */
     public static void loadAllowedResourceBlocks() {
         ALLOWED_RESOURCE_BLOCKS.clear();
 
-        List<String> allowedBlocks = Obsidianwars.getInstance().getConfig().getStringList("allowed-resource-blocks");
+        List<String> allowedBlocks = ResourceBlocksConfigManager.getResourceBlocksConfig().getStringList("allowed-resource-blocks");
         for (String blockName : allowedBlocks) {
             try {
                 Material material = Material.valueOf(blockName);
@@ -44,7 +44,7 @@ public class ResourceBlockManager implements Listener {
             }
         }
 
-        Obsidianwars.getInstance().getLogger().info("Loaded " + ALLOWED_RESOURCE_BLOCKS.size() + " allowed resource blocks from config");
+        Obsidianwars.getInstance().getLogger().info("Loaded " + ALLOWED_RESOURCE_BLOCKS.size() + " allowed resource blocks from resource-blocks.yml");
     }
 
     public static void enterSetupMode(Player player, String arenaName) {

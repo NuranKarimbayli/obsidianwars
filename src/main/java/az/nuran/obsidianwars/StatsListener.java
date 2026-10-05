@@ -21,5 +21,9 @@ public class StatsListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         // Save player stats asynchronously when they quit
         StatsManager.savePlayerStats(event.getPlayer().getUniqueId(), event.getPlayer().getName());
+        // Save player level data asynchronously
+        StatsDAO.savePlayerLevel(event.getPlayer().getUniqueId());
+        // Remove level data from memory
+        LevelManager.removePlayerLevel(event.getPlayer().getUniqueId());
     }
 }
