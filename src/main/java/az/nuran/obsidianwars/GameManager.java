@@ -1019,6 +1019,7 @@ public class GameManager {
         private BukkitTask gameTimerTask;
         private final Map<String, Boolean> obsidianDestroyed = new HashMap<>();
         private final Map<UUID, Integer> killStreaks = new HashMap<>();
+        private boolean winDeclared = false; // Prevent duplicate win triggers
 
         public ArenaGame(String arenaName) {
             this.arenaName = arenaName;
@@ -1167,6 +1168,14 @@ public class GameManager {
 
         public void setObsidianDestroyed(String team, boolean destroyed) {
             obsidianDestroyed.put(team, destroyed);
+        }
+
+        public boolean isWinDeclared() {
+            return winDeclared;
+        }
+
+        public void setWinDeclared(boolean declared) {
+            this.winDeclared = declared;
         }
 
         public void startGameTimer() {
@@ -1392,6 +1401,12 @@ public class GameManager {
         GameManager.ArenaGame game = GameManager.getGame(arenaName);
         if (game == null) return;
 
+        // Prevent duplicate win triggers
+        if (game.isWinDeclared()) {
+            DebugManager.logDebug("Win condition check skipped - win already declared", arenaName);
+            return;
+        }
+
         // Hər komandanın canlı oyunçu sayını hesablayırıq
         int redAlive = getAliveTeamPlayers(arenaName, "red");
         int blueAlive = getAliveTeamPlayers(arenaName, "blue");
@@ -1402,11 +1417,13 @@ public class GameManager {
         // Əgər bir komanda tamamilə elimine edilibsə
         if (redAlive == 0 && game.isObsidianDestroyed("red")) {
             // Mavi komanda qalib gəldi
-            Obsidianwars.getInstance().getLogger().info("Blue team wins! Red team eliminated.");
+            DebugManager.logDebug("Blue team wins! Red team eliminated.", arenaName);
+            game.setWinDeclared(true);
             GameManager.endGame(arenaName, "blue");
         } else if (blueAlive == 0 && game.isObsidianDestroyed("blue")) {
             // Qırmızı komanda qalib gəldi
-            Obsidianwars.getInstance().getLogger().info("Red team wins! Blue team eliminated.");
+            DebugManager.logDebug("Red team wins! Blue team eliminated.", arenaName);
+            game.setWinDeclared(true);
             GameManager.endGame(arenaName, "red");
         }
     }
@@ -1420,9 +1437,19 @@ public class GameManager {
                 String playerTeam = TeamListener.playerTeams.get(uuid);
                 if (team.equals(playerTeam)) {
                     org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(uuid);
-                    // Count online players who are not spectators
+                    // Count online players who are not spectators (actively playing)
                     if (player != null && player.isOnline() && player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
                         count++;
+                    }
+                    // Count players who are spectators but have an active respawn timer (waiting to respawn)
+                    // This ensures players waiting to respawn are counted even if their obsidian is destroyed
+                    else if (player != null && player.isOnline() && player.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
+                        // Check if this player is waiting to respawn (has respawn protection or is in death cycle)
+                        // SpectatorManager tracks respawn state - count them as alive
+                        if (SpectatorManager.isRespawning(uuid)) {
+                            count++;
+                            DebugManager.logDebug("Counting respawning spectator: " + player.getName(), arenaName);
+                        }
                     }
                     // Only count disconnected players in grace period if their obsidian is NOT destroyed
                     // If obsidian is destroyed, they can't respawn even if they rejoin, so they're eliminated

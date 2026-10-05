@@ -324,11 +324,6 @@ public class GameListener implements Listener {
         Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
             checkWinCondition(arenaName);
         }, 1L);
-
-        // Also check after a longer delay to catch any edge cases
-        Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
-            checkWinCondition(arenaName);
-        }, 5L);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -485,6 +480,9 @@ public class GameListener implements Listener {
     }
 
     private void startRespawnCountdown(Player player, String arenaName, String team, Location obsidianLoc, Location teamSpawn) {
+        // Mark player as waiting to respawn
+        SpectatorManager.setRespawning(player.getUniqueId());
+
         // Teleport to obsidian location for spectating and set spectator mode
         try {
             player.teleport(obsidianLoc);
@@ -533,6 +531,9 @@ public class GameListener implements Listener {
     }
 
     private void respawnPlayer(Player player, String arenaName, String team, Location teamSpawn) {
+        // Clear respawning flag - player is now alive again
+        SpectatorManager.clearRespawning(player.getUniqueId());
+
         // Set survival mode
         player.setGameMode(org.bukkit.GameMode.SURVIVAL);
         player.setAllowFlight(false);
@@ -747,9 +748,6 @@ public class GameListener implements Listener {
         String teamColor = playerTeam.equals("red") ? "§c" : "§9";
         String disconnectMessage = teamColor + player.getName() + " §edisconnected! They have 30 seconds to rejoin.";
         ObsidianCommand.broadcastToArena(arenaName, disconnectMessage);
-
-        // Win condition yoxlaması (will check for actual elimination)
-        checkWinCondition(arenaName);
     }
 
     @EventHandler

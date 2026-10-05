@@ -24,6 +24,7 @@ public class SpectatorManager {
     private static final Map<UUID, String> spectatorArenas = new HashMap<>();
     private static final Map<UUID, Integer> flySpeeds = new HashMap<>(); // 1=1x, 2=2x, 3=3x
     private static final Map<UUID, Boolean> nightVisionStates = new HashMap<>();
+    private static final Map<UUID, Boolean> respawningPlayers = new HashMap<>(); // Tracks players waiting to respawn
 
     /**
      * Sets a player to spectator mode.
@@ -347,5 +348,31 @@ public class SpectatorManager {
         spectatorArenas.clear();
         flySpeeds.clear();
         nightVisionStates.clear();
+        respawningPlayers.clear();
+    }
+
+    /**
+     * Marks a player as waiting to respawn.
+     * @param uuid The player's UUID
+     */
+    public static void setRespawning(UUID uuid) {
+        respawningPlayers.put(uuid, true);
+    }
+
+    /**
+     * Marks a player as no longer waiting to respawn.
+     * @param uuid The player's UUID
+     */
+    public static void clearRespawning(UUID uuid) {
+        respawningPlayers.remove(uuid);
+    }
+
+    /**
+     * Checks if a player is currently waiting to respawn.
+     * @param uuid The player's UUID
+     * @return true if the player is waiting to respawn
+     */
+    public static boolean isRespawning(UUID uuid) {
+        return respawningPlayers.containsKey(uuid);
     }
 }
