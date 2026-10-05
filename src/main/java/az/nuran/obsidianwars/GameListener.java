@@ -267,7 +267,7 @@ public class GameListener implements Listener {
 
         // Track stats - obsidian destroyed
         StatsManager.PlayerStats stats = StatsManager.getPlayerStats(destroyer);
-        stats.addObsidianDestroyed();
+        stats.addObsidianBroken();
 
         // Stop particles for the destroyed obsidian
         ParticleManager.stopObsidianParticles(arenaName, team);
@@ -319,6 +319,25 @@ public class GameListener implements Listener {
 
         DebugManager.logDebug("Obsidian destroyed: " + teamColor + " team obsidian broken by " + destroyer.getName(), arenaName);
 
+        // Track stats for the destroyer
+        StatsManager.PlayerStats destroyerStats = StatsManager.getPlayerStats(destroyer);
+        destroyerStats.addObsidianBroken();
+
+        // Track stats for the victim team (obsidian lost)
+        String victimTeam = team.equals("red") ? "blue" : "red";
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                String playerTeam = TeamListener.playerTeams.get(uuid);
+                if (playerTeam != null && playerTeam.equals(victimTeam)) {
+                    Player victimPlayer = Bukkit.getPlayer(uuid);
+                    if (victimPlayer != null) {
+                        StatsManager.PlayerStats victimStats = StatsManager.getPlayerStats(victimPlayer);
+                        victimStats.addObsidianLost();
+                    }
+                }
+            }
+        }
+
         // Win condition yoxlaması - check immediately after obsidian destruction
         // Delay by 1 tick to ensure any pending spectator mode changes are processed
         Bukkit.getScheduler().runTaskLater(Obsidianwars.getInstance(), () -> {
@@ -351,6 +370,12 @@ public class GameListener implements Listener {
         StatsManager.PlayerStats stats = StatsManager.getPlayerStats(player);
         stats.addDeath();
 
+        // Check if this is a final kill (obsidian destroyed)
+        if (game.isObsidianDestroyed(playerTeam)) {
+            stats.addFinalDeath();
+            DebugManager.logDebug("Final death: " + player.getName() + " (obsidian destroyed)", arenaName);
+        }
+
         // Reset victim's kill streak
         game.resetKillStreak(player.getUniqueId());
 
@@ -360,6 +385,12 @@ public class GameListener implements Listener {
             if (ObsidianCommand.playersInArena.containsKey(killer.getUniqueId())) {
                 StatsManager.PlayerStats killerStats = StatsManager.getPlayerStats(killer);
                 killerStats.addKill();
+
+                // Check if this is a final kill (victim's obsidian destroyed)
+                if (game.isObsidianDestroyed(playerTeam)) {
+                    killerStats.addFinalKill();
+                    DebugManager.logDebug("Final kill: " + killer.getName() + " killed " + player.getName() + " (obsidian destroyed)", arenaName);
+                }
 
                 // Add to kill streak
                 game.addKill(killer.getUniqueId());

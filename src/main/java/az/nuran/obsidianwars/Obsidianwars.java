@@ -44,6 +44,9 @@ public final class Obsidianwars extends JavaPlugin {
         // Reload config to ensure defaults are loaded
         reloadConfig();
 
+        // Initialize database
+        DatabaseManager.initialize();
+
         // Initialize managers
         ArenaConfigManager.initialize();
         MessagesConfigManager.initialize();
@@ -88,12 +91,16 @@ public final class Obsidianwars extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new SpectatorTeleporterGUIListener(), this);
         getServer().getPluginManager().registerEvents(new SpectatorListener(), this);
         getServer().getPluginManager().registerEvents(new ArenaSnapshotManager(), this);
+        getServer().getPluginManager().registerEvents(new StatsListener(), this);
 
         // Initialize TabListManager
         TabListManager.initialize();
 
         // Start periodic cleanup task for expired disconnect records
         startCleanupTask();
+
+        // Start periodic task to reset expired time-framed stats (every hour)
+        startStatsResetTask();
     }
 
     @Override
@@ -138,7 +145,8 @@ public final class Obsidianwars extends JavaPlugin {
         SpectatorManager.cleanup();
         ArenaSnapshotManager.cleanup();
         DebugManager.cleanup();
-        // StatsManager: Stats are kept in memory for now (will be persisted to database in future update)
+        StatsManager.cleanup();
+        DatabaseManager.close();
     }
 
     private void startCleanupTask() {
@@ -146,6 +154,13 @@ public final class Obsidianwars extends JavaPlugin {
         getServer().getScheduler().runTaskTimer(this, () -> {
             GameManager.cleanupExpiredDisconnectRecords();
         }, 1200L, 1200L); // Every minute (1200 ticks)
+    }
+
+    private void startStatsResetTask() {
+        // Run stats reset task every hour to clear expired time-framed stats
+        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
+            StatsManager.resetExpiredTimeFramedStats();
+        }, 72000L, 72000L); // Every hour (72000 ticks)
     }
 
     public static Obsidianwars getInstance() {

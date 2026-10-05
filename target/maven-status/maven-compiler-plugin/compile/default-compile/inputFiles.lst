@@ -2,6 +2,7 @@ C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\Are
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\ArenaFileManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\ArenaSelectorGUIListener.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\ArenaSnapshotManager.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\DatabaseManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\DebugManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\GameListener.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\GameManager.java
@@ -19,7 +20,9 @@ C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\Spe
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\SpectatorManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\SpectatorTeleporterGUI.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\SpectatorTeleporterGUIListener.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\StatsDAO.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\StatsGUIListener.java
+C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\StatsListener.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\StatsManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\TabListManager.java
 C:\Users\nuran\IdeaProjects\obsidianwars\src\main\java\az\nuran\obsidianwars\TeamListener.java

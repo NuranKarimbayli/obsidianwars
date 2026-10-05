@@ -371,6 +371,8 @@ public class GameManager {
                             } else {
                                 stats.addLoss();
                             }
+                            // Save stats asynchronously
+                            StatsManager.savePlayerStats(uuid, player.getName());
                         }
                     }
                 }

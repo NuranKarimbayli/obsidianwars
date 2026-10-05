@@ -6,6 +6,20 @@ features:
   scoreboard: true
   tablist: true
 
+# Database Configuration
+# Options: "sqlite" or "mysql"
+database:
+  storage: "sqlite"
+  sqlite:
+    file-name: "stats.db"
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "obsidianwars"
+    username: "root"
+    password: "password"
+    pool-size: 10
+
 # System Language (Default: english)
 language: "english"
 
