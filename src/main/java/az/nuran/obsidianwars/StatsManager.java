@@ -6,6 +6,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -130,6 +131,7 @@ public class StatsManager {
         public void setMonthlyWins(int value) { this.monthlyWins = value; }
         public void setMonthlyObsidianBroken(int value) { this.monthlyObsidianBroken = value; }
         public void setMonthlyFinalKills(int value) { this.monthlyFinalKills = value; }
+        public void setLongestKillStreak(int value) { this.longestKillStreak = value; }
 
         // Increment methods
         public void addKill() { kills++; }
@@ -156,11 +158,6 @@ public class StatsManager {
             monthlyObsidianBroken++;
         }
         public void addObsidianLost() { obsidianLost++; }
-        public void setLongestKillStreak(int streak) {
-            if (streak > this.longestKillStreak) {
-                this.longestKillStreak = streak;
-            }
-        }
     }
 
     /**
@@ -184,8 +181,15 @@ public class StatsManager {
      */
     public static void loadPlayerStats(UUID uuid) {
         DatabaseManager.executeAsync(conn -> {
-            PlayerStats stats = StatsDAO.loadPlayerStats(uuid);
-            playerStats.put(uuid, stats);
+            try {
+                PlayerStats stats = StatsDAO.loadPlayerStats(conn, uuid);
+                playerStats.put(uuid, stats);
+            } catch (SQLException e) {
+                Obsidianwars.getInstance().getLogger().warning("Failed to load stats for " + uuid + ": " + e.getMessage());
+                // Initialize default stats on error
+                playerStats.put(uuid, new PlayerStats(uuid));
+                LevelManager.loadPlayerLevel(uuid, 1, 0);
+            }
         });
     }
 
@@ -200,14 +204,19 @@ public class StatsManager {
     }
 
     /**
-     * Saves all player stats to database asynchronously.
+     * Saves all player stats to database synchronously.
+     * Used during plugin shutdown to ensure all data is saved.
      */
     public static void saveAllStats() {
         for (Map.Entry<UUID, PlayerStats> entry : playerStats.entrySet()) {
             UUID uuid = entry.getKey();
             Player player = Bukkit.getPlayer(uuid);
             String username = player != null ? player.getName() : "Unknown";
-            StatsDAO.savePlayerStats(uuid, username, entry.getValue());
+            try (Connection conn = DatabaseManager.getConnection()) {
+                StatsDAO.savePlayerStatsSync(conn, uuid, username, entry.getValue());
+            } catch (SQLException e) {
+                Obsidianwars.getInstance().getLogger().warning("Failed to save stats for " + uuid + " during shutdown: " + e.getMessage());
+            }
         }
     }
 
@@ -375,9 +384,13 @@ public class StatsManager {
      */
     public static void cleanup() {
         saveAllStats();
-        // Save all player levels
+        // Save all player levels synchronously
         for (UUID uuid : playerStats.keySet()) {
-            StatsDAO.savePlayerLevel(uuid);
+            try (Connection conn = DatabaseManager.getConnection()) {
+                StatsDAO.savePlayerLevelSync(conn, uuid);
+            } catch (SQLException e) {
+                Obsidianwars.getInstance().getLogger().warning("Failed to save level for " + uuid + " during shutdown: " + e.getMessage());
+            }
         }
         playerStats.clear();
         LevelManager.cleanup();

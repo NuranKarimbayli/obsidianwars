@@ -86,6 +86,7 @@ public final class Obsidianwars extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new WandListener(), this);
         getServer().getPluginManager().registerEvents(new TeamListener(), this);
         getServer().getPluginManager().registerEvents(new LobbyItemClickListener(obsidianCommand), this);
+        getServer().getPluginManager().registerEvents(new ChatListener(), this);
         getServer().getPluginManager().registerEvents(new GameListener(), this);
         getServer().getPluginManager().registerEvents(new ResourceBlockManager(), this);
         getServer().getPluginManager().registerEvents(new WorldRulesManager(), this);
@@ -102,6 +103,9 @@ public final class Obsidianwars extends JavaPlugin {
 
         // Initialize LobbyScoreboardManager
         LobbyScoreboardManager.initialize();
+
+        // Cleanup any stuck arena statuses from server crash/shutdown
+        cleanupStuckArenaStatuses();
 
         // Start periodic cleanup task for expired disconnect records
         startCleanupTask();
@@ -170,6 +174,55 @@ public final class Obsidianwars extends JavaPlugin {
         getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
             StatsManager.resetExpiredTimeFramedStats();
         }, 72000L, 72000L); // Every hour (72000 ticks)
+    }
+
+    /**
+     * Cleanup any stuck arena statuses from server crash/shutdown.
+     * Resets arenas that are stuck in PLAYING, IN_GAME, or STARTING back to READY.
+     */
+    private void cleanupStuckArenaStatuses() {
+        getLogger().info("Checking for stuck arena statuses from previous shutdown...");
+        java.util.List<String> arenaNames = ArenaConfigManager.getArenaNames();
+        int resetCount = 0;
+
+        for (String arenaName : arenaNames) {
+            String currentStatus = ArenaConfigManager.getArenaStatus(arenaName);
+            getLogger().info("Arena " + arenaName + " status: " + currentStatus);
+
+            // Check if arena is stuck in an active game state
+            if (currentStatus != null && (currentStatus.equals("PLAYING") ||
+                currentStatus.equals("IN_GAME") ||
+                currentStatus.equals("STARTING"))) {
+
+                getLogger().warning("Arena " + arenaName + " is stuck in " + currentStatus + " status. Resetting to READY...");
+                ArenaConfigManager.setArenaStatus(arenaName, "READY");
+                resetCount++;
+
+                // Stop any lingering tasks for this arena
+                ParticleManager.stopAllArenaTasks(arenaName);
+                MobSpawnerManager.stopMobSpawning(arenaName);
+                WallManager.stopPreparationTimer(arenaName);
+                WallManager.stopSuddenDeathCountdown(arenaName);
+                XPAwardListener.stopPerMinuteTask(arenaName);
+
+                // Restore world rules
+                WorldRulesManager.restoreWorldRules(arenaName);
+
+                // Restore arena snapshot if available
+                boolean restoreSuccess = ArenaSnapshotManager.restoreSnapshot(arenaName);
+                if (restoreSuccess) {
+                    getLogger().info("Arena snapshot restored for " + arenaName);
+                } else {
+                    getLogger().warning("Arena snapshot restoration failed for " + arenaName);
+                }
+            }
+        }
+
+        if (resetCount > 0) {
+            getLogger().info("Reset " + resetCount + " stuck arena(s) to READY status.");
+        } else {
+            getLogger().info("No stuck arena statuses found.");
+        }
     }
 
     public static Obsidianwars getInstance() {

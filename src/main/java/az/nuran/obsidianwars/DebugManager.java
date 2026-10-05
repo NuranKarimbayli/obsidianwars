@@ -23,6 +23,10 @@ public class DebugManager {
     // Maps admin UUID to their debug mode preference
     private static final Map<UUID, DebugMode> debugModes = new HashMap<>();
 
+    // Global flags for console and chat debug
+    private static boolean isConsoleDebugEnabled = false;
+    private static boolean isChatDebugEnabled = false;
+
     /**
      * Sets the debug mode for a player.
      * @param player The admin player
@@ -78,25 +82,34 @@ public class DebugManager {
         String arenaStr = arenaName != null ? arenaName : "Unknown";
         String formattedMessage = "[DEBUG] " + arenaStr + ": " + message;
 
-        for (Map.Entry<UUID, DebugMode> entry : debugModes.entrySet()) {
-            DebugMode mode = entry.getValue();
-            if (mode == DebugMode.OFF) {
-                continue;
-            }
+        boolean shouldLogToConsole = false;
+        boolean shouldLogToChat = false;
 
-            Player player = Bukkit.getPlayer(entry.getKey());
-            if (player == null || !player.isOnline()) {
-                continue;
-            }
-
-            // Console output
+        // Check if any admin wants console or chat output
+        for (DebugMode mode : debugModes.values()) {
             if (mode == DebugMode.CONSOLE || mode == DebugMode.BOTH) {
-                Obsidianwars.getInstance().getLogger().info(formattedMessage);
+                shouldLogToConsole = true;
             }
-
-            // Chat output
             if (mode == DebugMode.CHAT || mode == DebugMode.BOTH) {
-                player.sendMessage("§7[DEBUG] §f" + formattedMessage);
+                shouldLogToChat = true;
+            }
+        }
+
+        // Log to console once if any admin has console mode AND console debug is globally enabled
+        if (shouldLogToConsole && isConsoleDebugEnabled) {
+            Obsidianwars.getInstance().getLogger().info(formattedMessage);
+        }
+
+        // Send to chat for each admin with chat mode AND chat debug is globally enabled
+        if (shouldLogToChat && isChatDebugEnabled) {
+            for (Map.Entry<UUID, DebugMode> entry : debugModes.entrySet()) {
+                DebugMode mode = entry.getValue();
+                if (mode == DebugMode.CHAT || mode == DebugMode.BOTH) {
+                    Player player = Bukkit.getPlayer(entry.getKey());
+                    if (player != null && player.isOnline()) {
+                        player.sendMessage("§7[DEBUG] §f" + formattedMessage);
+                    }
+                }
             }
         }
     }
@@ -123,5 +136,37 @@ public class DebugManager {
      */
     public static void cleanup() {
         debugModes.clear();
+    }
+
+    /**
+     * Gets the console debug enabled state.
+     * @return true if console debug is enabled
+     */
+    public static boolean isConsoleDebugEnabled() {
+        return isConsoleDebugEnabled;
+    }
+
+    /**
+     * Sets the console debug enabled state.
+     * @param enabled true to enable console debug
+     */
+    public static void setConsoleDebugEnabled(boolean enabled) {
+        isConsoleDebugEnabled = enabled;
+    }
+
+    /**
+     * Gets the chat debug enabled state.
+     * @return true if chat debug is enabled
+     */
+    public static boolean isChatDebugEnabled() {
+        return isChatDebugEnabled;
+    }
+
+    /**
+     * Sets the chat debug enabled state.
+     * @param enabled true to enable chat debug
+     */
+    public static void setChatDebugEnabled(boolean enabled) {
+        isChatDebugEnabled = enabled;
     }
 }

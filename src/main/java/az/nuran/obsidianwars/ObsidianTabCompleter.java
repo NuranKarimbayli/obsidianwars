@@ -149,12 +149,16 @@ public class ObsidianTabCompleter implements TabCompleter {
             if (args.length == 2) {
                 // Suggest admin subcommands
                 List<String> adminSubcommands = Arrays.asList(
-                    "addexp", "addlevel", "removexp", "removelevel", "setexp", "setlevel"
+                    "addexp", "addlevel", "removexp", "removelevel", "setexp", "setlevel", "gui"
                 );
                 return filterCompletions(adminSubcommands, args[1]);
             }
             if (args.length == 3) {
-                // Suggest player names
+                // Check if it's gui command (no further arguments)
+                if (args[1].equalsIgnoreCase("gui")) {
+                    return new ArrayList<>();
+                }
+                // Suggest player names for other commands
                 return filterCompletions(getOnlinePlayerNames(), args[2]);
             }
             if (args.length == 4) {

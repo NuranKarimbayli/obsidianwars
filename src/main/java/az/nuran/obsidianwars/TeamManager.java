@@ -1,6 +1,7 @@
 package az.nuran.obsidianwars;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -202,7 +203,7 @@ public class TeamManager {
     private static void applyTeamColor(Player player, String team, boolean equipArmor) {
         if (team.equals("red")) {
             // Name color - Red
-            String coloredName = "§c" + player.getName();
+            String coloredName = ChatColor.RED + player.getName();
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 
@@ -212,7 +213,7 @@ public class TeamManager {
             }
         } else if (team.equals("blue")) {
             // Name color - Blue
-            String coloredName = "§9" + player.getName();
+            String coloredName = ChatColor.BLUE + player.getName();
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 
@@ -286,6 +287,8 @@ public class TeamManager {
             redTeam = scoreboard.registerNewTeam(RED_TEAM_NAME);
             redTeam.setOption(org.bukkit.scoreboard.Team.Option.COLLISION_RULE, org.bukkit.scoreboard.Team.OptionStatus.NEVER);
             redTeam.setOption(org.bukkit.scoreboard.Team.Option.NAME_TAG_VISIBILITY, org.bukkit.scoreboard.Team.OptionStatus.ALWAYS);
+            redTeam.setPrefix(ChatColor.RED.toString());
+            redTeam.setColor(ChatColor.RED);
         }
 
         Team blueTeam = scoreboard.getTeam(BLUE_TEAM_NAME);
@@ -293,6 +296,8 @@ public class TeamManager {
             blueTeam = scoreboard.registerNewTeam(BLUE_TEAM_NAME);
             blueTeam.setOption(org.bukkit.scoreboard.Team.Option.COLLISION_RULE, org.bukkit.scoreboard.Team.OptionStatus.NEVER);
             blueTeam.setOption(org.bukkit.scoreboard.Team.Option.NAME_TAG_VISIBILITY, org.bukkit.scoreboard.Team.OptionStatus.ALWAYS);
+            blueTeam.setPrefix(ChatColor.BLUE.toString());
+            blueTeam.setColor(ChatColor.BLUE);
         }
 
         // Remove player from all teams first

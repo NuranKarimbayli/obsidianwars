@@ -13,8 +13,9 @@ public class ArenaSelectorGUIListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        // Only handle arena selector GUI
-        if (!event.getView().getTitle().equals("§6§lArena Selector")) {
+        // Handle both regular and admin arena selector GUIs
+        String title = event.getView().getTitle();
+        if (!title.equals("§6§lArena Selector") && !title.equals("§c§lAdmin Arena Selector")) {
             return;
         }
 
@@ -49,8 +50,21 @@ public class ArenaSelectorGUIListener implements Listener {
             return;
         }
 
+        // Admin GUI - show arena info but don't join
+        if (title.equals("§c§lAdmin Arena Selector")) {
+            String status = ArenaConfigManager.getArenaStatus(arenaName);
+            int currentPlayers = ObsidianCommand.getArenaPlayerCount(arenaName);
+            int maxPlayers = ArenaConfigManager.getMaxPlayers(arenaName);
+            player.sendMessage("§eArena: §f" + arenaName);
+            player.sendMessage("§eStatus: §f" + status);
+            player.sendMessage("§ePlayers: §f" + currentPlayers + "/" + maxPlayers);
+            player.closeInventory();
+            return;
+        }
+
+        // Regular GUI - only allow joining READY or WAITING arenas (not STARTING or PLAYING)
         String status = ArenaConfigManager.getArenaStatus(arenaName);
-        if (!"READY".equals(status)) {
+        if (!"READY".equals(status) && !"WAITING".equals(status)) {
             player.sendMessage("§cThis arena is not available (status: " + status + ")");
             player.closeInventory();
             return;

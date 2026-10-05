@@ -14,50 +14,62 @@ public class StatsDAO {
 
     /**
      * Loads player stats from the database.
+     * This version takes a Connection parameter and is used by async operations.
+     */
+    public static StatsManager.PlayerStats loadPlayerStats(Connection conn, UUID uuid) throws SQLException {
+        StatsManager.PlayerStats stats = new StatsManager.PlayerStats(uuid);
+
+        String sql = """
+            SELECT games_played, wins, losses, kills, deaths, final_kills, final_deaths,
+                   obsidian_broken, obsidian_lost, winstreak, longest_kill_streak, level, xp
+            FROM player_stats
+            WHERE uuid = ?
+            """;
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, uuid.toString());
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    stats.setGamesPlayed(rs.getInt("games_played"));
+                    stats.setWins(rs.getInt("wins"));
+                    stats.setLosses(rs.getInt("losses"));
+                    stats.setKills(rs.getInt("kills"));
+                    stats.setDeaths(rs.getInt("deaths"));
+                    stats.setFinalKills(rs.getInt("final_kills"));
+                    stats.setFinalDeaths(rs.getInt("final_deaths"));
+                    stats.setObsidianBroken(rs.getInt("obsidian_broken"));
+                    stats.setObsidianLost(rs.getInt("obsidian_lost"));
+                    stats.setWinstreak(rs.getInt("winstreak"));
+                    stats.setLongestKillStreak(rs.getInt("longest_kill_streak"));
+
+                    // Load level data
+                    int level = rs.getInt("level");
+                    int xp = rs.getInt("xp");
+                    LevelManager.loadPlayerLevel(uuid, level, xp);
+                } else {
+                    // New player, initialize level to 1 with 0 XP
+                    LevelManager.loadPlayerLevel(uuid, 1, 0);
+                }
+            }
+        }
+
+        // Load time-framed stats
+        loadTimeFramedStats(conn, uuid, stats, "daily");
+        loadTimeFramedStats(conn, uuid, stats, "weekly");
+        loadTimeFramedStats(conn, uuid, stats, "monthly");
+
+        return stats;
+    }
+
+    /**
+     * Loads player stats from the database (synchronous version).
+     * Creates its own connection - use with caution.
      */
     public static StatsManager.PlayerStats loadPlayerStats(UUID uuid) {
         StatsManager.PlayerStats stats = new StatsManager.PlayerStats(uuid);
 
         try (Connection conn = DatabaseManager.getConnection()) {
-            String sql = """
-                SELECT games_played, wins, losses, kills, deaths, final_kills, final_deaths,
-                       obsidian_broken, obsidian_lost, winstreak, longest_kill_streak, level, xp
-                FROM player_stats
-                WHERE uuid = ?
-                """;
-
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, uuid.toString());
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        stats.setGamesPlayed(rs.getInt("games_played"));
-                        stats.setWins(rs.getInt("wins"));
-                        stats.setLosses(rs.getInt("losses"));
-                        stats.setKills(rs.getInt("kills"));
-                        stats.setDeaths(rs.getInt("deaths"));
-                        stats.setFinalKills(rs.getInt("final_kills"));
-                        stats.setFinalDeaths(rs.getInt("final_deaths"));
-                        stats.setObsidianBroken(rs.getInt("obsidian_broken"));
-                        stats.setObsidianLost(rs.getInt("obsidian_lost"));
-                        stats.setWinstreak(rs.getInt("winstreak"));
-                        stats.setLongestKillStreak(rs.getInt("longest_kill_streak"));
-
-                        // Load level data
-                        int level = rs.getInt("level");
-                        int xp = rs.getInt("xp");
-                        LevelManager.loadPlayerLevel(uuid, level, xp);
-                    } else {
-                        // New player, initialize level to 1 with 0 XP
-                        LevelManager.loadPlayerLevel(uuid, 1, 0);
-                    }
-                }
-            }
-
-            // Load time-framed stats
-            loadTimeFramedStats(conn, uuid, stats, "daily");
-            loadTimeFramedStats(conn, uuid, stats, "weekly");
-            loadTimeFramedStats(conn, uuid, stats, "monthly");
-
+            stats = loadPlayerStats(conn, uuid);
         } catch (SQLException e) {
             Obsidianwars.getInstance().getLogger().warning("Failed to load stats for " + uuid + ": " + e.getMessage());
             // Initialize level to 1 with 0 XP on error
@@ -106,18 +118,7 @@ public class StatsDAO {
     public static void savePlayerStats(UUID uuid, String username, StatsManager.PlayerStats stats) {
         DatabaseManager.executeAsync(conn -> {
             try {
-                // Use different SQL based on database type
-                if (DatabaseManager.getStorageType().equals("mysql")) {
-                    savePlayerStatsMySQL(conn, uuid, username, stats);
-                } else {
-                    savePlayerStatsSQLite(conn, uuid, username, stats);
-                }
-
-                // Save time-framed stats
-                saveTimeFramedStats(conn, uuid, stats, "daily");
-                saveTimeFramedStats(conn, uuid, stats, "weekly");
-                saveTimeFramedStats(conn, uuid, stats, "monthly");
-
+                savePlayerStatsSync(conn, uuid, username, stats);
             } catch (SQLException e) {
                 Obsidianwars.getInstance().getLogger().severe("Failed to save stats for " + uuid + ": " + e.getMessage());
                 e.printStackTrace();
@@ -126,24 +127,48 @@ public class StatsDAO {
     }
 
     /**
+     * Saves player stats to the database synchronously using the provided connection.
+     */
+    public static void savePlayerStatsSync(Connection conn, UUID uuid, String username, StatsManager.PlayerStats stats) throws SQLException {
+        // Use different SQL based on database type
+        if (DatabaseManager.getStorageType().equals("mysql")) {
+            savePlayerStatsMySQL(conn, uuid, username, stats);
+        } else {
+            savePlayerStatsSQLite(conn, uuid, username, stats);
+        }
+
+        // Save time-framed stats
+        saveTimeFramedStats(conn, uuid, stats, "daily");
+        saveTimeFramedStats(conn, uuid, stats, "weekly");
+        saveTimeFramedStats(conn, uuid, stats, "monthly");
+    }
+
+    /**
      * Saves player level data asynchronously.
      */
     public static void savePlayerLevel(UUID uuid) {
         DatabaseManager.executeAsync(conn -> {
             try {
-                LevelManager.PlayerLevel playerLevel = LevelManager.getPlayerLevel(uuid);
-                if (playerLevel == null) return;
-
-                if (DatabaseManager.getStorageType().equals("mysql")) {
-                    savePlayerLevelMySQL(conn, uuid, playerLevel);
-                } else {
-                    savePlayerLevelSQLite(conn, uuid, playerLevel);
-                }
+                savePlayerLevelSync(conn, uuid);
             } catch (SQLException e) {
                 Obsidianwars.getInstance().getLogger().severe("Failed to save level for " + uuid + ": " + e.getMessage());
                 e.printStackTrace();
             }
         });
+    }
+
+    /**
+     * Saves player level data synchronously using the provided connection.
+     */
+    public static void savePlayerLevelSync(Connection conn, UUID uuid) throws SQLException {
+        LevelManager.PlayerLevel playerLevel = LevelManager.getPlayerLevel(uuid);
+        if (playerLevel == null) return;
+
+        if (DatabaseManager.getStorageType().equals("mysql")) {
+            savePlayerLevelMySQL(conn, uuid, playerLevel);
+        } else {
+            savePlayerLevelSQLite(conn, uuid, playerLevel);
+        }
     }
 
     /**

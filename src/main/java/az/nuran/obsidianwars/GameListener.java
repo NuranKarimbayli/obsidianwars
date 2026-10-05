@@ -63,12 +63,13 @@ public class GameListener implements Listener {
             return;
         }
 
-        // Check game state - PvP is only enabled during PLAYING state
+        // Check game state - PvP is enabled during PREPARATION and PLAYING states
         String arenaName = ObsidianCommand.playersInArena.get(victim.getUniqueId());
         GameManager.ArenaGame game = GameManager.getGame(arenaName);
 
-        // If game is null or not in PLAYING state, cancel PvP
-        if (game == null || game.getGameState() != GameManager.GameState.PLAYING) {
+        // If game is null or not in PREPARATION/PLAYING state, cancel PvP
+        if (game == null || (game.getGameState() != GameManager.GameState.PREPARATION &&
+                           game.getGameState() != GameManager.GameState.PLAYING)) {
             event.setCancelled(true);
             return;
         }
@@ -107,9 +108,8 @@ public class GameListener implements Listener {
             return;
         }
 
-        // Cancel damage during PREPARATION and ENDED states as well
-        if (game != null && (game.getGameState() == GameManager.GameState.PREPARATION ||
-                           game.getGameState() == GameManager.GameState.ENDED)) {
+        // Cancel damage during ENDED state (game over, no more damage)
+        if (game != null && game.getGameState() == GameManager.GameState.ENDED) {
             event.setCancelled(true);
             return;
         }
@@ -592,8 +592,7 @@ public class GameListener implements Listener {
         // Apply team color without leather armor (false parameter)
         TeamListener.applyTeamColor(player, team, false);
 
-        // Give spawn protection
-        ParticleManager.giveSpawnProtection(player, 3);
+        // NO spawn protection - players can take damage immediately
     }
 
     private void sendDeathMessage(String arenaName, Player killer, Player victim, PlayerDeathEvent event) {

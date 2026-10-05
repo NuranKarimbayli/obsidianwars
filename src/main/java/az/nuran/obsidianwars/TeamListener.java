@@ -1,5 +1,6 @@
 package az.nuran.obsidianwars;
 
+import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -124,7 +125,7 @@ public class TeamListener implements Listener {
     public static void applyTeamColor(Player player, String team, boolean equipArmor) {
         if (team.equals("red")) {
             // Ad rəngi - Qırmızı
-            String coloredName = "§c" + player.getName();
+            String coloredName = ChatColor.RED + player.getName();
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 
@@ -134,7 +135,7 @@ public class TeamListener implements Listener {
             }
         } else if (team.equals("blue")) {
             // Ad rəngi - Mavi
-            String coloredName = "§9" + player.getName();
+            String coloredName = ChatColor.BLUE + player.getName();
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 

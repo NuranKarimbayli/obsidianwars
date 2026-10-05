@@ -226,6 +226,19 @@ public class ObsidianCommand implements CommandExecutor {
     // ==================== COMMAND HANDLERS ====================
 
     public void handleJoinCommand(Player player, String[] args) {
+        // Check if player is already in an active game
+        UUID playerUuid = player.getUniqueId();
+        String currentArena = playersInArena.get(playerUuid);
+        if (currentArena != null) {
+            GameManager.ArenaGame currentGame = GameManager.getGame(currentArena);
+            if (currentGame != null && (currentGame.getGameState() == GameManager.GameState.PLAYING ||
+                                        currentGame.getGameState() == GameManager.GameState.PREPARATION ||
+                                        currentGame.getGameState() == GameManager.GameState.COUNTDOWN)) {
+                player.sendMessage("§cYou cannot join another arena while in an active game!");
+                return;
+            }
+        }
+
         List<String> arenaNames = ArenaConfigManager.getArenaNames();
 
         if (arenaNames.isEmpty()) {
@@ -243,16 +256,16 @@ public class ObsidianCommand implements CommandExecutor {
                 return;
             }
             String status = ArenaConfigManager.getArenaStatus(arenaName);
-            if (!"READY".equals(status) && !"WAITING".equals(status) && !"DISABLED".equals(status)) {
-                player.sendMessage("§cThis arena is not available (status: " + status + ")");
-                return;
-            }
             if ("DISABLED".equals(status)) {
                 player.sendMessage("§cThis arena is currently disabled.");
                 return;
             }
-            if ("PLAYING".equals(status) || "STARTED".equals(status)) {
-                player.sendMessage("§cThis arena is currently in progress. Please wait for it to finish.");
+            if (!"READY".equals(status) && !"WAITING".equals(status)) {
+                player.sendMessage("§cThis arena is not available (status: " + status + ")");
+                return;
+            }
+            if ("STARTING".equals(status)) {
+                player.sendMessage("§cThis arena is currently starting. Please wait for it to finish.");
                 return;
             }
         } else {
@@ -438,7 +451,15 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleGUICommand(Player player) {
-        openArenaSelectorGUI(player);
+        openArenaSelectorGUI(player, false);
+    }
+
+    private void handleAdminGUICommand(Player player) {
+        if (!player.hasPermission("obsidianwars.admin")) {
+            player.sendMessage("§cYou don't have permission to use admin GUI.");
+            return;
+        }
+        openArenaSelectorGUI(player, true);
     }
 
     private void handleCmdsCommand(Player player) {
@@ -479,6 +500,9 @@ public class ObsidianCommand implements CommandExecutor {
         player.sendMessage("  §a/o admin addlevel <player> <amount> §7- Add levels to player");
         player.sendMessage("  §a/o admin removexp <player> <amount> §7- Remove XP from player");
         player.sendMessage("  §a/o admin removelevel <player> <amount> §7- Remove levels from player");
+        player.sendMessage("  §a/o admin setexp <player> <amount> §7- Set player XP");
+        player.sendMessage("  §a/o admin setlevel <player> <amount> §7- Set player level");
+        player.sendMessage("  §a/o admin gui §7- Open admin arena selector (all statuses)");
         player.sendMessage("  §a/o debug <console|chat|both|off> §7- Toggle debug logging");
         player.sendMessage("  §a/o cmds §7- Show this command list");
     }
@@ -564,16 +588,31 @@ public class ObsidianCommand implements CommandExecutor {
 
         switch (modeArg) {
             case "console":
-                newMode = DebugManager.DebugMode.CONSOLE;
-                break;
+                // Toggle console debug mode
+                boolean currentConsoleState = DebugManager.isConsoleDebugEnabled();
+                boolean newConsoleState = !currentConsoleState;
+                DebugManager.setConsoleDebugEnabled(newConsoleState);
+                DebugManager.setDebugMode(player, newConsoleState ? DebugManager.DebugMode.CONSOLE : DebugManager.DebugMode.OFF);
+                player.sendMessage("§aConsole debug mode: §f" + (newConsoleState ? "ENABLED" : "DISABLED"));
+                return;
             case "chat":
-                newMode = DebugManager.DebugMode.CHAT;
-                break;
+                // Toggle chat debug mode
+                boolean currentChatState = DebugManager.isChatDebugEnabled();
+                boolean newChatState = !currentChatState;
+                DebugManager.setChatDebugEnabled(newChatState);
+                DebugManager.setDebugMode(player, newChatState ? DebugManager.DebugMode.CHAT : DebugManager.DebugMode.OFF);
+                player.sendMessage("§aChat debug mode: §f" + (newChatState ? "ENABLED" : "DISABLED"));
+                return;
             case "both":
                 newMode = DebugManager.DebugMode.BOTH;
+                DebugManager.setConsoleDebugEnabled(true);
+                DebugManager.setChatDebugEnabled(true);
                 break;
             case "off":
                 newMode = DebugManager.DebugMode.OFF;
+                // Ensure both console and chat debug are disabled
+                DebugManager.setConsoleDebugEnabled(false);
+                DebugManager.setChatDebugEnabled(false);
                 break;
             default:
                 player.sendMessage("§cInvalid debug mode. Use: console, chat, both, or off");
@@ -1124,9 +1163,81 @@ public class ObsidianCommand implements CommandExecutor {
             return;
         }
 
-        // Oyunu bitiririk - message is broadcast to arena players by endGame
+        // First, try to end the game normally if it exists
         GameManager.endGame(arenaName, null); // null = admin ended, no winner
-        player.sendMessage("§aGame ended for arena " + arenaName);
+
+        // ALWAYS forcefully reset arena status to READY regardless of whether game was running
+        // This handles the edge case where arena is stuck in PLAYING without an active game instance
+        String currentStatus = ArenaConfigManager.getArenaStatus(arenaName);
+        if (!currentStatus.equals("READY") && !currentStatus.equals("WAITING")) {
+            player.sendMessage("§eForcefully resetting arena status from " + currentStatus + " to READY...");
+            ArenaConfigManager.setArenaStatus(arenaName, "READY");
+        }
+
+        // Stop all arena-related tasks to ensure cleanup
+        ParticleManager.stopAllArenaTasks(arenaName);
+        MobSpawnerManager.stopMobSpawning(arenaName);
+        WallManager.stopPreparationTimer(arenaName);
+        WallManager.stopSuddenDeathCountdown(arenaName);
+        XPAwardListener.stopPerMinuteTask(arenaName);
+
+        // Clear all dropped items in the arena
+        GameManager.clearDroppedItems(arenaName);
+
+        // Clear all non-player entities (mobs, dropped items, arrows, etc.) in the arena
+        GameManager.clearArenaMobs(arenaName);
+
+        // Restore world rules
+        WorldRulesManager.restoreWorldRules(arenaName);
+
+        // Restore arena snapshot if available
+        boolean restoreSuccess = ArenaSnapshotManager.restoreSnapshot(arenaName);
+        if (restoreSuccess) {
+            player.sendMessage("§aArena snapshot restored.");
+        } else {
+            player.sendMessage("§7No arena snapshot found or restoration failed.");
+        }
+
+        // Clear any players still tracked in this arena
+        java.util.List<java.util.UUID> playersToRemove = new java.util.ArrayList<>();
+        for (java.util.UUID uuid : playersInArena.keySet()) {
+            if (playersInArena.get(uuid).equals(arenaName)) {
+                playersToRemove.add(uuid);
+            }
+        }
+
+        for (java.util.UUID uuid : playersToRemove) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null && p.isOnline()) {
+                // Remove spectator mode if player was a spectator
+                if (SpectatorManager.isSpectator(p)) {
+                    SpectatorManager.removeSpectatorMode(p);
+                }
+
+                // Reset player state and teleport to spawn
+                Location mainSpawn = p.getWorld().getSpawnLocation();
+                PlayerUtils.resetPlayerFull(p, mainSpawn);
+                p.sendMessage("§aArena force-ended by admin. Teleported to spawn.");
+
+                // Update lobby scoreboard
+                LobbyScoreboardManager.updateLobbyScoreboard(p);
+            }
+
+            // Remove from tracking
+            playersInArena.remove(uuid);
+            if (p != null) {
+                TeamManager.removePlayerFromTeam(p);
+            } else {
+                // Player is offline, just remove from team map
+                TeamListener.playerTeams.remove(uuid);
+            }
+
+            // Clean up wand positions
+            WandListener.pos1Map.remove(uuid);
+            WandListener.pos2Map.remove(uuid);
+        }
+
+        player.sendMessage("§aGame force-ended for arena " + arenaName + ". Status reset to READY.");
     }
 
     private void handleForcestartCommand(Player player, String[] args) {
@@ -1598,7 +1709,7 @@ public class ObsidianCommand implements CommandExecutor {
         PlayerUtils.resetPlayerState(player);
     }
 
-    private int getArenaPlayerCount(String arenaName) {
+    public static int getArenaPlayerCount(String arenaName) {
         int count = 0;
         for (String arena : playersInArena.values()) {
             if (arena.equals(arenaName)) {
@@ -1658,11 +1769,17 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o admin <addexp|addlevel|removexp|removelevel|setexp|setlevel> <player> <amount>");
+            player.sendMessage("§cUsage: /o admin <addexp|addlevel|removexp|removelevel|setexp|setlevel|gui> <player> <amount>");
             return;
         }
 
         String action = args[1].toLowerCase();
+
+        // Handle admin gui command
+        if (action.equals("gui")) {
+            handleAdminGUICommand(player);
+            return;
+        }
 
         if (args.length < 4) {
             player.sendMessage("§cUsage: /o admin " + action + " <player> <amount>");
@@ -1746,7 +1863,7 @@ public class ObsidianCommand implements CommandExecutor {
 
             default:
                 player.sendMessage("§cUnknown admin action: " + action);
-                player.sendMessage("§cAvailable actions: addexp, addlevel, removexp, removelevel, setexp, setlevel");
+                player.sendMessage("§cAvailable actions: addexp, addlevel, removexp, removelevel, setexp, setlevel, gui");
                 break;
         }
     }
@@ -1829,7 +1946,7 @@ public class ObsidianCommand implements CommandExecutor {
         return players;
     }
 
-    private void openArenaSelectorGUI(Player player) {
+    private void openArenaSelectorGUI(Player player, boolean isAdmin) {
         List<String> arenaNames = ArenaConfigManager.getArenaNames();
 
         if (arenaNames.isEmpty()) {
@@ -1837,12 +1954,37 @@ public class ObsidianCommand implements CommandExecutor {
             return;
         }
 
-        // Calculate inventory size (9 slots per row, minimum 9)
-        int size = Math.max(9, ((arenaNames.size() + 8) / 9) * 9);
-        Inventory gui = plugin.getServer().createInventory(null, size, "§6§lArena Selector");
+        // Filter arenas based on admin mode
+        List<String> filteredArenas = new ArrayList<>();
+        for (String arenaName : arenaNames) {
+            String status = ArenaConfigManager.getArenaStatus(arenaName);
+            if (isAdmin) {
+                // Admin mode: show all arenas regardless of status
+                filteredArenas.add(arenaName);
+            } else {
+                // Player mode: only show READY and WAITING arenas (not STARTING or PLAYING)
+                if (status.equals("READY") || status.equals("WAITING")) {
+                    filteredArenas.add(arenaName);
+                }
+            }
+        }
 
-        for (int i = 0; i < arenaNames.size(); i++) {
-            String arenaName = arenaNames.get(i);
+        if (filteredArenas.isEmpty()) {
+            if (isAdmin) {
+                player.sendMessage("§cNo arenas available.");
+            } else {
+                player.sendMessage("§cNo arenas are currently ready to join.");
+            }
+            return;
+        }
+
+        // Calculate inventory size (9 slots per row, minimum 9)
+        int size = Math.max(9, ((filteredArenas.size() + 8) / 9) * 9);
+        String title = isAdmin ? "§c§lAdmin Arena Selector" : "§6§lArena Selector";
+        Inventory gui = plugin.getServer().createInventory(null, size, title);
+
+        for (int i = 0; i < filteredArenas.size(); i++) {
+            String arenaName = filteredArenas.get(i);
             String status = ArenaConfigManager.getArenaStatus(arenaName);
             int currentPlayers = getArenaPlayerCount(arenaName);
             int maxPlayers = ArenaConfigManager.getMaxPlayers(arenaName);
@@ -1855,6 +1997,8 @@ public class ObsidianCommand implements CommandExecutor {
                 String statusColor;
                 if (status.equals("READY") || status.equals("WAITING")) {
                     statusColor = "§a";
+                } else if (status.equals("STARTING")) {
+                    statusColor = "§6";
                 } else if (status.equals("STARTED")) {
                     statusColor = "§c";
                 } else if (status.equals("PLAYING")) {
@@ -1869,7 +2013,11 @@ public class ObsidianCommand implements CommandExecutor {
                 lore.add("§7Status: " + statusColor + status);
                 lore.add("§7Players: §f" + currentPlayers + "/" + maxPlayers);
                 lore.add("");
-                lore.add("§eClick to join!");
+                if (isAdmin) {
+                    lore.add("§eClick to manage arena!");
+                } else {
+                    lore.add("§eClick to join!");
+                }
 
                 meta.setLore(lore);
                 arenaItem.setItemMeta(meta);

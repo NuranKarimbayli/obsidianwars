@@ -229,9 +229,7 @@ public class WallManager {
                 try {
                     remaining--;
                     currentRemainingTime.put(arenaName, remaining);
-                    
-                    Obsidianwars.getInstance().getLogger().info("Preparation timer tick: " + remaining + " seconds remaining for arena " + arenaName);
-                    
+
                     // Update scoreboard with preparation time (MM:SS format)
                     int minutes = remaining / 60;
                     int seconds = remaining % 60;
@@ -277,7 +275,7 @@ public class WallManager {
                             DebugManager.logDebug("State transition: PREPARATION -> PLAYING", arenaName);
                             game.startGameTimer();
 
-                            // Update arena status to PLAYING
+                            // Update arena status to PLAYING (preparation ended, actual battle begins)
                             ArenaConfigManager.setArenaStatus(arenaName, "PLAYING");
 
                             // Apply world game rules

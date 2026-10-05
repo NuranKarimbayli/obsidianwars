@@ -80,7 +80,7 @@ public class GameManager {
             // Remove the game from active games
             activeGames.remove(arenaName);
 
-            // Reset arena status to READY
+            // Reset arena status to READY (was set to STARTING when countdown started)
             ArenaConfigManager.setArenaStatus(arenaName, "READY");
 
             // Reset XP bar for all players
@@ -185,10 +185,10 @@ public class GameManager {
         ArenaGame game = new ArenaGame(arenaName);
         activeGames.put(arenaName, game);
 
-        // Set arena status to STARTING (orange color)
+        // Set arena status to STARTING while lobby countdown is running
         ArenaConfigManager.setArenaStatus(arenaName, "STARTING");
 
-        DebugManager.logDebug("State transition: WAITING -> STARTING", arenaName);
+        DebugManager.logDebug("State transition: WAITING -> STARTING (countdown started)", arenaName);
 
         // Countdown başladırıq
         game.startCountdown();
@@ -233,8 +233,7 @@ public class GameManager {
                         Location teamSpawn = getTeamSpawn(arenaName, team);
                         if (teamSpawn != null) {
                             player.teleport(teamSpawn);
-                            // Give spawn protection
-                            ParticleManager.giveSpawnProtection(player, 3);
+                            // NO spawn protection - players can take damage immediately
                         }
                     }
                 }
@@ -267,6 +266,23 @@ public class GameManager {
         if (game != null) {
             DebugManager.logDebug("Starting game for arena " + arenaName);
 
+            // Set arena status to PLAYING immediately when match starts
+            ArenaConfigManager.setArenaStatus(arenaName, "PLAYING");
+            DebugManager.logDebug("State transition: STARTING -> PLAYING (match started)", arenaName);
+
+            // Remove spawn protection from all players immediately so they can take damage
+            for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                    Player player = Bukkit.getPlayer(uuid);
+                    if (player != null && player.isOnline()) {
+                        ParticleManager.removeSpawnProtection(player);
+                    }
+                }
+            }
+
+            // Clear all dropped items in the arena world
+            clearDroppedItems(arenaName);
+
             // Take snapshot of arena before game starts
             boolean snapshotSuccess = ArenaSnapshotManager.takeSnapshot(arenaName);
             if (snapshotSuccess) {
@@ -287,17 +303,14 @@ public class GameManager {
             if (hasWalls) {
                 // Set to PREPARATION state and start preparation timer
                 game.setGameState(GameState.PREPARATION);
-                DebugManager.logDebug("State transition: STARTING -> PREPARATION", arenaName);
+                DebugManager.logDebug("State transition: PLAYING -> PREPARATION", arenaName);
                 WallManager.buildWalls(arenaName);
                 WallManager.startPreparationTimer(arenaName);
             } else {
                 // No walls - go directly to PLAYING state
                 game.setGameState(GameState.PLAYING);
-                DebugManager.logDebug("State transition: STARTING -> PLAYING", arenaName);
+                DebugManager.logDebug("State transition: PLAYING -> PLAYING (no walls, game starts)", arenaName);
                 game.startGameTimer();
-
-                // Update arena status to PLAYING
-                ArenaConfigManager.setArenaStatus(arenaName, "PLAYING");
 
                 // Apply world game rules
                 WorldRulesManager.applyGameRules(arenaName);
@@ -449,6 +462,12 @@ public class GameManager {
         // Restore world rules
         WorldRulesManager.restoreWorldRules(arenaName);
 
+        // Clear all dropped items in the arena
+        clearDroppedItems(arenaName);
+
+        // Clear all non-player entities (mobs, dropped items, arrows, etc.) in the arena
+        clearArenaMobs(arenaName);
+
         // Clear any lingering fireworks entities in the arena
         clearArenaFireworks(arenaName);
 
@@ -599,7 +618,49 @@ public class GameManager {
         }
     }
 
-    private static void clearArenaMobs(String arenaName) {
+    public static void clearDroppedItems(String arenaName) {
+        // Get arena region bounds from config
+        Location[] region = ArenaConfigManager.getArenaRegion(arenaName, "main");
+        if (region == null) {
+            Obsidianwars.getInstance().getLogger().warning("No arena region defined for " + arenaName + " - skipping item clear");
+            return;
+        }
+
+        World world = region[0].getWorld();
+        if (world == null) {
+            Obsidianwars.getInstance().getLogger().warning("Could not get world for arena " + arenaName + " - skipping item clear");
+            return;
+        }
+
+        // Calculate region bounds
+        int minX = Math.min(region[0].getBlockX(), region[1].getBlockX());
+        int maxX = Math.max(region[0].getBlockX(), region[1].getBlockX());
+        int minY = Math.min(region[0].getBlockY(), region[1].getBlockY());
+        int maxY = Math.max(region[0].getBlockY(), region[1].getBlockY());
+        int minZ = Math.min(region[0].getBlockZ(), region[1].getBlockZ());
+        int maxZ = Math.max(region[0].getBlockZ(), region[1].getBlockZ());
+
+        // Remove dropped items only within arena region bounds
+        int clearedCount = 0;
+        for (org.bukkit.entity.Entity entity : world.getEntities()) {
+            if (entity instanceof org.bukkit.entity.Item) {
+                Location loc = entity.getLocation();
+                // Check if entity is within arena region
+                if (loc.getBlockX() >= minX && loc.getBlockX() <= maxX &&
+                    loc.getBlockY() >= minY && loc.getBlockY() <= maxY &&
+                    loc.getBlockZ() >= minZ && loc.getBlockZ() <= maxZ) {
+                    entity.remove();
+                    clearedCount++;
+                }
+            }
+        }
+
+        if (clearedCount > 0) {
+            Obsidianwars.getInstance().getLogger().info("Cleared " + clearedCount + " dropped items from arena " + arenaName + " region");
+        }
+    }
+
+    public static void clearArenaMobs(String arenaName) {
         // Get arena region bounds from config
         Location[] region = ArenaConfigManager.getArenaRegion(arenaName, "main");
         if (region == null) {
@@ -874,11 +935,11 @@ public class GameManager {
                 player.setAllowFlight(false);
                 player.setFlying(false);
 
-                // Teleport to team spawn with spawn protection
+                // Teleport to team spawn without spawn protection
                 Location teamSpawn = ArenaConfigManager.getTeamSpawn(data.getArenaName(), data.getTeam());
                 if (teamSpawn != null) {
                     player.teleport(teamSpawn);
-                    ParticleManager.giveSpawnProtection(player, 3);
+                    // NO spawn protection - players can take damage immediately
                 } else {
                     // Fallback to last location
                     if (data.getLastLocation() != null) {
