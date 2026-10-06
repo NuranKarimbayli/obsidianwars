@@ -1,5 +1,53 @@
 package az.nuran.obsidianwars;
 
+import az.nuran.obsidianwars.commands.ObsidianCommand;
+import az.nuran.obsidianwars.commands.ObsidianTabCompleter;
+import az.nuran.obsidianwars.handlers.ArenaSelectorGUIListener;
+import az.nuran.obsidianwars.handlers.ChatListener;
+import az.nuran.obsidianwars.handlers.GameListener;
+import az.nuran.obsidianwars.handlers.LobbyItemClickListener;
+import az.nuran.obsidianwars.handlers.SpectatorListener;
+import az.nuran.obsidianwars.handlers.SpectatorTeleporterGUIListener;
+import az.nuran.obsidianwars.handlers.StatsGUIListener;
+import az.nuran.obsidianwars.handlers.StatsListener;
+import az.nuran.obsidianwars.handlers.TeamListener;
+import az.nuran.obsidianwars.handlers.WandListener;
+import az.nuran.obsidianwars.handlers.XPAwardListener;
+import az.nuran.obsidianwars.managers.ArenaConfigManager;
+import az.nuran.obsidianwars.managers.ArenaFileManager;
+import az.nuran.obsidianwars.managers.ArenaManager;
+import az.nuran.obsidianwars.managers.ArenaSnapshotManager;
+import az.nuran.obsidianwars.managers.ArenaStateManager;
+import az.nuran.obsidianwars.managers.DatabaseManager;
+import az.nuran.obsidianwars.managers.EconomyManager;
+import az.nuran.obsidianwars.managers.GameManager;
+import az.nuran.obsidianwars.managers.KillStreaksConfigManager;
+import az.nuran.obsidianwars.managers.LevelManager;
+import az.nuran.obsidianwars.managers.LobbyScoreboardManager;
+import az.nuran.obsidianwars.managers.MessagesConfigManager;
+import az.nuran.obsidianwars.managers.MobSpawnerManager;
+import az.nuran.obsidianwars.managers.ParticleManager;
+import az.nuran.obsidianwars.managers.QueueManager;
+import az.nuran.obsidianwars.managers.ResourceBlockManager;
+import az.nuran.obsidianwars.managers.ResourceBlocksConfigManager;
+import az.nuran.obsidianwars.managers.ScoreboardManager;
+import az.nuran.obsidianwars.managers.ScoreboardsConfigManager;
+import az.nuran.obsidianwars.managers.SpectatorManager;
+import az.nuran.obsidianwars.managers.StatsManager;
+import az.nuran.obsidianwars.managers.SuddenDeathManager;
+import az.nuran.obsidianwars.managers.TabListManager;
+import az.nuran.obsidianwars.managers.TaskManager;
+import az.nuran.obsidianwars.managers.TeamManager;
+import az.nuran.obsidianwars.managers.WallManager;
+import az.nuran.obsidianwars.managers.WorldRulesManager;
+import az.nuran.obsidianwars.services.DeathMessagesConfigManager;
+import az.nuran.obsidianwars.services.DebugManager;
+import az.nuran.obsidianwars.services.ObsidianWarsExpansion;
+import az.nuran.obsidianwars.services.ObsidianWarsMetrics;
+import az.nuran.obsidianwars.services.PerformanceMonitor;
+import az.nuran.obsidianwars.services.PlayerUtils;
+import az.nuran.obsidianwars.services.TeamConfig;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -168,22 +216,24 @@ public final class Obsidianwars extends JavaPlugin {
         QueueManager.getInstance().stopMatchmaking();
 
         // Clear lobby items and reset state for all players in arenas
-        for (java.util.UUID uuid : new java.util.ArrayList<>(ObsidianCommand.playersInArena.keySet())) {
-            Player player = Bukkit.getPlayer(uuid);
-            if (player != null && player.isOnline()) {
-                // Remove from team tracking
-                TeamManager.removePlayerFromTeam(player);
-                ParticleManager.removeSpawnProtection(player);
+        if (ObsidianCommand.playersInArena != null) {
+            for (java.util.UUID uuid : new java.util.ArrayList<>(ObsidianCommand.playersInArena.keySet())) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null && player.isOnline()) {
+                    // Remove from team tracking
+                    TeamManager.removePlayerFromTeam(player);
+                    ParticleManager.removeSpawnProtection(player);
 
-                // Reset player state (clears inventory, armor, effects, etc.)
-                PlayerUtils.resetPlayerArenaLeave(player);
+                    // Reset player state (clears inventory, armor, effects, etc.)
+                    PlayerUtils.resetPlayerArenaLeave(player);
 
-                getLogger().info("Cleared lobby items for player: " + player.getName());
+                    getLogger().info("Cleared lobby items for player: " + player.getName());
+                }
             }
-        }
 
-        // Clear arena player tracking
-        ObsidianCommand.playersInArena.clear();
+            // Clear arena player tracking
+            ObsidianCommand.playersInArena.clear();
+        }
 
         // Cleanup static maps to prevent memory leaks
         WandListener.cleanup();
@@ -221,17 +271,23 @@ public final class Obsidianwars extends JavaPlugin {
     }
 
     private void startCleanupTask() {
-        // Run cleanup task every minute to clear expired disconnect records
-        getServer().getScheduler().runTaskTimer(this, () -> {
-            GameManager.cleanupExpiredDisconnectRecords();
-        }, 1200L, 1200L); // Every minute (1200 ticks)
+        // Run cleanup task every minute to clear expired disconnect records (using TaskManager)
+        TaskManager.getInstance().runTimer(
+            "disconnect-cleanup",
+            GameManager::cleanupExpiredDisconnectRecords,
+            1200L,  // Initial delay: 1 minute (1200 ticks)
+            1200L  // Period: Every minute (1200 ticks)
+        );
     }
 
     private void startStatsResetTask() {
-        // Run stats reset task every hour to clear expired time-framed stats
-        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
-            StatsManager.resetExpiredTimeFramedStats();
-        }, 72000L, 72000L); // Every hour (72000 ticks)
+        // Run stats reset task every hour to clear expired time-framed stats (using TaskManager)
+        TaskManager.getInstance().runAsyncTimer(
+            "stats-reset",
+            StatsManager::resetExpiredTimeFramedStats,
+            72000L,  // Initial delay: 1 hour (72000 ticks)
+            72000L  // Period: Every hour (72000 ticks)
+        );
     }
 
     /**
@@ -253,7 +309,7 @@ public final class Obsidianwars extends JavaPlugin {
                 currentStatus.equals("STARTING"))) {
 
                 getLogger().warning("Arena " + arenaName + " is stuck in " + currentStatus + " status. Resetting to READY...");
-                ArenaConfigManager.setArenaStatus(arenaName, "READY");
+                ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.READY);
                 resetCount++;
 
                 // Stop any lingering tasks for this arena

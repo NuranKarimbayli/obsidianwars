@@ -11,11 +11,11 @@ features:
 teams:
   red:
     color: "§c"
-    name: "Qırmızı"
+    name: "Red"
     wool_type: "RED_WOOL"
   blue:
     color: "§9"
-    name: "Mavi"
+    name: "Blue"
     wool_type: "BLUE_WOOL"
 
 # Database Configuration
@@ -73,6 +73,27 @@ sounds:
   success: "ENTITY_PLAYER_LEVELUP"
   error: "ENTITY_VILLAGER_NO"
   sudden_death: "ENTITY_WITHER_SPAWN"
+
+# Title Configuration
+# Controls timing of title sendTitle() calls (fade-in, stay, fade-out in ticks)
+# 20 ticks = 1 second
+titles:
+  victory:
+    fade-in: 10
+    stay: 60
+    fade-out: 20
+  obsidian_destroyed:
+    fade-in: 10
+    stay: 70
+    fade-out: 20
+  wall_fallen:
+    fade-in: 10
+    stay: 60
+    fade-out: 20
+  death:
+    fade-in: 10
+    stay: 40
+    fade-out: 20
 
 # Spigot Particle List: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Particle.html
 # Particle Effects Configuration
