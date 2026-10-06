@@ -14,7 +14,7 @@ import java.util.Random;
 
 public class MobSpawnerManager {
 
-    private static final Map<String, BukkitTask> mobSpawnerTasks = new HashMap<>();
+    // NOTE: Tasks are now managed by TaskManager for consistency
     private static final int SPAWN_INTERVAL_SECONDS = 120; // 2 minutes
     private static final int SPAWN_RADIUS = 10; // 10 blocks
     private static final Random random = new Random();
@@ -36,19 +36,19 @@ public class MobSpawnerManager {
             return; // No mob area configured
         }
 
-        // Start spawning task every 2 minutes
-        BukkitTask task = Bukkit.getScheduler().runTaskTimer(Obsidianwars.getInstance(), () -> {
-            spawnWitherSkeleton(arenaName, mobArea);
-        }, SPAWN_INTERVAL_SECONDS * 20L, SPAWN_INTERVAL_SECONDS * 20L); // Convert to ticks
-
-        mobSpawnerTasks.put(arenaName, task);
+        // Start spawning task every 2 minutes using TaskManager
+        TaskManager.getInstance().runTimer(
+            "mob-spawner-" + arenaName,
+            () -> spawnWitherSkeleton(arenaName, mobArea),
+            SPAWN_INTERVAL_SECONDS * 20L, // Initial delay
+            SPAWN_INTERVAL_SECONDS * 20L, // Period
+            arenaName
+        );
     }
 
     public static void stopMobSpawning(String arenaName) {
-        BukkitTask task = mobSpawnerTasks.remove(arenaName);
-        if (task != null) {
-            task.cancel();
-        }
+        // Cancel task via TaskManager
+        TaskManager.getInstance().cancelTask("mob-spawner-" + arenaName);
     }
 
     private static void spawnWitherSkeleton(String arenaName, Location centerLocation) {
@@ -123,10 +123,7 @@ public class MobSpawnerManager {
     }
 
     public static void cleanup() {
-        // Stop all mob spawner tasks
-        for (BukkitTask task : mobSpawnerTasks.values()) {
-            task.cancel();
-        }
-        mobSpawnerTasks.clear();
+        // Cleanup is handled by TaskManager automatically
+        // No manual cleanup needed
     }
 }

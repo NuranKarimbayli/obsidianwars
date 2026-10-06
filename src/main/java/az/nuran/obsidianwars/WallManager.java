@@ -14,8 +14,8 @@ import java.util.Map;
 
 public class WallManager {
 
-    private static final Map<String, BukkitTask> wallTimerTasks = new HashMap<>();
-    private static final Map<String, BukkitTask> suddenDeathTasks = new HashMap<>();
+    // NOTE: Tasks are now managed by TaskManager for consistency
+    // These maps track remaining time data only
     private static final Map<String, Integer> wallDurations = new HashMap<>();
     private static final Map<String, Integer> currentRemainingTime = new HashMap<>();
     private static final Map<String, Integer> suddenDeathRemainingTime = new HashMap<>();
@@ -239,7 +239,8 @@ public class WallManager {
                     String actionBar = "§ePreparation Time: §f" + timeStr;
                     
                     for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                        if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                        String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                        if (playerArena != null && playerArena.equals(arenaName)) {
                             org.bukkit.entity.Player player = Bukkit.getPlayer(uuid);
                             if (player != null && player.isOnline()) {
                                 try {
@@ -296,15 +297,14 @@ public class WallManager {
                         Sound wallSound = Obsidianwars.parseSound(sound);
                         if (wallSound != null) {
                             for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                                String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                        if (playerArena != null && playerArena.equals(arenaName)) {
                                     org.bukkit.entity.Player player = Bukkit.getPlayer(uuid);
                                     if (player != null && player.isOnline()) {
                                         try {
                                             player.playSound(player.getLocation(), wallSound, 1.0f, 1.0f);
                                             String title = MessagesConfigManager.getMessage("wall_fallen_title");
                                             String subtitle = MessagesConfigManager.getMessage("wall_fallen_subtitle");
-                                            if (title == null) title = "§aWALLS FALLEN!";
-                                            if (subtitle == null) subtitle = "§eCombat phase begins!";
                                             player.sendTitle(title, subtitle, 10, 60, 20);
                                         } catch (Exception e) {
                                             Obsidianwars.getInstance().getLogger().warning("Failed to play sound for player " + player.getName() + ": " + e.getMessage());
@@ -329,9 +329,14 @@ public class WallManager {
             }
         };
 
-        // Start the task using runTaskTimer
-        BukkitTask task = timerTask.runTaskTimer(Obsidianwars.getInstance(), 0L, 20L); // Start immediately, every second (20 ticks)
-        wallTimerTasks.put(arenaName, task);
+        // Start the task using TaskManager for centralized management
+        BukkitTask task = TaskManager.getInstance().runTimer(
+            "wall-prep-" + arenaName,
+            timerTask,
+            0L,  // Start immediately
+            20L, // Every second (20 ticks)
+            arenaName
+        );
         Obsidianwars.getInstance().getLogger().info("Preparation timer task started for arena " + arenaName);
     }
 
@@ -363,7 +368,8 @@ public class WallManager {
                     
                     // Update scoreboard for all players in arena (do NOT send action bar)
                     for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                        if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                        String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                        if (playerArena != null && playerArena.equals(arenaName)) {
                             org.bukkit.entity.Player player = Bukkit.getPlayer(uuid);
                             if (player != null && player.isOnline()) {
                                 try {
@@ -392,25 +398,26 @@ public class WallManager {
             }
         };
 
-        // Start the task
-        BukkitTask task = suddenDeathTask.runTaskTimer(Obsidianwars.getInstance(), 0L, 20L);
-        suddenDeathTasks.put(arenaName, task);
+        // Start the task using TaskManager for centralized management
+        BukkitTask task = TaskManager.getInstance().runTimer(
+            "sudden-death-" + arenaName,
+            suddenDeathTask,
+            0L,  // Start immediately
+            20L, // Every second (20 ticks)
+            arenaName
+        );
         Obsidianwars.getInstance().getLogger().info("Sudden death countdown task started for arena " + arenaName);
     }
 
     public static void stopSuddenDeathCountdown(String arenaName) {
-        BukkitTask task = suddenDeathTasks.remove(arenaName);
-        if (task != null) {
-            task.cancel();
-        }
+        // Cancel task via TaskManager
+        TaskManager.getInstance().cancelTask("sudden-death-" + arenaName);
         suddenDeathRemainingTime.remove(arenaName);
     }
 
     public static void stopPreparationTimer(String arenaName) {
-        BukkitTask task = wallTimerTasks.remove(arenaName);
-        if (task != null) {
-            task.cancel();
-        }
+        // Cancel task via TaskManager
+        TaskManager.getInstance().cancelTask("wall-prep-" + arenaName);
         currentRemainingTime.remove(arenaName);
     }
 
@@ -453,15 +460,14 @@ public class WallManager {
         Sound wallSound = Obsidianwars.parseSound(sound);
         if (wallSound != null) {
             for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                        if (playerArena != null && playerArena.equals(arenaName)) {
                     org.bukkit.entity.Player player = Bukkit.getPlayer(uuid);
                     if (player != null && player.isOnline()) {
                         try {
                             player.playSound(player.getLocation(), wallSound, 1.0f, 1.0f);
                             String title = MessagesConfigManager.getMessage("wall_fallen_title");
                             String subtitle = MessagesConfigManager.getMessage("wall_fallen_subtitle");
-                            if (title == null) title = "§aWALLS FALLEN!";
-                            if (subtitle == null) subtitle = "§eCombat phase begins!";
                             player.sendTitle(title, subtitle, 10, 60, 20);
                         } catch (Exception e) {
                             Obsidianwars.getInstance().getLogger().warning("Failed to play sound for player " + player.getName() + ": " + e.getMessage());
@@ -485,18 +491,8 @@ public class WallManager {
     }
 
     public static void cleanup() {
-        // Stop all wall timer tasks
-        for (BukkitTask task : wallTimerTasks.values()) {
-            task.cancel();
-        }
-        wallTimerTasks.clear();
-        
-        // Stop all sudden death tasks
-        for (BukkitTask task : suddenDeathTasks.values()) {
-            task.cancel();
-        }
-        suddenDeathTasks.clear();
-        
+        // Tasks are now managed by TaskManager - no manual cleanup needed
+        // Clear data maps
         wallDurations.clear();
         currentRemainingTime.clear();
         suddenDeathRemainingTime.clear();

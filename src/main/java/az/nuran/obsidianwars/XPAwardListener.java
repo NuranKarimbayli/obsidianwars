@@ -49,7 +49,8 @@ public class XPAwardListener implements Listener {
 
             // Award XP to all players in the arena
             for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                if (playerArena != null && playerArena.equals(arenaName)) {
                     Player player = Bukkit.getPlayer(uuid);
                     if (player != null && player.isOnline() && player.getGameMode() == org.bukkit.GameMode.SURVIVAL) {
                         LevelManager.addXp(player, xpPerMinute);

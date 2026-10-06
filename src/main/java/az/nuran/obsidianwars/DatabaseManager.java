@@ -213,6 +213,13 @@ public class DatabaseManager {
     }
 
     /**
+     * Gets the database executor service for async operations.
+     */
+    public static ExecutorService getDbExecutor() {
+        return dbExecutor;
+    }
+
+    /**
      * Closes the database connection pool.
      */
     public static void close() {

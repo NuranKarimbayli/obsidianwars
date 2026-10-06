@@ -7,6 +7,10 @@ description: A competitive Minecraft Bedwars-style plugin with obsidian destruct
 website: https://github.com/nuran/obsidianwars
 load: POSTWORLD
 
+softdepend:
+  - Vault
+  - PlaceholderAPI
+
 commands:
   obsidian:
     description: Main command for ObsidianWars
@@ -28,6 +32,9 @@ commands:
   spectate:
     description: Spectate an arena or player
     usage: /spectate <arena|player>
+  queue:
+    description: Join queue for an arena
+    usage: /queue [arena]
 
 permissions:
   obsidianwars.*:

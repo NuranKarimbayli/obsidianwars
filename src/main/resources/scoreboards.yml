@@ -1,0 +1,50 @@
+# Tab List and Scoreboard Configuration
+# This file contains all settings for the tab list header/footer and in-game/lobby scoreboards
+
+# Tab List Configuration
+# Placeholders: %player%, %online%, %ping%, %kills%, %deaths%, %arena%, %phase%, %time%
+tab:
+  header:
+    - "&d&lOBSIDIAN WARS"
+    - "&7Welcome %player%!"
+    - ""
+  footer:
+    - ""
+    - "&7Online: &e%online% &7| Ping: &a%ping%ms"
+    - "&7Kills: &a%kills% &7| Deaths: &c%deaths%"
+
+# Arena Scoreboard Configuration
+# Placeholders: %player%, %arena%, %phase%, %time%, %kills%, %deaths%, %red_health%, %blue_health%, %level%, %level_formatted%, %xp%, %req_xp%, %progress_bar%
+scoreboard:
+  title: "&d&lOBSIDIAN WARS"
+  lines:
+    - "&7-------------------"
+    - "&fArena: &a%arena%"
+    - "&fPhase: &e%phase%"
+    - "&fTime Left: &b%time%"
+    - ""
+    - "&cRed Health: &a%red_health%"
+    - "&9Blue Health: &a%blue_health%"
+    - ""
+    - "&fKills: &a%kills%"
+    - "&fDeaths: &c%deaths%"
+    - "&7-------------------"
+
+# Lobby Scoreboard Configuration
+# Placeholders: {player}, {date}, {level}, {level_formatted}, {xp}, {current_xp_k}, {req_xp}, {req_xp_k}, {progress_bar}, {kills}, {wins}, {winstreak}, {coins}
+lobby-scoreboard:
+  enabled: true
+  title: "&e&lOBSIDIAN WARS"
+  lines:
+    - "&7{date}"
+    - ""
+    - "Level: &f{level_formatted}"
+    - ""
+    - "Progress: &b{current_xp_k}&7/&a{req_xp_k}"
+    - "&8[{progress_bar}&8]"
+    - ""
+    - "Total Kills: &a{kills}"
+    - "Total Wins: &a{wins}"
+    - "Winstreak: &a{winstreak}"
+    - ""
+    - "Coins: &e{coins}"

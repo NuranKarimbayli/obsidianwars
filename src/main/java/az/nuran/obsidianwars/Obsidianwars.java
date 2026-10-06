@@ -47,9 +47,22 @@ public final class Obsidianwars extends JavaPlugin {
         // Initialize database
         DatabaseManager.initialize();
 
-        // Initialize managers
+        // Initialize core managers
+        TaskManager.initialize(this);
+        ArenaStateManager.initialize(getLogger());
+        PerformanceMonitor.initialize(getLogger());
+        QueueManager.initialize(getLogger());
+        ArenaManager.initialize(getLogger());
+        EconomyManager.initialize(getLogger());
+        SuddenDeathManager.initialize(getLogger());
+
+        // Load GameManager configuration
+        GameManager.loadConfig();
+
+        // Initialize configuration managers
         ArenaConfigManager.initialize();
         MessagesConfigManager.initialize();
+        ScoreboardsConfigManager.initialize();
         KillStreaksConfigManager.initialize();
         DeathMessagesConfigManager.initialize();
         ResourceBlocksConfigManager.initialize();
@@ -112,11 +125,47 @@ public final class Obsidianwars extends JavaPlugin {
 
         // Start periodic task to reset expired time-framed stats (every hour)
         startStatsResetTask();
+
+        // Hook into Vault economy (with fallback to built-in)
+        try {
+            EconomyManager.getInstance().hookVault();
+        } catch (Exception e) {
+            getLogger().warning("Failed to hook into Vault economy: " + e.getMessage());
+            getLogger().info("Falling back to built-in economy system.");
+        }
+
+        // Register PlaceholderAPI expansion if available (with class loading protection)
+        try {
+            Class.forName("me.clip.placeholderapi.expansion.PlaceholderExpansion");
+            ObsidianWarsExpansion.registerIfAvailable(this);
+        } catch (ClassNotFoundException e) {
+            getLogger().info("PlaceholderAPI not installed - placeholders will not be available.");
+        } catch (NoClassDefFoundError e) {
+            getLogger().info("PlaceholderAPI not installed - placeholders will not be available.");
+        } catch (Exception e) {
+            getLogger().warning("Failed to register PlaceholderAPI expansion: " + e.getMessage());
+        }
+
+        // Initialize bStats metrics (with error protection - should never crash plugin)
+        try {
+            ObsidianWarsMetrics.initialize(this);
+        } catch (Exception e) {
+            getLogger().warning("Failed to initialize bStats metrics: " + e.getMessage());
+            getLogger().info("Plugin will continue to function normally without metrics.");
+        }
+
+        // Start queue matchmaking
+        if (getConfig().getBoolean("queue.enabled", true)) {
+            QueueManager.getInstance().startMatchmaking();
+        }
     }
 
     @Override
     public void onDisable() {
         getLogger().info("ObsidianWars plugini dayandirildi!");
+
+        // Stop queue matchmaking
+        QueueManager.getInstance().stopMatchmaking();
 
         // Clear lobby items and reset state for all players in arenas
         for (java.util.UUID uuid : new java.util.ArrayList<>(ObsidianCommand.playersInArena.keySet())) {
@@ -160,6 +209,15 @@ public final class Obsidianwars extends JavaPlugin {
         StatsManager.cleanup();
         XPAwardListener.cleanup();
         DatabaseManager.close();
+
+        // Cleanup new managers
+        TaskManager.getInstance().cleanup();
+        ArenaStateManager.getInstance().cleanup();
+        PerformanceMonitor.getInstance().cleanup();
+        QueueManager.getInstance().cleanup();
+        ArenaManager.getInstance().cleanup();
+        EconomyManager.getInstance().cleanup();
+        SuddenDeathManager.getInstance().cleanup();
     }
 
     private void startCleanupTask() {
@@ -204,6 +262,7 @@ public final class Obsidianwars extends JavaPlugin {
                 WallManager.stopPreparationTimer(arenaName);
                 WallManager.stopSuddenDeathCountdown(arenaName);
                 XPAwardListener.stopPerMinuteTask(arenaName);
+                TaskManager.getInstance().cancelArenaTasks(arenaName);
 
                 // Restore world rules
                 WorldRulesManager.restoreWorldRules(arenaName);

@@ -14,6 +14,7 @@ import org.bukkit.inventory.meta.LeatherArmorMeta;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Handles team selection GUI interactions with strict balance checking.
@@ -21,8 +22,8 @@ import java.util.UUID;
  */
 public class TeamListener implements Listener {
 
-    // Oyunçuların komanda seçimlərini saxlayırıq
-    public static final Map<UUID, String> playerTeams = new HashMap<>();
+    // Oyunçuların komanda seçimlərini saxlayırıq (thread-safe for concurrent access)
+    public static final Map<UUID, String> playerTeams = new ConcurrentHashMap<>();
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
@@ -131,7 +132,7 @@ public class TeamListener implements Listener {
 
             // Dəri zireh - Qırmızı (only if equipArmor is true)
             if (equipArmor) {
-                equipLeatherArmor(player, Color.RED);
+                ArmorUtils.equipColoredLeatherArmor(player, Color.RED);
             }
         } else if (team.equals("blue")) {
             // Ad rəngi - Mavi
@@ -141,47 +142,9 @@ public class TeamListener implements Listener {
 
             // Dəri zireh - Mavi (only if equipArmor is true)
             if (equipArmor) {
-                equipLeatherArmor(player, Color.BLUE);
+                ArmorUtils.equipColoredLeatherArmor(player, Color.BLUE);
             }
         }
-    }
-
-    public static void equipLeatherArmor(Player player, Color color) {
-        // Leather Helmet
-        ItemStack helmet = new ItemStack(Material.LEATHER_HELMET);
-        LeatherArmorMeta helmetMeta = (LeatherArmorMeta) helmet.getItemMeta();
-        if (helmetMeta != null) {
-            helmetMeta.setColor(color);
-            helmet.setItemMeta(helmetMeta);
-        }
-        player.getInventory().setHelmet(helmet);
-
-        // Leather Chestplate
-        ItemStack chestplate = new ItemStack(Material.LEATHER_CHESTPLATE);
-        LeatherArmorMeta chestMeta = (LeatherArmorMeta) chestplate.getItemMeta();
-        if (chestMeta != null) {
-            chestMeta.setColor(color);
-            chestplate.setItemMeta(chestMeta);
-        }
-        player.getInventory().setChestplate(chestplate);
-
-        // Leather Leggings
-        ItemStack leggings = new ItemStack(Material.LEATHER_LEGGINGS);
-        LeatherArmorMeta leggingsMeta = (LeatherArmorMeta) leggings.getItemMeta();
-        if (leggingsMeta != null) {
-            leggingsMeta.setColor(color);
-            leggings.setItemMeta(leggingsMeta);
-        }
-        player.getInventory().setLeggings(leggings);
-
-        // Leather Boots
-        ItemStack boots = new ItemStack(Material.LEATHER_BOOTS);
-        LeatherArmorMeta bootsMeta = (LeatherArmorMeta) boots.getItemMeta();
-        if (bootsMeta != null) {
-            bootsMeta.setColor(color);
-            boots.setItemMeta(bootsMeta);
-        }
-        player.getInventory().setBoots(boots);
     }
 
     public static void cleanup() {

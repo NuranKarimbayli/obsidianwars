@@ -10,15 +10,84 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class GameManager {
 
-    private static final Map<String, ArenaGame> activeGames = new HashMap<>();
-    private static final int COUNTDOWN_SECONDS = 20;
+    private static final Map<String, ArenaGame> activeGames = new ConcurrentHashMap<>();
+    private static final Map<String, Set<UUID>> arenaPlayers = new ConcurrentHashMap<>();
+    private static int COUNTDOWN_SECONDS = 20; // Now configurable via config
+
+    /**
+     * Loads configuration values from config.yml
+     */
+    public static void loadConfig() {
+        COUNTDOWN_SECONDS = Obsidianwars.getInstance().getConfig().getInt("timers.default-countdown", 20);
+        Obsidianwars.getInstance().getLogger().info("Loaded countdown duration: " + COUNTDOWN_SECONDS + " seconds");
+    }
+
+    public static int getCountdownSeconds() {
+        return COUNTDOWN_SECONDS;
+    }
+
+    // ============================================
+    // Arena-Specific Player Tracking (O(1) lookups)
+    // ============================================
+
+    /**
+     * Adds a player to the specified arena's player set.
+     * This provides O(1) lookup for arena players.
+     *
+     * @param uuid The player's UUID
+     * @param arenaName The arena name
+     */
+    public static void addPlayerToArena(UUID uuid, String arenaName) {
+        arenaPlayers.computeIfAbsent(arenaName, k -> ConcurrentHashMap.newKeySet()).add(uuid);
+    }
+
+    /**
+     * Removes a player from the specified arena's player set.
+     *
+     * @param uuid The player's UUID
+     * @param arenaName The arena name
+     */
+    public static void removePlayerFromArena(UUID uuid, String arenaName) {
+        Set<UUID> players = arenaPlayers.get(arenaName);
+        if (players != null) {
+            players.remove(uuid);
+            if (players.isEmpty()) {
+                arenaPlayers.remove(arenaName);
+            }
+        }
+    }
+
+    /**
+     * Gets all players in a specific arena (O(1) lookup).
+     *
+     * @param arenaName The arena name
+     * @return Set of player UUIDs in the arena (empty set if arena has no players)
+     */
+    public static Set<UUID> getPlayersInArena(String arenaName) {
+        return arenaPlayers.getOrDefault(arenaName, Collections.emptySet());
+    }
+
+    /**
+     * Checks if a player is in a specific arena (O(1) lookup).
+     *
+     * @param uuid The player's UUID
+     * @param arenaName The arena name
+     * @return true if player is in the arena, false otherwise
+     */
+    public static boolean isPlayerInArena(UUID uuid, String arenaName) {
+        Set<UUID> players = arenaPlayers.get(arenaName);
+        return players != null && players.contains(uuid);
+    }
 
     public static void checkGameStart(String arenaName) {
         ArenaGame existingGame = activeGames.get(arenaName);
@@ -85,7 +154,8 @@ public class GameManager {
 
             // Reset XP bar for all players
             for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                if (playerArena != null && playerArena.equals(arenaName)) {
                     Player player = Bukkit.getPlayer(uuid);
                     if (player != null && player.isOnline()) {
                         player.setLevel(0);
@@ -104,7 +174,8 @@ public class GameManager {
             Sound cancelSound = Obsidianwars.parseSound(sound);
             if (cancelSound != null) {
                 for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                    if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                    String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                    if (playerArena != null && playerArena.equals(arenaName)) {
                         Player player = Bukkit.getPlayer(uuid);
                         if (player != null) {
                             player.playSound(player.getLocation(), cancelSound, 1.0f, 1.0f);
@@ -158,7 +229,8 @@ public class GameManager {
 
             // Reset XP bar for all players
             for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                if (playerArena != null && playerArena.equals(arenaName)) {
                     Player player = Bukkit.getPlayer(uuid);
                     if (player != null && player.isOnline()) {
                         player.setLevel(0);
@@ -173,12 +245,8 @@ public class GameManager {
     }
 
     public static boolean hasPlayersInArena(String arenaName) {
-        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                return true;
-            }
-        }
-        return false;
+        Set<UUID> players = arenaPlayers.get(arenaName);
+        return players != null && !players.isEmpty();
     }
 
     private static void startCountdown(String arenaName) {
@@ -199,7 +267,8 @@ public class GameManager {
 
         // Komandasız oyunçuları tapırıq
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 if (!TeamListener.playerTeams.containsKey(uuid)) {
                     unassignedPlayers.add(uuid);
                 }
@@ -215,8 +284,8 @@ public class GameManager {
                 String team = (i % 2 == 0) ? "red" : "blue";
                 TeamManager.setPlayerTeam(player, arenaName, team);
 
-                String teamName = team.equals("red") ? "Qırmızı" : "Mavi";
-                String teamColor = team.equals("red") ? "§c" : "§9";
+                String teamName = TeamConfig.getTeamName(team);
+                String teamColor = TeamConfig.getTeamColor(team);
                 String message = MessagesConfigManager.getMessage("auto_team", "teamColor", teamColor, "teamName", teamName);
                 player.sendMessage(message);
             }
@@ -225,7 +294,8 @@ public class GameManager {
 
     public static void teleportPlayersToTeamSpawns(String arenaName) {
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
                     String team = TeamListener.playerTeams.get(uuid);
@@ -247,7 +317,8 @@ public class GameManager {
 
     public static void clearLobbyItems(String arenaName) {
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
                     // Lobby items təmizləyirik
@@ -272,7 +343,8 @@ public class GameManager {
 
             // Remove spawn protection from all players immediately so they can take damage
             for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                if (playerArena != null && playerArena.equals(arenaName)) {
                     Player player = Bukkit.getPlayer(uuid);
                     if (player != null && player.isOnline()) {
                         ParticleManager.removeSpawnProtection(player);
@@ -283,13 +355,16 @@ public class GameManager {
             // Clear all dropped items in the arena world
             clearDroppedItems(arenaName);
 
-            // Take snapshot of arena before game starts
+            // Take snapshot of arena before game starts (CRITICAL - must succeed)
             boolean snapshotSuccess = ArenaSnapshotManager.takeSnapshot(arenaName);
-            if (snapshotSuccess) {
-                DebugManager.logDebug("Arena snapshot taken successfully", arenaName);
-            } else {
-                Obsidianwars.getInstance().getLogger().severe("Failed to take snapshot for arena " + arenaName + " - blocks may not be restored after game ends!");
+            if (!snapshotSuccess) {
+                Obsidianwars.getInstance().getLogger().severe("Failed to take snapshot for arena " + arenaName + " - game start aborted!");
+                broadcastToArena(arenaName, "§cGame start failed - please contact an administrator.");
+                // Reset arena status
+                ArenaConfigManager.setArenaStatus(arenaName, "READY");
+                return;
             }
+            DebugManager.logDebug("Arena snapshot taken successfully", arenaName);
 
             // Clear all non-player entities (mobs, animals, etc.) in the arena's world
             clearArenaMobs(arenaName);
@@ -333,7 +408,8 @@ public class GameManager {
             Sound startSound = Obsidianwars.parseSound(sound);
             if (startSound != null) {
                 for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                    if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                    String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                    if (playerArena != null && playerArena.equals(arenaName)) {
                         Player player = Bukkit.getPlayer(uuid);
                         if (player != null) {
                             player.playSound(player.getLocation(), startSound, 1.0f, 1.0f);
@@ -344,7 +420,8 @@ public class GameManager {
 
             // Send rules announcement
             for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                if (playerArena != null && playerArena.equals(arenaName)) {
                     Player player = Bukkit.getPlayer(uuid);
                     if (player != null) {
                         List<String> rulesLines = MessagesConfigManager.getMessagesConfig().getStringList("messages.rules_announcement");
@@ -374,15 +451,16 @@ public class GameManager {
 
             // Victory mesajı
             if (winningTeam != null) {
-                String teamName = winningTeam.equals("red") ? "Qırmızı" : "Mavi";
-                String teamColor = winningTeam.equals("red") ? "§c" : "§9";
+                String teamName = TeamConfig.getTeamName(winningTeam);
+                String teamColor = TeamConfig.getTeamColor(winningTeam);
 
                 String victoryMessage = MessagesConfigManager.getMessage("victory_message", "teamColor", teamColor, "teamName", teamName);
                 broadcastToArena(arenaName, MessagesConfigManager.getMessage("victory") + " " + victoryMessage);
 
                 // Track stats - wins for winning team, losses for losing team
                 for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                    if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                    String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                    if (playerArena != null && playerArena.equals(arenaName)) {
                         Player player = Bukkit.getPlayer(uuid);
                         if (player != null) {
                             String playerTeam = TeamListener.playerTeams.get(uuid);
@@ -417,7 +495,8 @@ public class GameManager {
                 }
                 if (victorySound != null) {
                     for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                        if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                        String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                        if (playerArena != null && playerArena.equals(arenaName)) {
                             Player player = Bukkit.getPlayer(uuid);
                             if (player != null) {
                                 player.playSound(player.getLocation(), victorySound, 1.0f, 1.0f);
@@ -479,66 +558,68 @@ public class GameManager {
             DebugManager.logDebug("Arena snapshot restored successfully", arenaName);
         } else {
             DebugManager.logDebug("Arena snapshot restoration failed or no snapshot found", arenaName);
+            Obsidianwars.getInstance().getLogger().warning(
+                "Arena snapshot restoration failed for " + arenaName + " - arena may be in corrupted state"
+            );
+            // Note: We don't disable the arena here to allow manual admin intervention
+            // Arena can be manually disabled via /o disablearena command if needed
         }
 
         // Update arena status back to READY
         ArenaConfigManager.setArenaStatus(arenaName, "READY");
 
-        // Collect all players in arena first for visibility reset
-        java.util.List<Player> arenaPlayers = new ArrayList<>();
-        for (UUID uuid : new ArrayList<>(ObsidianCommand.playersInArena.keySet())) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                Player player = Bukkit.getPlayer(uuid);
-                if (player != null) {
-                    arenaPlayers.add(player);
-                }
+        // Collect all players in arena first for visibility reset (using O(1) lookup)
+        java.util.List<Player> arenaPlayerList = new ArrayList<>();
+        for (UUID uuid : getPlayersInArena(arenaName)) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) {
+                arenaPlayerList.add(player);
             }
         }
 
-        // Bütün oyunçuları təmizləyirik
-        for (UUID uuid : new ArrayList<>(ObsidianCommand.playersInArena.keySet())) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                Player player = Bukkit.getPlayer(uuid);
-                if (player != null) {
-                    // Remove spectator mode if player was a spectator
-                    if (SpectatorManager.isSpectator(player)) {
-                        SpectatorManager.removeSpectatorMode(player);
-                    }
-
-                    // Show player to all other players in the arena (fixes visibility issue)
-                    for (Player otherPlayer : arenaPlayers) {
-                        if (otherPlayer != player && otherPlayer.isOnline()) {
-                            player.showPlayer(Obsidianwars.getInstance(), otherPlayer);
-                            otherPlayer.showPlayer(Obsidianwars.getInstance(), player);
-                        }
-                    }
-
-                    // Reset player state and teleport to spawn
-                    Location mainSpawn = player.getWorld().getSpawnLocation();
-                    PlayerUtils.resetPlayerFull(player, mainSpawn);
-
-                    player.sendMessage("§aArena bitdi, əsas spawn-a qayıtdınız!");
-
-                    // Update lobby scoreboard after game ends
-                    LobbyScoreboardManager.updateLobbyScoreboard(player);
+        // Bütün oyunçuları təmizləyirik (using O(1) lookup)
+        for (UUID uuid : new ArrayList<>(getPlayersInArena(arenaName))) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) {
+                // Remove spectator mode if player was a spectator
+                if (SpectatorManager.isSpectator(player)) {
+                    SpectatorManager.removeSpectatorMode(player);
                 }
 
-                // Oyunçunu sistemdən çıxarırıq
-                ObsidianCommand.playersInArena.remove(uuid);
-                if (player != null) {
-                    TeamManager.removePlayerFromTeam(player);
-                } else {
-                    // Player is offline, just remove from team map
-                    TeamListener.playerTeams.remove(uuid);
+                // Show player to all other players in the arena (fixes visibility issue)
+                for (Player otherPlayer : arenaPlayerList) {
+                    if (otherPlayer != player && otherPlayer.isOnline()) {
+                        player.showPlayer(Obsidianwars.getInstance(), otherPlayer);
+                        otherPlayer.showPlayer(Obsidianwars.getInstance(), player);
+                    }
                 }
 
-                // Clean up wand positions for this player
-                WandListener.pos1Map.remove(uuid);
-                WandListener.pos2Map.remove(uuid);
+                // Reset player state and teleport to spawn
+                Location mainSpawn = player.getWorld().getSpawnLocation();
+                PlayerUtils.resetPlayerFull(player, mainSpawn);
 
-                // Clean up disconnect record
-                clearDisconnectRecord(uuid);
+                player.sendMessage("§aArena bitdi, əsas spawn-a qayıtdınız!");
+
+                // Update lobby scoreboard after game ends
+                LobbyScoreboardManager.updateLobbyScoreboard(player);
             }
+
+            // Oyunçunu sistemdən çıxarırıq
+            ObsidianCommand.playersInArena.remove(uuid);
+            removePlayerFromArena(uuid, arenaName);
+            if (player != null) {
+                TeamManager.removePlayerFromTeam(player);
+            } else {
+                // Player is offline, just remove from team map
+                TeamListener.playerTeams.remove(uuid);
+            }
+
+            // Clean up wand positions for this player
+            WandListener.pos1Map.remove(uuid);
+            WandListener.pos2Map.remove(uuid);
+
+            // Clean up disconnect record
+            clearDisconnectRecord(uuid);
         }
 
         // Also clean up any disconnected players data for this arena
@@ -558,12 +639,10 @@ public class GameManager {
     }
 
     public static void updateArenaScoreboards(String arenaName) {
-        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                Player player = Bukkit.getPlayer(uuid);
-                if (player != null) {
-                    ScoreboardManager.updateScoreboard(player);
-                }
+        for (UUID uuid : getPlayersInArena(arenaName)) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) {
+                ScoreboardManager.updateScoreboard(player);
             }
         }
     }
@@ -577,7 +656,8 @@ public class GameManager {
         int bluePlayers = 0;
 
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 String team = TeamListener.playerTeams.get(uuid);
                 if (team != null) {
                     if (team.equals("red")) {
@@ -760,6 +840,7 @@ public class GameManager {
             game.cleanup();
         }
         activeGames.clear();
+        arenaPlayers.clear();
         disconnectTimes.clear();
         disconnectedPlayers.clear();
         // Clean up all team data
@@ -781,7 +862,8 @@ public class GameManager {
         int maxKills = -1;
 
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 int kills = StatsManager.getKills(uuid);
                 if (kills > maxKills) {
                     maxKills = kills;
@@ -791,8 +873,8 @@ public class GameManager {
         }
 
         // Broadcast winner
-        String teamName = winningTeam.equals("red") ? "Qırmızı" : "Mavi";
-        String teamColor = winningTeam.equals("red") ? "§c" : "§9";
+        String teamName = TeamConfig.getTeamName(winningTeam);
+        String teamColor = TeamConfig.getTeamColor(winningTeam);
         broadcastToArena(arenaName, "§6§l=== MATCH SUMMARY ===");
         broadcastToArena(arenaName, teamColor + "§lWinner: " + teamName + " Team");
 
@@ -807,7 +889,8 @@ public class GameManager {
         // Broadcast individual stats
         broadcastToArena(arenaName, "§7--------------------");
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
                     int kills = StatsManager.getKills(uuid);
@@ -830,9 +913,9 @@ public class GameManager {
         ENDED
     }
 
-    // Disconnect handling
-    private static final Map<UUID, Long> disconnectTimes = new HashMap<>();
-    private static final Map<UUID, DisconnectedPlayerData> disconnectedPlayers = new HashMap<>();
+    // Disconnect handling (thread-safe for concurrent access)
+    private static final Map<UUID, Long> disconnectTimes = new ConcurrentHashMap<>();
+    private static final Map<UUID, DisconnectedPlayerData> disconnectedPlayers = new ConcurrentHashMap<>();
     private static final long REJOIN_GRACE_PERIOD = 30000; // 30 seconds in milliseconds
 
     public static void handleDisconnect(Player player) {
@@ -840,6 +923,13 @@ public class GameManager {
         if (ObsidianCommand.playersInArena.containsKey(uuid)) {
             String arenaName = ObsidianCommand.playersInArena.get(uuid);
             String team = TeamListener.playerTeams.get(uuid);
+
+            // Only save state if in PLAYING or PREPARATION state and player has a team
+            if (team == null) {
+                // Player without team - just record disconnect time for legacy
+                disconnectTimes.put(uuid, System.currentTimeMillis());
+                return;
+            }
 
             // Only save state if in PLAYING or PREPARATION state
             ArenaGame game = activeGames.get(arenaName);
@@ -850,9 +940,29 @@ public class GameManager {
                 disconnectTimes.put(uuid, System.currentTimeMillis());
 
                 Obsidianwars.getInstance().getLogger().info("Player " + player.getName() + " disconnected from arena " + arenaName + " - state saved for rejoin");
+
+                // Add bounds checking to prevent memory leak
+                if (disconnectedPlayers.size() > 1000) {
+                    cleanupExpiredDisconnectRecords();
+                    Obsidianwars.getInstance().getLogger().warning(
+                        "Disconnected players map exceeded 1000 entries - forced cleanup"
+                    );
+                }
             } else {
-                // Not in active game, just record disconnect time for legacy
-                disconnectTimes.put(uuid, System.currentTimeMillis());
+                // Not in active game - immediate cleanup if game ended
+                if (game == null || game.getGameState() == GameState.ENDED) {
+                    // Game ended, clean up immediately
+                    ObsidianCommand.playersInArena.remove(uuid);
+                    TeamListener.playerTeams.remove(uuid);
+                    WandListener.pos1Map.remove(uuid);
+                    WandListener.pos2Map.remove(uuid);
+                    Obsidianwars.getInstance().getLogger().info(
+                        "Player " + player.getName() + " disconnected from ended arena " + arenaName + " - immediate cleanup"
+                    );
+                } else {
+                    // Not in active game, just record disconnect time for legacy
+                    disconnectTimes.put(uuid, System.currentTimeMillis());
+                }
             }
         }
     }
@@ -1002,7 +1112,8 @@ public class GameManager {
         int blueOnline = 0;
 
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null && player.isOnline()) {
                     String team = TeamListener.playerTeams.get(uuid);
@@ -1093,8 +1204,8 @@ public class GameManager {
         BukkitTask countdownTask;
         private int gameTime;
         private BukkitTask gameTimerTask;
-        private final Map<String, Boolean> obsidianDestroyed = new HashMap<>();
-        private final Map<UUID, Integer> killStreaks = new HashMap<>();
+        private final Map<String, Boolean> obsidianDestroyed = new ConcurrentHashMap<>();
+        private final Map<UUID, Integer> killStreaks = new ConcurrentHashMap<>();
         private boolean winDeclared = false; // Prevent duplicate win triggers
 
         public ArenaGame(String arenaName) {
@@ -1126,7 +1237,8 @@ public class GameManager {
                     if (countdown > 0) {
                         // Update XP bar for all players in arena
                         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                            if (playerArena != null && playerArena.equals(arenaName)) {
                                 Player player = Bukkit.getPlayer(uuid);
                                 if (player != null && player.isOnline()) {
                                     // Set XP level to remaining countdown seconds
@@ -1159,7 +1271,8 @@ public class GameManager {
 
                             // Title/Subtitle broadcast
                             for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                                String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                                if (playerArena != null && playerArena.equals(arenaName)) {
                                     Player player = Bukkit.getPlayer(uuid);
                                     if (player != null && player.isOnline()) {
                                         try {
@@ -1188,7 +1301,8 @@ public class GameManager {
 
                         // Reset XP bar for all players
                         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                            if (playerArena != null && playerArena.equals(arenaName)) {
                                 Player player = Bukkit.getPlayer(uuid);
                                 if (player != null && player.isOnline()) {
                                     player.setLevel(0);
@@ -1509,7 +1623,8 @@ public class GameManager {
         ArenaGame game = activeGames.get(arenaName);
 
         for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 String playerTeam = TeamListener.playerTeams.get(uuid);
                 if (team.equals(playerTeam)) {
                     org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(uuid);

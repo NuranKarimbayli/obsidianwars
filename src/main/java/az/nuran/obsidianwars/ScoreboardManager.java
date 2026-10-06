@@ -1,5 +1,6 @@
 package az.nuran.obsidianwars;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -18,6 +19,10 @@ public class ScoreboardManager {
     private static final Map<UUID, Scoreboard> playerScoreboards = new HashMap<>();
     private static final Map<UUID, Long> lastUpdateTime = new HashMap<>();
     private static final long UPDATE_COOLDOWN_MS = 500; // 500ms cooldown
+
+    // Cache for team health calculations to avoid expensive iterations
+    private static final Map<String, CachedTeamHealth> teamHealthCache = new HashMap<>();
+    private static final long HEALTH_CACHE_TTL_MS = 1000; // Cache expires after 1 second
 
     public static void updateScoreboard(Player player) {
         // Check if scoreboard is enabled in config
@@ -49,6 +54,9 @@ public class ScoreboardManager {
 
         try {
             String arenaName = ObsidianCommand.playersInArena.get(uuid);
+            if (arenaName == null) {
+                return; // Player not in arena, skip scoreboard update
+            }
             GameManager.ArenaGame game = GameManager.getGame(arenaName);
 
             // Use per-player scoreboard from TeamManager or create new one
@@ -58,7 +66,7 @@ public class ScoreboardManager {
                 playerScoreboards.put(uuid, scoreboard);
             }
 
-            // Update scoreboard with dynamic configuration
+            // Update scoreboard with dynamic configuration (handles null game gracefully)
             updateDynamicScoreboard(scoreboard, player, arenaName, game);
 
             player.setScoreboard(scoreboard);
@@ -76,8 +84,8 @@ public class ScoreboardManager {
             objective = scoreboard.registerNewObjective("obsidianwars_dynamic", "dummy");
         }
 
-        // Get title from config
-        String title = Obsidianwars.getInstance().getConfig().getString("scoreboard.title", "&d&lOBSIDIAN WARS");
+        // Get title from scoreboards config
+        String title = ScoreboardsConfigManager.getScoreboardsConfig().getString("scoreboard.title", "&d&lOBSIDIAN WARS");
         title = replacePlaceholders(title, player, arenaName, game);
         objective.setDisplayName(ChatColor.translateAlternateColorCodes('&', title));
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
@@ -87,23 +95,55 @@ public class ScoreboardManager {
             scoreboard.resetScores(entry);
         }
 
-        // Get lines from config
-        List<String> lines = Obsidianwars.getInstance().getConfig().getStringList("scoreboard.lines");
+        // Get lines from scoreboards config
+        List<String> lines = ScoreboardsConfigManager.getScoreboardsConfig().getStringList("scoreboard.lines");
 
         // Set scores (reverse order to display correctly)
         int lineScore = lines.size();
         for (String line : lines) {
             String processedLine = replacePlaceholders(line, player, arenaName, game);
-            processedLine = ChatColor.translateAlternateColorCodes('&', processedLine);
 
-            // Skip empty lines
-            if (processedLine.trim().isEmpty()) {
-                lineScore--;
-                continue;
+            // Parse PlaceholderAPI placeholders if PAPI is installed
+            if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+                processedLine = PlaceholderAPI.setPlaceholders(player, processedLine);
             }
 
-            Score scoreLine = objective.getScore(processedLine);
-            scoreLine.setScore(lineScore--);
+            processedLine = ChatColor.translateAlternateColorCodes('&', processedLine);
+
+            // Handle empty lines by using unique invisible characters
+            if (processedLine.trim().isEmpty()) {
+                // Use unique color codes for each empty line to avoid duplicates
+                String emptyLine = getUniqueEmptyLine(lineScore);
+                emptyLine = ChatColor.translateAlternateColorCodes('&', emptyLine);
+                Score scoreLine = objective.getScore(emptyLine);
+                scoreLine.setScore(lineScore--);
+            } else {
+                Score scoreLine = objective.getScore(processedLine);
+                scoreLine.setScore(lineScore--);
+            }
+        }
+    }
+
+    private static String getUniqueEmptyLine(int lineScore) {
+        // Use different invisible characters for each empty line to avoid duplicates
+        // Each empty line gets a unique color code + space combination
+        switch (lineScore % 15) {
+            case 0: return "&0 ";
+            case 1: return "&1 ";
+            case 2: return "&2 ";
+            case 3: return "&3 ";
+            case 4: return "&4 ";
+            case 5: return "&5 ";
+            case 6: return "&6 ";
+            case 7: return "&7 ";
+            case 8: return "&8 ";
+            case 9: return "&9 ";
+            case 10: return "&a ";
+            case 11: return "&b ";
+            case 12: return "&c ";
+            case 13: return "&d ";
+            case 14: return "&e ";
+            default: return "&f ";
         }
     }
 
@@ -156,11 +196,22 @@ public class ScoreboardManager {
             return "0";
         }
 
+        // Check cache first
+        String cacheKey = arenaName + ":" + team;
+        CachedTeamHealth cached = teamHealthCache.get(cacheKey);
+        long currentTime = System.currentTimeMillis();
+
+        if (cached != null && (currentTime - cached.timestamp) < HEALTH_CACHE_TTL_MS) {
+            return cached.healthValue;
+        }
+
+        // Cache miss or expired - recalculate
         double totalHealth = 0;
         int playerCount = 0;
 
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 String playerTeam = TeamListener.playerTeams.get(uuid);
                 if (playerTeam != null && playerTeam.equals(team)) {
                     Player player = Bukkit.getPlayer(uuid);
@@ -172,14 +223,48 @@ public class ScoreboardManager {
             }
         }
 
-        if (playerCount == 0) return "0";
+        if (playerCount == 0) {
+            // Cache zero health result
+            teamHealthCache.put(cacheKey, new CachedTeamHealth("0", currentTime));
+            return "0";
+        }
 
         // Return average health or total health based on config
         boolean useAverage = Obsidianwars.getInstance().getConfig().getBoolean("health-display.use-average", true);
+        String healthValue;
         if (useAverage) {
-            return String.format("%.1f", totalHealth / playerCount);
+            healthValue = String.format("%.1f", totalHealth / playerCount);
         } else {
-            return String.format("%.1f", totalHealth);
+            healthValue = String.format("%.1f", totalHealth);
+        }
+
+        // Update cache
+        teamHealthCache.put(cacheKey, new CachedTeamHealth(healthValue, currentTime));
+
+        return healthValue;
+    }
+
+    /**
+     * Invalidates the team health cache for a specific arena.
+     * Call this when a player dies, heals, or leaves the arena.
+     */
+    public static void invalidateTeamHealthCache(String arenaName) {
+        String redKey = arenaName + ":red";
+        String blueKey = arenaName + ":blue";
+        teamHealthCache.remove(redKey);
+        teamHealthCache.remove(blueKey);
+    }
+
+    /**
+     * Data class for cached team health values.
+     */
+    private static class CachedTeamHealth {
+        final String healthValue;
+        final long timestamp;
+
+        CachedTeamHealth(String healthValue, long timestamp) {
+            this.healthValue = healthValue;
+            this.timestamp = timestamp;
         }
     }
 
@@ -255,5 +340,6 @@ public class ScoreboardManager {
     public static void cleanup() {
         playerScoreboards.clear();
         lastUpdateTime.clear();
+        teamHealthCache.clear();
     }
 }

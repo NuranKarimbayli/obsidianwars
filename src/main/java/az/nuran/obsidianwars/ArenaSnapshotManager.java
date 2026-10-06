@@ -69,12 +69,12 @@ public class ArenaSnapshotManager implements Listener {
     }
 
     /**
-     * Restores the arena to its pre-game state.
+     * Restores the arena to its pre-game state asynchronously.
      * Iterates backwards through tracked changes and restores each block.
      * Then restores essential elements (obsidians, walls, resources).
      *
      * @param arenaName The arena name
-     * @return true if restoration was successful, false otherwise
+     * @return true if restoration was initiated successfully, false otherwise
      */
     public static boolean restoreSnapshot(String arenaName) {
         ArenaSnapshot snapshot = activeSnapshots.remove(arenaName);
@@ -83,40 +83,68 @@ public class ArenaSnapshotManager implements Listener {
             return false;
         }
 
-        try {
-            Obsidianwars.getInstance().getLogger().info("Starting instant restoration for arena " + arenaName);
+        // Run restoration asynchronously to prevent main-thread blocking
+        Bukkit.getScheduler().runTaskAsynchronously(Obsidianwars.getInstance(), () -> {
+            try {
+                Obsidianwars.getInstance().getLogger().info("Starting async restoration for arena " + arenaName);
 
-            // Restore tracked changes (iterate backwards to reverse the changes)
-            List<BlockChange> changes = snapshot.getTrackedChanges();
-            if (!changes.isEmpty()) {
-                // Iterate backwards to reverse the changes in correct order
-                for (int i = changes.size() - 1; i >= 0; i--) {
-                    BlockChange change = changes.get(i);
-                    Block block = change.location.getBlock();
-                    block.setBlockData(change.originalBlockData);
+                // Restore tracked changes (iterate backwards to reverse the changes)
+                List<BlockChange> changes = snapshot.getTrackedChanges();
+                if (!changes.isEmpty()) {
+                    // Must run block changes on main thread
+                    Bukkit.getScheduler().runTask(Obsidianwars.getInstance(), () -> {
+                        try {
+                            // Iterate backwards to reverse the changes in correct order
+                            for (int i = changes.size() - 1; i >= 0; i--) {
+                                BlockChange change = changes.get(i);
+                                Block block = change.location.getBlock();
+                                block.setBlockData(change.originalBlockData);
+                            }
+                            Obsidianwars.getInstance().getLogger().info("  - Restored " + changes.size() + " changed blocks");
+                        } catch (Exception e) {
+                            Obsidianwars.getInstance().getLogger().severe("Failed to restore tracked changes for arena " + arenaName + ": " + e.getMessage());
+                        }
+                    });
                 }
-                Obsidianwars.getInstance().getLogger().info("  - Restored " + changes.size() + " changed blocks");
+
+                // Restore obsidian blocks
+                Bukkit.getScheduler().runTask(Obsidianwars.getInstance(), () -> {
+                    try {
+                        restoreObsidianBlocks(snapshot);
+                        Obsidianwars.getInstance().getLogger().info("  - Restored " + snapshot.getObsidianBlocks().size() + " obsidian blocks");
+                    } catch (Exception e) {
+                        Obsidianwars.getInstance().getLogger().severe("Failed to restore obsidian blocks for arena " + arenaName + ": " + e.getMessage());
+                    }
+                });
+
+                // Restore wall regions to original state
+                Bukkit.getScheduler().runTask(Obsidianwars.getInstance(), () -> {
+                    try {
+                        restoreWallRegions(snapshot);
+                        Obsidianwars.getInstance().getLogger().info("  - Restored " + snapshot.getWallBlocks().size() + " wall blocks");
+                    } catch (Exception e) {
+                        Obsidianwars.getInstance().getLogger().severe("Failed to restore wall regions for arena " + arenaName + ": " + e.getMessage());
+                    }
+                });
+
+                // Restore resource blocks
+                Bukkit.getScheduler().runTask(Obsidianwars.getInstance(), () -> {
+                    try {
+                        restoreResourceBlocks(snapshot);
+                        Obsidianwars.getInstance().getLogger().info("  - Restored " + snapshot.getResourceBlocks().size() + " resource blocks");
+                        Obsidianwars.getInstance().getLogger().info("Restoration complete for arena " + arenaName);
+                    } catch (Exception e) {
+                        Obsidianwars.getInstance().getLogger().severe("Failed to restore resource blocks for arena " + arenaName + ": " + e.getMessage());
+                    }
+                });
+
+            } catch (Exception e) {
+                Obsidianwars.getInstance().getLogger().severe("Failed to restore snapshot for arena " + arenaName + ": " + e.getMessage());
+                e.printStackTrace();
             }
+        });
 
-            // Restore obsidian blocks
-            restoreObsidianBlocks(snapshot);
-            Obsidianwars.getInstance().getLogger().info("  - Restored " + snapshot.getObsidianBlocks().size() + " obsidian blocks");
-
-            // Restore wall regions to original state
-            restoreWallRegions(snapshot);
-            Obsidianwars.getInstance().getLogger().info("  - Restored " + snapshot.getWallBlocks().size() + " wall blocks");
-
-            // Restore resource blocks
-            restoreResourceBlocks(snapshot);
-            Obsidianwars.getInstance().getLogger().info("  - Restored " + snapshot.getResourceBlocks().size() + " resource blocks");
-
-            Obsidianwars.getInstance().getLogger().info("Restoration complete for arena " + arenaName);
-            return true;
-        } catch (Exception e) {
-            Obsidianwars.getInstance().getLogger().severe("Failed to restore snapshot for arena " + arenaName + ": " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
+        return true;
     }
 
     /**
@@ -205,6 +233,9 @@ public class ArenaSnapshotManager implements Listener {
         }
 
         String arenaName = ObsidianCommand.playersInArena.get(event.getPlayer().getUniqueId());
+        if (arenaName == null) {
+            return;
+        }
         GameManager.ArenaGame game = GameManager.getGame(arenaName);
 
         // Only track during active game states
@@ -226,6 +257,9 @@ public class ArenaSnapshotManager implements Listener {
         }
 
         String arenaName = ObsidianCommand.playersInArena.get(event.getPlayer().getUniqueId());
+        if (arenaName == null) {
+            return;
+        }
         GameManager.ArenaGame game = GameManager.getGame(arenaName);
 
         // Only track during active game states

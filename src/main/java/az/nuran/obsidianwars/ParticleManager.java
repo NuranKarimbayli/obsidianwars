@@ -12,10 +12,10 @@ import java.util.UUID;
 
 public class ParticleManager {
 
-    private static final Map<String, BukkitTask> obsidianParticleTasks = new HashMap<>();
+    // NOTE: Arena tasks are now managed by TaskManager for consistency
+    // Spawn protection tasks remain local as they are per-player
     private static final Map<UUID, BukkitTask> spawnProtectionTasks = new HashMap<>();
     private static final Map<String, Map<String, Location>> obsidianLocations = new HashMap<>(); // Track obsidian locations per arena
-    private static final Map<String, BukkitTask> fireworksTasks = new HashMap<>(); // Separate map for fireworks tasks
 
     // Obsidian target particle settings
     private static String obsidianParticleType = "dust_color_transition";
@@ -70,30 +70,32 @@ public class ParticleManager {
         if (blueObsidian != null) arenaObsidians.put("blue", blueObsidian);
         obsidianLocations.put(arenaName, arenaObsidians);
 
-        // Start particle task
-        BukkitTask task = Bukkit.getScheduler().runTaskTimer(Obsidianwars.getInstance(), () -> {
-            Map<String, Location> currentObsidians = obsidianLocations.get(arenaName);
-            if (currentObsidians != null) {
-                Location currentRed = currentObsidians.get("red");
-                Location currentBlue = currentObsidians.get("blue");
-                
-                if (currentRed != null) {
-                    spawnObsidianParticle(currentRed);
-                }
-                if (currentBlue != null) {
-                    spawnObsidianParticle(currentBlue);
-                }
-            }
-        }, 0L, 10L); // Every 0.5 seconds (10 ticks)
+        // Start particle task using TaskManager
+        TaskManager.getInstance().runTimer(
+            "obsidian-particles-" + arenaName,
+            () -> {
+                Map<String, Location> currentObsidians = obsidianLocations.get(arenaName);
+                if (currentObsidians != null) {
+                    Location currentRed = currentObsidians.get("red");
+                    Location currentBlue = currentObsidians.get("blue");
 
-        obsidianParticleTasks.put(arenaName, task);
+                    if (currentRed != null) {
+                        spawnObsidianParticle(currentRed);
+                    }
+                    if (currentBlue != null) {
+                        spawnObsidianParticle(currentBlue);
+                    }
+                }
+            },
+            0L,  // Start immediately
+            10L, // Every 0.5 seconds (10 ticks)
+            arenaName
+        );
     }
 
     public static void stopObsidianParticles(String arenaName) {
-        BukkitTask task = obsidianParticleTasks.remove(arenaName);
-        if (task != null) {
-            task.cancel();
-        }
+        // Cancel task via TaskManager
+        TaskManager.getInstance().cancelTask("obsidian-particles-" + arenaName);
         obsidianLocations.remove(arenaName);
     }
 
@@ -280,51 +282,43 @@ public class ParticleManager {
     }
 
     public static void cleanup() {
-        // Stop all obsidian particle tasks
-        for (BukkitTask task : obsidianParticleTasks.values()) {
-            task.cancel();
-        }
-        obsidianParticleTasks.clear();
+        // Arena tasks are now managed by TaskManager - no manual cleanup needed
         obsidianLocations.clear();
 
-        // Stop all spawn protection tasks
+        // Stop all spawn protection tasks (still managed locally)
         for (BukkitTask task : spawnProtectionTasks.values()) {
             task.cancel();
         }
         spawnProtectionTasks.clear();
-
-        // Stop all fireworks tasks
-        for (BukkitTask task : fireworksTasks.values()) {
-            task.cancel();
-        }
-        fireworksTasks.clear();
     }
 
     public static void spawnVictoryFireworks(String arenaName, String winningTeam) {
-        // Start continuous fireworks for winning team
-        BukkitTask fireworksTask = Bukkit.getScheduler().runTaskTimer(Obsidianwars.getInstance(), () -> {
-            for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                    Player player = Bukkit.getPlayer(uuid);
-                    if (player != null) {
-                        String playerTeam = TeamListener.playerTeams.get(uuid);
-                        if (playerTeam != null && playerTeam.equals(winningTeam)) {
-                            spawnFireworkAroundPlayer(player);
+        // Start continuous fireworks for winning team using TaskManager
+        TaskManager.getInstance().runTimer(
+            "victory-fireworks-" + arenaName,
+            () -> {
+                for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+                    String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                    if (playerArena != null && playerArena.equals(arenaName)) {
+                        Player player = Bukkit.getPlayer(uuid);
+                        if (player != null) {
+                            String playerTeam = TeamListener.playerTeams.get(uuid);
+                            if (playerTeam != null && playerTeam.equals(winningTeam)) {
+                                spawnFireworkAroundPlayer(player);
+                            }
                         }
                     }
                 }
-            }
-        }, 0L, 20L); // Every second (20 ticks)
-
-        // Store the task in separate fireworks map to avoid key collision
-        fireworksTasks.put(arenaName, fireworksTask);
+            },
+            0L,  // Start immediately
+            20L, // Every second (20 ticks)
+            arenaName
+        );
     }
 
     public static void stopVictoryFireworks(String arenaName) {
-        BukkitTask task = fireworksTasks.remove(arenaName);
-        if (task != null) {
-            task.cancel();
-        }
+        // Cancel task via TaskManager
+        TaskManager.getInstance().cancelTask("victory-fireworks-" + arenaName);
     }
 
     public static void stopAllArenaTasks(String arenaName) {

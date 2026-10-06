@@ -1,5 +1,6 @@
 package az.nuran.obsidianwars;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -37,13 +38,19 @@ public class TabListManager {
             // Update player's health display in tab list
             updatePlayerHealthDisplay(player);
 
-            // Get header and footer from config
-            List<String> headerLines = Obsidianwars.getInstance().getConfig().getStringList("tab.header");
-            List<String> footerLines = Obsidianwars.getInstance().getConfig().getStringList("tab.footer");
+            // Get header and footer from scoreboards config
+            List<String> headerLines = ScoreboardsConfigManager.getScoreboardsConfig().getStringList("tab.header");
+            List<String> footerLines = ScoreboardsConfigManager.getScoreboardsConfig().getStringList("tab.footer");
 
             // Replace placeholders and join lines
             String header = replacePlaceholders(String.join("\n", headerLines), player, onlineCount);
             String footer = replacePlaceholders(String.join("\n", footerLines), player, onlineCount);
+
+            // Parse PlaceholderAPI placeholders if PAPI is installed
+            if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+                header = PlaceholderAPI.setPlaceholders(player, header);
+                footer = PlaceholderAPI.setPlaceholders(player, footer);
+            }
 
             // Apply color codes
             header = ChatColor.translateAlternateColorCodes('&', header);

@@ -6,6 +6,18 @@ features:
   scoreboard: true
   tablist: true
 
+# Team Configuration
+# Customize team colors, names, and wool types
+teams:
+  red:
+    color: "§c"
+    name: "Qırmızı"
+    wool_type: "RED_WOOL"
+  blue:
+    color: "§9"
+    name: "Mavi"
+    wool_type: "BLUE_WOOL"
+
 # Database Configuration
 # Options: "sqlite" or "mysql"
 database:
@@ -37,6 +49,8 @@ health-display:
 
 # Default Timer Settings (Used if admin does not specify custom values during arena creation)
 timers:
+  # Default countdown before game starts (in seconds)
+  default-countdown: 20
   # Default preparation time before bedrock walls drop (Format: 10m = 10 minutes)
   default-preparation: "10m"
   # Default time before Sudden Death mode triggers
@@ -58,6 +72,7 @@ sounds:
   countdown_cancelled: "ENTITY_VILLAGER_NO"
   success: "ENTITY_PLAYER_LEVELUP"
   error: "ENTITY_VILLAGER_NO"
+  sudden_death: "ENTITY_WITHER_SPAWN"
 
 # Spigot Particle List: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Particle.html
 # Particle Effects Configuration
@@ -82,56 +97,6 @@ mob-area:
   spawn-amount: 3
   max-mobs-per-area: 10
 
-# Tab List Configuration
-# Placeholders: %player%, %online%, %ping%, %kills%, %deaths%, %arena%, %phase%, %time%
-tab:
-  header:
-    - "&d&lOBSIDIAN WARS"
-    - "&7Welcome %player%!"
-    - ""
-  footer:
-    - ""
-    - "&7Online: &e%online% &7| Ping: &a%ping%ms"
-    - "&7Kills: &a%kills% &7| Deaths: &c%deaths%"
-
-# Scoreboard Configuration
-# Placeholders: %player%, %arena%, %phase%, %time%, %kills%, %deaths%, %red_health%, %blue_health%, %level%, %level_formatted%, %xp%, %req_xp%, %progress_bar%
-scoreboard:
-  title: "&d&lOBSIDIAN WARS"
-  lines:
-    - "&7-------------------"
-    - "&fArena: &a%arena%"
-    - "&fPhase: &e%phase%"
-    - "&fTime Left: &b%time%"
-    - ""
-    - "&cRed Health: &a%red_health%"
-    - "&9Blue Health: &a%blue_health%"
-    - ""
-    - "&fKills: &a%kills%"
-    - "&fDeaths: &c%deaths%"
-    - "&7-------------------"
-
-# Lobby Scoreboard Configuration
-# Placeholders: {player}, {date}, {server_id}, {level}, {level_formatted}, {xp}, {current_xp_k}, {req_xp}, {req_xp_k}, {progress_bar}, {kills}, {wins}, {winstreak}, {server_address}
-lobby-scoreboard:
-  enabled: true
-  server-id: "L26E"
-  server-address: "yourserver.net"
-  title: "&e&lOBSIDIAN WARS"
-  lines:
-    - "&7{date} &8{server_id}"
-    - ""
-    - "Level: &f{level_formatted}"
-    - ""
-    - "Progress: &b{current_xp_k}&7/&a{req_xp_k}"
-    - "&8[{progress_bar}&8]"
-    - ""
-    - "Total Kills: &a{kills}"
-    - "Total Wins: &a{wins}"
-    - "Winstreak: &a{winstreak}"
-    - ""
-    - "&e{server_address}"
-
 # XP Rewards Configuration
 # Adjust these values to control how much XP players earn for various actions
 xp-rewards:
@@ -155,3 +120,40 @@ level-up:
   message: "&aCongratulations! You are now Level &e{level}!"
   # Broadcast message sent to server if broadcast is true (placeholders: {level}, {player})
   broadcast-message: "&e{player} &ahas reached Level &e{level}!"
+
+# Economy Configuration
+# Options: "VAULT" (requires Vault plugin) or "BUILT_IN" (internal database storage)
+# If VAULT is selected but Vault is missing, automatically falls back to BUILT_IN
+economy:
+  type: "VAULT"
+  rewards:
+    obsidian-broken: 10.0
+    kill: 5.0
+    killstreak: 15.0
+    win: 50.0
+    play: 25.0
+
+# Sudden Death Configuration
+sudden-death:
+  # Disable respawns during sudden death (one-life remaining)
+  disable-respawns: true
+  # Contract world border during sudden death (requires setup)
+  border-contraction: false
+  border-contraction-speed: 10
+  # Apply wither effect to players
+  wither-effect: true
+  wither-duration: 10
+  # Apply strength effect to players
+  strength-effect: true
+  strength-amplifier: 1
+  # Apply glowing effect to players
+  glowing-effect: true
+  glowing-duration: 999999
+
+# Queue System Configuration
+queue:
+  enabled: true
+  # Auto-matchmaking interval in ticks (20 ticks = 1 second)
+  matchmaking-interval: 20
+  # Maximum queue time before auto-assign (in seconds, 0 = disabled)
+  max-queue-time: 300

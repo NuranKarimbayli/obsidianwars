@@ -56,7 +56,8 @@ public class SpectatorTeleporterGUI {
     private static List<Player> getAlivePlayersInArena(String arenaName) {
         List<Player> alivePlayers = new ArrayList<>();
         for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null && player.isOnline() && !SpectatorManager.isSpectator(player)) {
                     alivePlayers.add(player);
@@ -81,8 +82,8 @@ public class SpectatorTeleporterGUI {
 
             // Get player team for lore
             String team = TeamListener.playerTeams.get(player.getUniqueId());
-            String teamColor = team != null && team.equals("red") ? "§c" : "§9";
-            String teamName = team != null && team.equals("red") ? "Red Team" : "Blue Team";
+            String teamColor = team != null ? TeamConfig.getTeamColor(team) : "§f";
+            String teamName = team != null ? TeamConfig.getTeamName(team) + " Team" : "No Team";
 
             meta.setLore(java.util.Arrays.asList(
                 teamColor + teamName,

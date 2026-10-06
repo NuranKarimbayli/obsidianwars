@@ -1,5 +1,6 @@
 package az.nuran.obsidianwars;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -30,8 +31,8 @@ public class LobbyScoreboardManager {
      * Only displays if the player is not in an arena.
      */
     public static void updateLobbyScoreboard(Player player) {
-        // Check if lobby scoreboard is enabled in config
-        if (!Obsidianwars.getInstance().getConfig().getBoolean("lobby-scoreboard.enabled", true)) {
+        // Check if lobby scoreboard is enabled in scoreboards config
+        if (!ScoreboardsConfigManager.getScoreboardsConfig().getBoolean("lobby-scoreboard.enabled", true)) {
             removeLobbyScoreboard(player);
             return;
         }
@@ -80,8 +81,8 @@ public class LobbyScoreboardManager {
             objective = scoreboard.registerNewObjective("obsidianwars_lobby", "dummy");
         }
 
-        // Get title from config
-        String title = Obsidianwars.getInstance().getConfig().getString("lobby-scoreboard.title", "&e&lOBSIDIAN WARS");
+        // Get title from scoreboards config
+        String title = ScoreboardsConfigManager.getScoreboardsConfig().getString("lobby-scoreboard.title", "&e&lOBSIDIAN WARS");
         title = replaceLobbyPlaceholders(title, player);
         objective.setDisplayName(ChatColor.translateAlternateColorCodes('&', title));
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
@@ -91,23 +92,55 @@ public class LobbyScoreboardManager {
             scoreboard.resetScores(entry);
         }
 
-        // Get lines from config
-        List<String> lines = Obsidianwars.getInstance().getConfig().getStringList("lobby-scoreboard.lines");
+        // Get lines from scoreboards config
+        List<String> lines = ScoreboardsConfigManager.getScoreboardsConfig().getStringList("lobby-scoreboard.lines");
 
         // Set scores (reverse order to display correctly)
         int lineScore = lines.size();
         for (String line : lines) {
             String processedLine = replaceLobbyPlaceholders(line, player);
-            processedLine = ChatColor.translateAlternateColorCodes('&', processedLine);
 
-            // Skip empty lines
-            if (processedLine.trim().isEmpty()) {
-                lineScore--;
-                continue;
+            // Parse PlaceholderAPI placeholders if PAPI is installed
+            if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+                processedLine = PlaceholderAPI.setPlaceholders(player, processedLine);
             }
 
-            Score scoreLine = objective.getScore(processedLine);
-            scoreLine.setScore(lineScore--);
+            processedLine = ChatColor.translateAlternateColorCodes('&', processedLine);
+
+            // Handle empty lines by using unique invisible characters
+            if (processedLine.trim().isEmpty()) {
+                // Use unique color codes for each empty line to avoid duplicates
+                String emptyLine = getUniqueEmptyLine(lineScore);
+                emptyLine = ChatColor.translateAlternateColorCodes('&', emptyLine);
+                Score scoreLine = objective.getScore(emptyLine);
+                scoreLine.setScore(lineScore--);
+            } else {
+                Score scoreLine = objective.getScore(processedLine);
+                scoreLine.setScore(lineScore--);
+            }
+        }
+    }
+
+    private static String getUniqueEmptyLine(int lineScore) {
+        // Use different invisible characters for each empty line to avoid duplicates
+        // Each empty line gets a unique color code + space combination
+        switch (lineScore % 15) {
+            case 0: return "&0 ";
+            case 1: return "&1 ";
+            case 2: return "&2 ";
+            case 3: return "&3 ";
+            case 4: return "&4 ";
+            case 5: return "&5 ";
+            case 6: return "&6 ";
+            case 7: return "&7 ";
+            case 8: return "&8 ";
+            case 9: return "&9 ";
+            case 10: return "&a ";
+            case 11: return "&b ";
+            case 12: return "&c ";
+            case 13: return "&d ";
+            case 14: return "&e ";
+            default: return "&f ";
         }
     }
 
@@ -133,16 +166,12 @@ public class LobbyScoreboardManager {
         // Get date in MM/dd/yy format
         String date = getCurrentDate();
 
-        // Get server ID from config
-        String serverId = Obsidianwars.getInstance().getConfig().getString("lobby-scoreboard.server-id", "L26E");
-
-        // Get server address from config
-        String serverAddress = Obsidianwars.getInstance().getConfig().getString("lobby-scoreboard.server-address", "yourserver.net");
+        // Get player coins
+        double coins = EconomyManager.getInstance().getBalance(player);
 
         // Replace all placeholders
         text = text.replace("{player}", player.getName());
         text = text.replace("{date}", date);
-        text = text.replace("{server_id}", serverId);
         text = text.replace("{level}", String.valueOf(level));
         text = text.replace("{level_formatted}", levelFormatted);
         text = text.replace("{xp}", String.valueOf(currentXp));
@@ -153,7 +182,7 @@ public class LobbyScoreboardManager {
         text = text.replace("{kills}", String.valueOf(kills));
         text = text.replace("{wins}", String.valueOf(wins));
         text = text.replace("{winstreak}", String.valueOf(winstreak));
-        text = text.replace("{server_address}", serverAddress);
+        text = text.replace("{coins}", String.format("%.0f", coins));
 
         return text;
     }

@@ -45,7 +45,7 @@ public class GameListener implements Listener {
             // Optional: Send a message to the attacker if it's a player
             if (event.getDamager() instanceof Player) {
                 Player attacker = (Player) event.getDamager();
-                attacker.sendMessage("§c" + victim.getName() + " has spawn protection!");
+                attacker.sendMessage(MessagesConfigManager.getMessage("spawn_protection_attacker", "player", victim.getName()));
             }
             return;
         }
@@ -78,9 +78,9 @@ public class GameListener implements Listener {
         String damagerTeam = TeamListener.playerTeams.get(damager.getUniqueId());
 
         // Eyni komanda üzvləri bir-birinə zərər verə bilməz
-        if (victimTeam != null && victimTeam.equals(damagerTeam)) {
+        if (victimTeam != null && damagerTeam != null && victimTeam.equals(damagerTeam)) {
             event.setCancelled(true);
-            damager.sendMessage("§cEyni komanda üzvlərinə zərər verə bilməzsiniz!");
+            damager.sendMessage(MessagesConfigManager.getMessage("team_damage_prevented"));
         }
     }
 
@@ -140,7 +140,7 @@ public class GameListener implements Listener {
 
             // Obsidian can only be destroyed during PLAYING state (not PREPARATION)
             if (game.getGameState() != GameManager.GameState.PLAYING) {
-                player.sendMessage("§cObsidian can only be destroyed after preparation phase!");
+                player.sendMessage(MessagesConfigManager.getMessage("obsidian_only_after_prep"));
                 return;
             }
 
@@ -280,7 +280,8 @@ public class GameListener implements Listener {
         Sound destroySound = Obsidianwars.parseSound(sound);
         if (destroySound != null) {
             for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+                String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                if (playerArena != null && playerArena.equals(arenaName)) {
                     Player arenaPlayer = org.bukkit.Bukkit.getPlayer(uuid);
                     if (arenaPlayer != null) {
                         arenaPlayer.playSound(arenaPlayer.getLocation(), destroySound, 1.0f, 1.0f);
@@ -290,13 +291,14 @@ public class GameListener implements Listener {
         }
         
         // Dynamic team titles - GREEN for attackers, RED for victims
-        String teamName = team.equals("red") ? "Qırmızı" : "Mavi";
-        String teamColor = team.equals("red") ? "§c" : "§9";
+        String teamName = TeamConfig.getTeamName(team);
+        String teamColor = TeamConfig.getTeamColor(team);
         String attackerTeam = team.equals("red") ? "blue" : "red";
-        String attackerColor = team.equals("red") ? "§9" : "§c";
+        String attackerColor = TeamConfig.getTeamColor(attackerTeam);
         
         for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 Player arenaPlayer = org.bukkit.Bukkit.getPlayer(uuid);
                 if (arenaPlayer != null) {
                     String playerTeam = TeamListener.playerTeams.get(uuid);
@@ -329,7 +331,8 @@ public class GameListener implements Listener {
         // Track stats for the victim team (obsidian lost)
         String victimTeam = team.equals("red") ? "blue" : "red";
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 String playerTeam = TeamListener.playerTeams.get(uuid);
                 if (playerTeam != null && playerTeam.equals(victimTeam)) {
                     Player victimPlayer = Bukkit.getPlayer(uuid);
@@ -368,6 +371,9 @@ public class GameListener implements Listener {
         if (playerTeam == null) return;
 
         DebugManager.logDebug("Player death: " + player.getName() + " (" + playerTeam + " team)", arenaName);
+
+        // Invalidate team health cache for this arena
+        ScoreboardManager.invalidateTeamHealthCache(arenaName);
 
         // Track death stat
         StatsManager.PlayerStats stats = StatsManager.getPlayerStats(player);
@@ -432,7 +438,7 @@ public class GameListener implements Listener {
                         player.setHealth(20);
                         player.setFoodLevel(20);
                         player.teleport(teamSpawn);
-                        player.sendMessage("§eYou died during preparation - respawned at team spawn!");
+                        player.sendMessage(MessagesConfigManager.getMessage("preparation_respawn"));
                     }
                 }, 1L);
             }

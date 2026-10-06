@@ -8,15 +8,91 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Handles team chat and global chat system.
  * Default chat: Only visible to teammates in the same arena/team.
  * Global chat: Messages starting with '!' are sent to all players in the arena.
+ * Optimized with team member caching to avoid expensive iterations.
  */
 public class ChatListener implements Listener {
+
+    // Cache for team member lists per arena to avoid expensive iterations
+    private static final Map<String, Set<UUID>> redTeamCache = new ConcurrentHashMap<>();
+    private static final Map<String, Set<UUID>> blueTeamCache = new ConcurrentHashMap<>();
+    private static final Map<String, Set<UUID>> allPlayersCache = new ConcurrentHashMap<>();
+
+    /**
+     * Invalidates the team member cache for a specific arena.
+     * Call this when a player joins, leaves, or switches teams.
+     */
+    public static void invalidateTeamCache(String arenaName) {
+        redTeamCache.remove(arenaName);
+        blueTeamCache.remove(arenaName);
+        allPlayersCache.remove(arenaName);
+    }
+
+    /**
+     * Rebuilds the team member cache for a specific arena.
+     */
+    private static void rebuildTeamCache(String arenaName) {
+        Set<UUID> redMembers = ConcurrentHashMap.newKeySet();
+        Set<UUID> blueMembers = ConcurrentHashMap.newKeySet();
+        Set<UUID> allMembers = ConcurrentHashMap.newKeySet();
+
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
+                allMembers.add(uuid);
+                String playerTeam = TeamListener.playerTeams.get(uuid);
+                if (playerTeam != null) {
+                    if (playerTeam.equals("red")) {
+                        redMembers.add(uuid);
+                    } else if (playerTeam.equals("blue")) {
+                        blueMembers.add(uuid);
+                    }
+                }
+            }
+        }
+
+        redTeamCache.put(arenaName, redMembers);
+        blueTeamCache.put(arenaName, blueMembers);
+        allPlayersCache.put(arenaName, allMembers);
+    }
+
+    /**
+     * Gets cached team members for an arena, rebuilding if cache is stale.
+     */
+    private static Set<UUID> getTeamMembers(String arenaName, String team) {
+        Map<String, Set<UUID>> cache = team.equals("red") ? redTeamCache : blueTeamCache;
+        Set<UUID> members = cache.get(arenaName);
+
+        if (members == null) {
+            rebuildTeamCache(arenaName);
+            members = cache.get(arenaName);
+        }
+
+        return members != null ? members : ConcurrentHashMap.newKeySet();
+    }
+
+    /**
+     * Gets cached all players for an arena, rebuilding if cache is stale.
+     */
+    private static Set<UUID> getAllArenaPlayers(String arenaName) {
+        Set<UUID> players = allPlayersCache.get(arenaName);
+
+        if (players == null) {
+            rebuildTeamCache(arenaName);
+            players = allPlayersCache.get(arenaName);
+        }
+
+        return players != null ? players : ConcurrentHashMap.newKeySet();
+    }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
@@ -51,13 +127,11 @@ public class ChatListener implements Listener {
             String teamPrefix = playerTeam.equals("red") ? "§c[RED]" : "§9[BLUE]";
             String formattedMessage = teamPrefix + " " + player.getDisplayName() + "§f: " + message;
 
-            // Send to all players in the arena
-            for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                    Player arenaPlayer = Bukkit.getPlayer(uuid);
-                    if (arenaPlayer != null && arenaPlayer.isOnline()) {
-                        arenaPlayer.sendMessage(formattedMessage);
-                    }
+            // Send to all players in the arena (using cached list)
+            for (UUID uuid : getAllArenaPlayers(arenaName)) {
+                Player arenaPlayer = Bukkit.getPlayer(uuid);
+                if (arenaPlayer != null && arenaPlayer.isOnline()) {
+                    arenaPlayer.sendMessage(formattedMessage);
                 }
             }
 
@@ -80,7 +154,7 @@ public class ChatListener implements Listener {
             // Strip the leading '!'
             String globalMessage = message.substring(1).trim();
             if (globalMessage.isEmpty()) {
-                player.sendMessage("§cPlease provide a message after the '!' prefix.");
+                player.sendMessage(MessagesConfigManager.getMessage("chat_empty_global"));
                 return;
             }
 
@@ -88,13 +162,11 @@ public class ChatListener implements Listener {
             String teamPrefix = playerTeam.equals("red") ? "§c[RED]" : "§9[BLUE]";
             String formattedMessage = "§6[GLOBAL] " + teamPrefix + " " + player.getDisplayName() + "§f: " + globalMessage;
 
-            // Send to all players in the arena
-            for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                    Player arenaPlayer = Bukkit.getPlayer(uuid);
-                    if (arenaPlayer != null && arenaPlayer.isOnline()) {
-                        arenaPlayer.sendMessage(formattedMessage);
-                    }
+            // Send to all players in the arena (using cached list)
+            for (UUID uuid : getAllArenaPlayers(arenaName)) {
+                Player arenaPlayer = Bukkit.getPlayer(uuid);
+                if (arenaPlayer != null && arenaPlayer.isOnline()) {
+                    arenaPlayer.sendMessage(formattedMessage);
                 }
             }
 
@@ -113,16 +185,11 @@ public class ChatListener implements Listener {
         String teamPrefix = playerTeam.equals("red") ? "§c[RED]" : "§9[BLUE]";
         String formattedMessage = teamPrefix + " " + player.getDisplayName() + "§f: " + message;
 
-        // Send to all teammates in the same arena
-        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
-                String teammateTeam = TeamListener.playerTeams.get(uuid);
-                if (teammateTeam != null && teammateTeam.equals(playerTeam)) {
-                    Player teammate = Bukkit.getPlayer(uuid);
-                    if (teammate != null && teammate.isOnline()) {
-                        teammate.sendMessage(formattedMessage);
-                    }
-                }
+        // Send to all teammates in the same arena (using cached list)
+        for (UUID uuid : getTeamMembers(arenaName, playerTeam)) {
+            Player teammate = Bukkit.getPlayer(uuid);
+            if (teammate != null && teammate.isOnline()) {
+                teammate.sendMessage(formattedMessage);
             }
         }
 

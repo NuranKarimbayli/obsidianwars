@@ -55,7 +55,7 @@ public class ObsidianTabCompleter implements TabCompleter {
             List<String> subcommands = Arrays.asList(
                 "play", "join", "leave", "rejoin", "stats", "gui", "cmds", "arenalist",
                 "team", "wand", "arena", "create", "delete", "force", "forceend", "forcestart", "forceprep",
-                "disableArena", "enableArena", "spectate", "admin", "debug"
+                "disableArena", "enableArena", "reload", "stats", "spectate", "admin", "debug"
             );
             return filterCompletions(subcommands, args[0]);
         }
@@ -147,23 +147,40 @@ public class ObsidianTabCompleter implements TabCompleter {
         // ==================== ADMIN COMMAND ====================
         if (args[0].equalsIgnoreCase("admin")) {
             if (args.length == 2) {
-                // Suggest admin subcommands
-                List<String> adminSubcommands = Arrays.asList(
-                    "addexp", "addlevel", "removexp", "removelevel", "setexp", "setlevel", "gui"
+                // Suggest admin categories
+                List<String> adminCategories = Arrays.asList(
+                    "level", "coin", "exp", "stats", "gui"
                 );
-                return filterCompletions(adminSubcommands, args[1]);
+                return filterCompletions(adminCategories, args[1]);
             }
             if (args.length == 3) {
-                // Check if it's gui command (no further arguments)
+                // Check if it's gui or stats command
                 if (args[1].equalsIgnoreCase("gui")) {
                     return new ArrayList<>();
                 }
-                // Suggest player names for other commands
-                return filterCompletions(getOnlinePlayerNames(), args[2]);
+                if (args[1].equalsIgnoreCase("stats")) {
+                    return filterCompletions(Arrays.asList("reset"), args[2]);
+                }
+                // For level, coin, exp categories, suggest actions
+                if (Arrays.asList("level", "coin", "exp").contains(args[1].toLowerCase())) {
+                    return filterCompletions(Arrays.asList("set", "add", "remove"), args[2]);
+                }
             }
             if (args.length == 4) {
-                // Suggest amount placeholder
-                return Arrays.asList("<amount>");
+                // For stats reset, suggest player names
+                if (args[1].equalsIgnoreCase("stats") && args[2].equalsIgnoreCase("reset")) {
+                    return filterCompletions(getOnlinePlayerNames(), args[3]);
+                }
+                // For level, coin, exp actions, suggest player names
+                if (Arrays.asList("level", "coin", "exp").contains(args[1].toLowerCase())) {
+                    return filterCompletions(getOnlinePlayerNames(), args[3]);
+                }
+            }
+            if (args.length == 5) {
+                // For level, coin, exp with player, suggest amount placeholder
+                if (Arrays.asList("level", "coin", "exp").contains(args[1].toLowerCase())) {
+                    return Arrays.asList("<amount>");
+                }
             }
         }
 
@@ -173,6 +190,15 @@ public class ObsidianTabCompleter implements TabCompleter {
                 // Suggest debug modes
                 List<String> debugModes = Arrays.asList("console", "chat", "both", "off");
                 return filterCompletions(debugModes, args[1]);
+            }
+        }
+
+        // ==================== RELOAD COMMAND ====================
+        if (args[0].equalsIgnoreCase("reload")) {
+            if (args.length == 2) {
+                // Suggest reload targets
+                List<String> reloadTargets = Arrays.asList("all", "config", "arenas");
+                return filterCompletions(reloadTargets, args[1]);
             }
         }
 

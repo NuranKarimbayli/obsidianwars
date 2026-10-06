@@ -6,10 +6,14 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Manages player statistics for ObsidianWars.
@@ -18,7 +22,7 @@ import java.util.UUID;
  */
 public class StatsManager {
 
-    private static final Map<UUID, PlayerStats> playerStats = new HashMap<>();
+    private static final Map<UUID, PlayerStats> playerStats = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Data class for player statistics.
@@ -97,6 +101,15 @@ public class StatsManager {
         public int getMonthlyObsidianBroken() { return monthlyObsidianBroken; }
         public int getMonthlyFinalKills() { return monthlyFinalKills; }
 
+        // Level and XP getters (delegates to LevelManager)
+        public int getLevel() {
+            return LevelManager.getPlayerLevel(uuid).getLevel();
+        }
+
+        public int getXp() {
+            return LevelManager.getPlayerLevel(uuid).getCurrentXp();
+        }
+
         // Calculated fields
         public double getKDRatio() {
             return deaths == 0 ? (double) kills : (double) kills / deaths;
@@ -158,6 +171,31 @@ public class StatsManager {
             monthlyObsidianBroken++;
         }
         public void addObsidianLost() { obsidianLost++; }
+
+        // Reset method for admin command
+        public void reset() {
+            this.kills = 0;
+            this.deaths = 0;
+            this.finalKills = 0;
+            this.finalDeaths = 0;
+            this.wins = 0;
+            this.losses = 0;
+            this.gamesPlayed = 0;
+            this.obsidianBroken = 0;
+            this.obsidianLost = 0;
+            this.winstreak = 0;
+            this.longestKillStreak = 0;
+
+            this.dailyWins = 0;
+            this.dailyObsidianBroken = 0;
+            this.dailyFinalKills = 0;
+            this.weeklyWins = 0;
+            this.weeklyObsidianBroken = 0;
+            this.weeklyFinalKills = 0;
+            this.monthlyWins = 0;
+            this.monthlyObsidianBroken = 0;
+            this.monthlyFinalKills = 0;
+        }
     }
 
     /**
@@ -204,19 +242,38 @@ public class StatsManager {
     }
 
     /**
-     * Saves all player stats to database synchronously.
-     * Used during plugin shutdown to ensure all data is saved.
+     * Saves all player stats to database asynchronously with timeout.
+     * Used during plugin shutdown to ensure all data is saved without blocking main thread.
      */
     public static void saveAllStats() {
-        for (Map.Entry<UUID, PlayerStats> entry : playerStats.entrySet()) {
-            UUID uuid = entry.getKey();
-            Player player = Bukkit.getPlayer(uuid);
-            String username = player != null ? player.getName() : "Unknown";
-            try (Connection conn = DatabaseManager.getConnection()) {
-                StatsDAO.savePlayerStatsSync(conn, uuid, username, entry.getValue());
-            } catch (SQLException e) {
-                Obsidianwars.getInstance().getLogger().warning("Failed to save stats for " + uuid + " during shutdown: " + e.getMessage());
+        CompletableFuture<Void> saveFuture = CompletableFuture.runAsync(() -> {
+            for (Map.Entry<UUID, PlayerStats> entry : playerStats.entrySet()) {
+                UUID uuid = entry.getKey();
+                Player player = Bukkit.getPlayer(uuid);
+                String username = player != null ? player.getName() : "Unknown";
+                try (Connection conn = DatabaseManager.getConnection()) {
+                    StatsDAO.savePlayerStatsSync(conn, uuid, username, entry.getValue());
+                } catch (SQLException e) {
+                    Obsidianwars.getInstance().getLogger().warning(
+                        "Failed to save stats for " + username + " (" + uuid + "): " + e.getMessage()
+                    );
+                }
             }
+        }, DatabaseManager.getDbExecutor());
+
+        try {
+            // Wait max 5 seconds for save to complete
+            saveFuture.get(5, TimeUnit.SECONDS);
+            Obsidianwars.getInstance().getLogger().info("All player stats saved successfully");
+        } catch (TimeoutException e) {
+            Obsidianwars.getInstance().getLogger().warning(
+                "Stats save incomplete - timed out after 5 seconds. Some data may not be saved."
+            );
+        } catch (Exception e) {
+            Obsidianwars.getInstance().getLogger().severe(
+                "Error saving stats: " + e.getMessage()
+            );
+            e.printStackTrace();
         }
     }
 
@@ -381,17 +438,39 @@ public class StatsManager {
 
     /**
      * Cleanup method called on plugin disable.
+     * Saves all stats and levels asynchronously with timeout.
      */
     public static void cleanup() {
         saveAllStats();
-        // Save all player levels synchronously
-        for (UUID uuid : playerStats.keySet()) {
-            try (Connection conn = DatabaseManager.getConnection()) {
-                StatsDAO.savePlayerLevelSync(conn, uuid);
-            } catch (SQLException e) {
-                Obsidianwars.getInstance().getLogger().warning("Failed to save level for " + uuid + " during shutdown: " + e.getMessage());
+
+        // Save all player levels asynchronously with timeout
+        CompletableFuture<Void> levelSaveFuture = CompletableFuture.runAsync(() -> {
+            for (UUID uuid : playerStats.keySet()) {
+                try (Connection conn = DatabaseManager.getConnection()) {
+                    StatsDAO.savePlayerLevelSync(conn, uuid);
+                } catch (SQLException e) {
+                    Obsidianwars.getInstance().getLogger().warning(
+                        "Failed to save level for " + uuid + " during shutdown: " + e.getMessage()
+                    );
+                }
             }
+        }, DatabaseManager.getDbExecutor());
+
+        try {
+            // Wait max 5 seconds for level save to complete
+            levelSaveFuture.get(5, TimeUnit.SECONDS);
+            Obsidianwars.getInstance().getLogger().info("All player levels saved successfully");
+        } catch (TimeoutException e) {
+            Obsidianwars.getInstance().getLogger().warning(
+                "Level save incomplete - timed out after 5 seconds. Some data may not be saved."
+            );
+        } catch (Exception e) {
+            Obsidianwars.getInstance().getLogger().severe(
+                "Error saving levels: " + e.getMessage()
+            );
+            e.printStackTrace();
         }
+
         playerStats.clear();
         LevelManager.cleanup();
     }

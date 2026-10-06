@@ -66,7 +66,7 @@ public class SpectatorManager {
         spectators.put(player.getUniqueId(), arenaName);
         spectatorArenas.put(player.getUniqueId(), arenaName);
 
-        player.sendMessage("§aYou are now spectating arena " + arenaName + "!");
+        player.sendMessage(MessagesConfigManager.getMessage("spectator_mode", "arenaName", arenaName));
     }
 
     /**
@@ -113,7 +113,8 @@ public class SpectatorManager {
      */
     private static void hideSpectatorFromAlivePlayers(Player spectator, String arenaName) {
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 Player arenaPlayer = Bukkit.getPlayer(uuid);
                 if (arenaPlayer != null && arenaPlayer.isOnline()) {
                     if (!isSpectator(arenaPlayer)) {
@@ -137,7 +138,8 @@ public class SpectatorManager {
      */
     private static void showSpectatorToAllPlayers(Player spectator, String arenaName) {
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 Player arenaPlayer = Bukkit.getPlayer(uuid);
                 if (arenaPlayer != null && arenaPlayer.isOnline()) {
                     arenaPlayer.showPlayer(Obsidianwars.getInstance(), spectator);

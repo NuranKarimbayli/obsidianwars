@@ -75,6 +75,9 @@ public class TeamManager {
 
         // Update scoreboard
         ScoreboardManager.updateScoreboard(player);
+
+        // Invalidate chat cache for this arena
+        ChatListener.invalidateTeamCache(arenaName);
     }
 
     /**
@@ -121,9 +124,10 @@ public class TeamManager {
     public static int getTeamPlayerCount(String arenaName, String team) {
         int count = 0;
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-            if (ObsidianCommand.playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 String playerTeam = TeamListener.playerTeams.get(uuid);
-                if (team.equals(playerTeam)) {
+                if (playerTeam != null && team.equals(playerTeam)) {
                     count++;
                 }
             }

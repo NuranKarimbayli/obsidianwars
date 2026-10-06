@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Refactored command handler for ObsidianWars.
@@ -31,8 +32,8 @@ public class ObsidianCommand implements CommandExecutor {
 
     private final Obsidianwars plugin;
 
-    // Arenada olan oyunçuları izləmək üçün
-    public static final Map<UUID, String> playersInArena = new HashMap<>();
+    // Arenada olan oyunçuları izləmək üçün (thread-safe for concurrent access)
+    public static final Map<UUID, String> playersInArena = new ConcurrentHashMap<>();
 
     public ObsidianCommand(Obsidianwars plugin) {
         this.plugin = plugin;
@@ -146,7 +147,7 @@ public class ObsidianCommand implements CommandExecutor {
         // ==================== ARENA MANAGEMENT COMMANDS ====================
         if (subCommand.equals("arena")) {
             if (args.length < 2) {
-                player.sendMessage("§cUsage: /o arena <subcommand>");
+                player.sendMessage(getMessage("usage_arena"));
                 return true;
             }
             handleArenaCommand(player, args);
@@ -206,9 +207,21 @@ public class ObsidianCommand implements CommandExecutor {
             return true;
         }
 
+        // ==================== QUEUE COMMAND ====================
+        if (subCommand.equals("queue")) {
+            handleQueueCommand(player, args);
+            return true;
+        }
+
         // ==================== DEBUG COMMAND ====================
         if (subCommand.equals("debug")) {
             handleDebugCommand(player, args);
+            return true;
+        }
+
+        // ==================== RELOAD COMMAND ====================
+        if (subCommand.equals("reload")) {
+            handleReloadCommand(player, args);
             return true;
         }
 
@@ -219,7 +232,7 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         // ==================== UNKNOWN COMMAND ====================
-        player.sendMessage("§cUnknown command. Use /o cmds for help.");
+        player.sendMessage(getMessage("unknown_command"));
         return true;
     }
 
@@ -234,7 +247,7 @@ public class ObsidianCommand implements CommandExecutor {
             if (currentGame != null && (currentGame.getGameState() == GameManager.GameState.PLAYING ||
                                         currentGame.getGameState() == GameManager.GameState.PREPARATION ||
                                         currentGame.getGameState() == GameManager.GameState.COUNTDOWN)) {
-                player.sendMessage("§cYou cannot join another arena while in an active game!");
+                player.sendMessage(MessagesConfigManager.getMessage("cannot_join_active_game"));
                 return;
             }
         }
@@ -316,12 +329,19 @@ public class ObsidianCommand implements CommandExecutor {
 
         // Oyunçunu arenada qeyd edirik
         playersInArena.put(player.getUniqueId(), arenaName);
+        GameManager.addPlayerToArena(player.getUniqueId(), arenaName);
 
         // IMMEDIATE AUTO-ASSIGNMENT: Assign to balanced team right away
         String assignedTeam = TeamManager.autoAssignTeam(player, arenaName);
-        String teamName = assignedTeam.equals("red") ? "Qırmızı" : "Mavi";
-        String teamColor = assignedTeam.equals("red") ? "§c" : "§9";
+        String teamName = TeamConfig.getTeamName(assignedTeam);
+        String teamColor = TeamConfig.getTeamColor(assignedTeam);
         player.sendMessage(MessagesConfigManager.getMessage("auto_team", "teamColor", teamColor, "teamName", teamName));
+
+        // Invalidate team health cache for this arena
+        ScoreboardManager.invalidateTeamHealthCache(arenaName);
+
+        // Invalidate chat cache for this arena
+        ChatListener.invalidateTeamCache(arenaName);
 
         // Lobby items veririk
         giveLobbyItems(player);
@@ -363,6 +383,10 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         String arenaName = playersInArena.get(player.getUniqueId());
+        if (arenaName == null) {
+            player.sendMessage(getMessage("not_in_arena"));
+            return;
+        }
 
         // Check if in countdown state
         GameManager.ArenaGame game = GameManager.getGame(arenaName);
@@ -374,8 +398,15 @@ public class ObsidianCommand implements CommandExecutor {
 
         // Oyunçunu arenadan çıxarırıq
         playersInArena.remove(player.getUniqueId());
+        GameManager.removePlayerFromArena(player.getUniqueId(), arenaName);
         TeamManager.removePlayerFromTeam(player);
         ParticleManager.removeSpawnProtection(player);
+
+        // Invalidate team health cache for this arena
+        ScoreboardManager.invalidateTeamHealthCache(arenaName);
+
+        // Invalidate chat cache for this arena
+        ChatListener.invalidateTeamCache(arenaName);
 
         // Reset player state and teleport to spawn
         Location mainSpawn = player.getWorld().getSpawnLocation();
@@ -467,12 +498,20 @@ public class ObsidianCommand implements CommandExecutor {
         player.sendMessage("§ePlayer Commands:");
         player.sendMessage("  §a/o play [arena] §7- Join an arena (or random)");
         player.sendMessage("  §a/o join [arena] §7- Alias for play");
+        player.sendMessage("  §a/o queue [arena] §7- Join queue for arena (or auto-assign)");
         player.sendMessage("  §a/o leave §7- Leave current arena");
         player.sendMessage("  §a/o rejoin §7- Rejoin after disconnect");
         player.sendMessage("  §a/o stats [player] §7- View player statistics");
         player.sendMessage("  §a/o gui §7- Open arena selector GUI");
         player.sendMessage("  §a/o team §7- Open team selection GUI");
         player.sendMessage("§eAdmin Commands:");
+        player.sendMessage("  §a/o reload [all|config|arenas] §7- Reload plugin configurations");
+        player.sendMessage("  §a/o arena teleport <arena> §7- Teleport to arena spectator spawn");
+        player.sendMessage("  §a/o admin level <set|add|remove> <player> <amount> §7- Manage player levels");
+        player.sendMessage("  §a/o admin coin <set|add|remove> <player> <amount> §7- Manage player coins");
+        player.sendMessage("  §a/o admin exp <set|add|remove> <player> <amount> §7- Manage player XP");
+        player.sendMessage("  §a/o admin stats reset <player> §7- Reset player statistics");
+        player.sendMessage("  §a/o admin gui §7- Open admin arena selector (all statuses)");
         player.sendMessage("  §a/o create arena <name> <min> <max> §7- Create arena");
         player.sendMessage("  §a/o delete arena <name> §7- Delete arena");
         player.sendMessage("  §a/o disableArena <arena> §7- Disable arena");
@@ -496,13 +535,6 @@ public class ObsidianCommand implements CommandExecutor {
         player.sendMessage("  §a/o arena setspectspawn <arena> §7- Set spectator spawn");
         player.sendMessage("  §a/o wand §7- Get arena setup wand");
         player.sendMessage("  §a/o arenalist §7- List all arenas");
-        player.sendMessage("  §a/o admin addexp <player> <amount> §7- Add XP to player");
-        player.sendMessage("  §a/o admin addlevel <player> <amount> §7- Add levels to player");
-        player.sendMessage("  §a/o admin removexp <player> <amount> §7- Remove XP from player");
-        player.sendMessage("  §a/o admin removelevel <player> <amount> §7- Remove levels from player");
-        player.sendMessage("  §a/o admin setexp <player> <amount> §7- Set player XP");
-        player.sendMessage("  §a/o admin setlevel <player> <amount> §7- Set player level");
-        player.sendMessage("  §a/o admin gui §7- Open admin arena selector (all statuses)");
         player.sendMessage("  §a/o debug <console|chat|both|off> §7- Toggle debug logging");
         player.sendMessage("  §a/o cmds §7- Show this command list");
     }
@@ -547,6 +579,10 @@ public class ObsidianCommand implements CommandExecutor {
 
         // Check if countdown is 5 seconds or fewer - prevent team changes
         String arenaName = playersInArena.get(player.getUniqueId());
+        if (arenaName == null) {
+            player.sendMessage(getMessage("not_in_arena"));
+            return;
+        }
         int countdown = GameManager.getCountdown(arenaName);
 
         if (countdown > 0 && countdown <= 5) {
@@ -626,6 +662,80 @@ public class ObsidianCommand implements CommandExecutor {
             player.sendMessage("§eDebug logging is now enabled. You will see detailed game events.");
         } else {
             player.sendMessage("§eDebug logging disabled.");
+        }
+    }
+
+    private void handleReloadCommand(Player player, String[] args) {
+        if (!player.hasPermission("obsidianwars.admin")) {
+            player.sendMessage("§cYou don't have permission to use this command.");
+            return;
+        }
+
+        // Determine what to reload
+        String target = "all";
+        if (args.length > 1) {
+            target = args[1].toLowerCase();
+        }
+
+        player.sendMessage("§eReloading ObsidianWars configuration...");
+
+        if (target.equals("all") || target.equals("config")) {
+            // Reload main config
+            plugin.reloadConfig();
+            player.sendMessage("§aconfig.yml reloaded");
+
+            // Reload messages config
+            MessagesConfigManager.initialize();
+            player.sendMessage("§amessages.yml reloaded");
+
+            // Reload kill streaks config
+            KillStreaksConfigManager.initialize();
+            player.sendMessage("§akill-streaks.yml reloaded");
+
+            // Reload death messages config
+            DeathMessagesConfigManager.initialize();
+            player.sendMessage("§adeath-messages.yml reloaded");
+
+            // Reload resource blocks config
+            ResourceBlocksConfigManager.initialize();
+            player.sendMessage("§aresource-blocks.yml reloaded");
+
+            // Reload scoreboards config
+            ScoreboardsConfigManager.initialize();
+            player.sendMessage("§ascoreboards.yml reloaded");
+
+            // Reload particles config
+            ParticleManager.loadConfig();
+            player.sendMessage("§aparticles reloaded");
+
+            // Reload economy config
+            EconomyManager.getInstance().reload();
+            player.sendMessage("§aeconomy configuration reloaded");
+
+            // Reload sudden death config
+            SuddenDeathManager.getInstance().reload();
+            player.sendMessage("§asudden death configuration reloaded");
+
+            // Reload GameManager config (countdown, timers)
+            GameManager.loadConfig();
+            player.sendMessage("§agame manager configuration reloaded");
+
+            // Reload performance thresholds (if any)
+            PerformanceMonitor.getInstance().reset();
+            player.sendMessage("§aperformance metrics reset");
+        }
+
+        if (target.equals("all") || target.equals("arenas")) {
+            // Reload arena config
+            ArenaConfigManager.initialize();
+            player.sendMessage("§aarenas.yml reloaded");
+        }
+
+        if (target.equals("all")) {
+            player.sendMessage("§a§lConfiguration reloaded successfully!");
+            player.sendMessage("§eNote: Some changes may require a server restart to take full effect.");
+        } else {
+            player.sendMessage("§a§l" + target + " reloaded successfully!");
         }
     }
 
@@ -908,6 +1018,26 @@ public class ObsidianCommand implements CommandExecutor {
             if (successSound != null) {
                 player.playSound(player.getLocation(), successSound, 1.0f, 1.0f);
             }
+        } else if (action.equals("teleport")) {
+            if (args.length < 3) {
+                player.sendMessage("§cUsage: /o arena teleport <arena>");
+                return;
+            }
+            String arenaName = args[2];
+
+            if (!ArenaConfigManager.arenaExists(arenaName)) {
+                player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+                return;
+            }
+
+            Location spectSpawn = ArenaConfigManager.getSpectatorSpawn(arenaName);
+            if (spectSpawn == null) {
+                player.sendMessage("§cSpectator spawn not set for arena " + arenaName);
+                return;
+            }
+
+            player.teleport(spectSpawn);
+            player.sendMessage("§aTeleported to arena " + arenaName + " spectator spawn");
         } else if (action.equals("setblocks")) {
             if (args.length < 3) {
                 player.sendMessage("§cUsage: /o arena setblocks <arenaName>");
@@ -1129,7 +1259,8 @@ public class ObsidianCommand implements CommandExecutor {
 
         // Arenadakı oyunçuları təmizləyirik
         for (UUID uuid : new ArrayList<>(playersInArena.keySet())) {
-            if (playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 Player arenaPlayer = Bukkit.getPlayer(uuid);
                 if (arenaPlayer != null) {
                     // Oyunçunu arenadan çıxarırıq
@@ -1201,7 +1332,8 @@ public class ObsidianCommand implements CommandExecutor {
         // Clear any players still tracked in this arena
         java.util.List<java.util.UUID> playersToRemove = new java.util.ArrayList<>();
         for (java.util.UUID uuid : playersInArena.keySet()) {
-            if (playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 playersToRemove.add(uuid);
             }
         }
@@ -1487,6 +1619,65 @@ public class ObsidianCommand implements CommandExecutor {
         player.sendMessage("§aArena " + arenaName + " has been enabled.");
     }
 
+    private void handleArenaTeleportCommand(Player player, String[] args) {
+        if (!player.hasPermission("obsidianwars.admin")) {
+            player.sendMessage("§cYou don't have permission to use this command.");
+            return;
+        }
+
+        if (args.length < 3) {
+            player.sendMessage("§cUsage: /o arena teleport <arena>");
+            return;
+        }
+
+        String arenaName = args[2];
+
+        if (!ArenaConfigManager.arenaExists(arenaName)) {
+            player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+            return;
+        }
+
+        Location spectSpawn = ArenaConfigManager.getSpectatorSpawn(arenaName);
+        if (spectSpawn == null) {
+            player.sendMessage("§cSpectator spawn not set for arena " + arenaName);
+            return;
+        }
+
+        player.teleport(spectSpawn);
+        player.sendMessage("§aTeleported to arena " + arenaName + " spectator spawn");
+    }
+
+    private void handleAdminStatsResetCommand(Player player, String[] args) {
+        if (!player.hasPermission("obsidianwars.admin")) {
+            player.sendMessage("§cYou don't have permission to use this command.");
+            return;
+        }
+
+        if (args.length < 4) {
+            player.sendMessage("§cUsage: /o admin stats reset <player>");
+            return;
+        }
+
+        String targetName = args[3];
+        Player target = Bukkit.getPlayer(targetName);
+
+        if (target == null) {
+            player.sendMessage("§cPlayer not found: " + targetName);
+            return;
+        }
+
+        // Reset player stats
+        StatsManager.PlayerStats stats = StatsManager.getPlayerStats(target);
+        if (stats != null) {
+            stats.reset();
+            StatsManager.savePlayerStats(target.getUniqueId(), target.getName());
+            player.sendMessage("§aStatistics reset for player " + targetName);
+            target.sendMessage("§cYour statistics have been reset by an admin.");
+        } else {
+            player.sendMessage("§cCould not find statistics for player " + targetName);
+        }
+    }
+
     private void handleSpectateCommand(Player player, String[] args) {
         if (args.length < 2) {
             player.sendMessage("§cUsage: /o spectate <arena|player>");
@@ -1524,6 +1715,18 @@ public class ObsidianCommand implements CommandExecutor {
 
         // Neither found
         player.sendMessage("§cTarget player or arena not found.");
+    }
+
+    private void handleQueueCommand(Player player, String[] args) {
+        String arenaName = null;
+
+        // Check if arena specified
+        if (args.length > 1) {
+            arenaName = args[1];
+        }
+
+        // Join queue
+        QueueManager.getInstance().joinQueue(player, arenaName);
     }
 
     // ==================== HELPER METHODS ====================
@@ -1745,7 +1948,8 @@ public class ObsidianCommand implements CommandExecutor {
 
     public static void broadcastToArena(String arenaName, String message) {
         for (UUID uuid : playersInArena.keySet()) {
-            if (playersInArena.get(uuid).equals(arenaName)) {
+            String playerArena = playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
                 Player arenaPlayer = Bukkit.getPlayer(uuid);
                 if (arenaPlayer != null) {
                     arenaPlayer.sendMessage(message);
@@ -1769,101 +1973,185 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o admin <addexp|addlevel|removexp|removelevel|setexp|setlevel|gui> <player> <amount>");
+            player.sendMessage("§cUsage: /o admin <level|coin|exp|stats|gui> [action] [player] [amount]");
             return;
         }
 
-        String action = args[1].toLowerCase();
+        String category = args[1].toLowerCase();
 
         // Handle admin gui command
-        if (action.equals("gui")) {
+        if (category.equals("gui")) {
             handleAdminGUICommand(player);
             return;
         }
 
-        if (args.length < 4) {
-            player.sendMessage("§cUsage: /o admin " + action + " <player> <amount>");
+        // Handle stats reset command
+        if (category.equals("stats")) {
+            if (args.length < 4 || !args[2].equalsIgnoreCase("reset")) {
+                player.sendMessage("§cUsage: /o admin stats reset <player>");
+                return;
+            }
+            handleAdminStatsResetCommand(player, args);
             return;
         }
 
-        String targetName = args[2];
-        Player target = Bukkit.getPlayer(targetName);
+        // Handle currency/level commands: level, coin, exp
+        if (category.equals("level") || category.equals("coin") || category.equals("exp")) {
+            if (args.length < 3) {
+                player.sendMessage("§cUsage: /o admin " + category + " <set|add|remove> <player> <amount>");
+                return;
+            }
 
-        if (target == null || !target.isOnline()) {
-            player.sendMessage("§cPlayer '" + targetName + "' is not online.");
-            return;
+            String action = args[2].toLowerCase();
+
+            if (args.length < 5) {
+                player.sendMessage("§cUsage: /o admin " + category + " " + action + " <player> <amount>");
+                return;
+            }
+
+            String targetName = args[3];
+            Player target = Bukkit.getPlayer(targetName);
+
+            if (target == null || !target.isOnline()) {
+                player.sendMessage("§cPlayer '" + targetName + "' is not online.");
+                return;
+            }
+
+            double amount;
+            try {
+                amount = Double.parseDouble(args[4]);
+            } catch (NumberFormatException e) {
+                player.sendMessage("§cInvalid amount: " + args[4]);
+                return;
+            }
+
+            UUID targetUuid = target.getUniqueId();
+
+            // Handle level commands
+            if (category.equals("level")) {
+                handleLevelCommand(player, target, targetUuid, action, (int) amount);
+            }
+            // Handle exp commands
+            else if (category.equals("exp")) {
+                handleExpCommand(player, target, targetUuid, action, (int) amount);
+            }
+            // Handle coin commands
+            else if (category.equals("coin")) {
+                handleCoinCommand(player, target, action, amount);
+            }
+        } else {
+            player.sendMessage("§cUnknown admin category: " + category);
+            player.sendMessage("§cAvailable categories: level, coin, exp, stats, gui");
         }
+    }
 
-        int amount;
-        try {
-            amount = Integer.parseInt(args[3]);
-        } catch (NumberFormatException e) {
-            player.sendMessage("§cInvalid amount: " + args[3]);
-            return;
-        }
-
-        UUID targetUuid = target.getUniqueId();
+    private void handleLevelCommand(Player player, Player target, UUID targetUuid, String action, int amount) {
+        LevelManager.PlayerLevel playerLevel = LevelManager.getPlayerLevel(targetUuid);
 
         switch (action) {
-            case "addexp":
+            case "set":
+                playerLevel.setLevel(Math.max(1, amount));
+                player.sendMessage("§aSet " + target.getName() + "'s level to " + amount);
+                target.sendMessage("§eYour level has been set to " + amount + " by an admin!");
+                StatsDAO.savePlayerLevel(targetUuid);
+                break;
+
+            case "add":
+                int newLevel = playerLevel.getLevel() + amount;
+                playerLevel.setLevel(newLevel);
+                player.sendMessage("§aAdded " + amount + " levels to " + target.getName() + " (now level " + newLevel + ")");
+                target.sendMessage("§eYou received " + amount + " levels from an admin! (now level " + newLevel + ")");
+                StatsDAO.savePlayerLevel(targetUuid);
+                break;
+
+            case "remove":
+                int currentLevel = playerLevel.getLevel();
+                int reducedLevel = Math.max(1, currentLevel - amount);
+                playerLevel.setLevel(reducedLevel);
+                player.sendMessage("§aRemoved " + (currentLevel - reducedLevel) + " levels from " + target.getName() + " (now level " + reducedLevel + ")");
+                target.sendMessage("§e" + (currentLevel - reducedLevel) + " levels were removed by an admin! (now level " + reducedLevel + ")");
+                StatsDAO.savePlayerLevel(targetUuid);
+                break;
+
+            default:
+                player.sendMessage("§cUnknown action: " + action);
+                player.sendMessage("§cAvailable actions: set, add, remove");
+                break;
+        }
+    }
+
+    private void handleExpCommand(Player player, Player target, UUID targetUuid, String action, int amount) {
+        LevelManager.PlayerLevel xpLevel = LevelManager.getPlayerLevel(targetUuid);
+
+        switch (action) {
+            case "set":
+                xpLevel.setXp(Math.max(0, amount));
+                player.sendMessage("§aSet " + target.getName() + "'s XP to " + amount);
+                target.sendMessage("§eYour XP has been set to " + amount + " by an admin!");
+                StatsDAO.savePlayerLevel(targetUuid);
+                break;
+
+            case "add":
                 LevelManager.addXp(target, amount);
                 player.sendMessage("§aAdded " + amount + " XP to " + target.getName());
                 target.sendMessage("§eYou received " + amount + " XP from an admin!");
                 break;
 
-            case "addlevel":
-                LevelManager.PlayerLevel playerLevel = LevelManager.getPlayerLevel(targetUuid);
-                int newLevel = playerLevel.getLevel() + amount;
-                playerLevel.setLevel(newLevel);
-                player.sendMessage("§aSet " + target.getName() + "'s level to " + newLevel);
-                target.sendMessage("§eYour level has been set to " + newLevel + " by an admin!");
-                // Save to database
-                StatsDAO.savePlayerLevel(targetUuid);
-                break;
-
-            case "removexp":
-                LevelManager.PlayerLevel xpLevel = LevelManager.getPlayerLevel(targetUuid);
+            case "remove":
                 int currentXp = xpLevel.getCurrentXp();
                 int newXP = Math.max(0, currentXp - amount);
                 xpLevel.setXp(newXP);
                 player.sendMessage("§aRemoved " + (currentXp - newXP) + " XP from " + target.getName());
                 target.sendMessage("§e" + (currentXp - newXP) + " XP was removed by an admin!");
-                // Save to database
-                StatsDAO.savePlayerLevel(targetUuid);
-                break;
-
-            case "removelevel":
-                LevelManager.PlayerLevel levelData = LevelManager.getPlayerLevel(targetUuid);
-                int currentLevel = levelData.getLevel();
-                int newLevel2 = Math.max(1, currentLevel - amount);
-                levelData.setLevel(newLevel2);
-                player.sendMessage("§aReduced " + target.getName() + "'s level to " + newLevel2);
-                target.sendMessage("§eYour level has been reduced to " + newLevel2 + " by an admin!");
-                // Save to database
-                StatsDAO.savePlayerLevel(targetUuid);
-                break;
-
-            case "setexp":
-                LevelManager.PlayerLevel setXpLevel = LevelManager.getPlayerLevel(targetUuid);
-                setXpLevel.setXp(Math.max(0, amount));
-                player.sendMessage("§aSet " + target.getName() + "'s XP to " + amount);
-                target.sendMessage("§eYour XP has been set to " + amount + " by an admin!");
-                // Save to database
-                StatsDAO.savePlayerLevel(targetUuid);
-                break;
-
-            case "setlevel":
-                LevelManager.PlayerLevel setLevelData = LevelManager.getPlayerLevel(targetUuid);
-                setLevelData.setLevel(Math.max(1, amount));
-                player.sendMessage("§aSet " + target.getName() + "'s level to " + amount);
-                target.sendMessage("§eYour level has been set to " + amount + " by an admin!");
-                // Save to database
                 StatsDAO.savePlayerLevel(targetUuid);
                 break;
 
             default:
-                player.sendMessage("§cUnknown admin action: " + action);
-                player.sendMessage("§cAvailable actions: addexp, addlevel, removexp, removelevel, setexp, setlevel, gui");
+                player.sendMessage("§cUnknown action: " + action);
+                player.sendMessage("§cAvailable actions: set, add, remove");
+                break;
+        }
+    }
+
+    private void handleCoinCommand(Player player, Player target, String action, double amount) {
+        if (!EconomyManager.getInstance().isEnabled()) {
+            player.sendMessage("§cEconomy is not enabled!");
+            return;
+        }
+
+        switch (action) {
+            case "set":
+                // For set, we need to calculate the difference
+                double currentBalance = EconomyManager.getInstance().getBalance(target);
+                double difference = amount - currentBalance;
+                if (difference > 0) {
+                    EconomyManager.getInstance().awardPlayer(target, difference, "admin set");
+                } else if (difference < 0) {
+                    EconomyManager.getInstance().withdrawPlayer(target, -difference);
+                }
+                player.sendMessage("§aSet " + target.getName() + "'s coins to " + String.format("%.2f", amount));
+                target.sendMessage("§eYour coins have been set to " + String.format("%.2f", amount) + " by an admin!");
+                break;
+
+            case "add":
+                EconomyManager.getInstance().awardPlayer(target, amount, "admin add");
+                player.sendMessage("§aAdded " + String.format("%.2f", amount) + " coins to " + target.getName());
+                target.sendMessage("§eYou received " + String.format("%.2f", amount) + " coins from an admin!");
+                break;
+
+            case "remove":
+                boolean success = EconomyManager.getInstance().withdrawPlayer(target, amount);
+                if (success) {
+                    player.sendMessage("§aRemoved " + String.format("%.2f", amount) + " coins from " + target.getName());
+                    target.sendMessage("§e" + String.format("%.2f", amount) + " coins were removed by an admin!");
+                } else {
+                    player.sendMessage("§c" + target.getName() + " doesn't have enough coins!");
+                }
+                break;
+
+            default:
+                player.sendMessage("§cUnknown action: " + action);
+                player.sendMessage("§cAvailable actions: set, add, remove");
                 break;
         }
     }
