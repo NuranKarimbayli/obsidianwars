@@ -3,9 +3,11 @@ package az.nuran.obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.commands.ObsidianTabCompleter;
 import az.nuran.obsidianwars.handlers.ArenaSelectorGUIListener;
+import az.nuran.obsidianwars.handlers.AutoDeathListener;
 import az.nuran.obsidianwars.handlers.ChatListener;
 import az.nuran.obsidianwars.handlers.GameListener;
 import az.nuran.obsidianwars.handlers.LobbyItemClickListener;
+import az.nuran.obsidianwars.handlers.PerWorldChatListener;
 import az.nuran.obsidianwars.handlers.SpectatorListener;
 import az.nuran.obsidianwars.handlers.SpectatorTeleporterGUIListener;
 import az.nuran.obsidianwars.handlers.StatsGUIListener;
@@ -27,6 +29,7 @@ import az.nuran.obsidianwars.managers.LobbyScoreboardManager;
 import az.nuran.obsidianwars.managers.MessagesConfigManager;
 import az.nuran.obsidianwars.managers.MobSpawnerManager;
 import az.nuran.obsidianwars.managers.ParticleManager;
+import az.nuran.obsidianwars.managers.PerWorldTablistManager;
 import az.nuran.obsidianwars.managers.QueueManager;
 import az.nuran.obsidianwars.managers.ResourceBlockManager;
 import az.nuran.obsidianwars.managers.ResourceBlocksConfigManager;
@@ -57,6 +60,9 @@ public final class Obsidianwars extends JavaPlugin {
 
     private static Obsidianwars instance;
     private ObsidianCommand obsidianCommand;
+    private AutoDeathListener autoDeathListener;
+    private PerWorldChatListener perWorldChatListener;
+    private PerWorldTablistManager perWorldTablistManager;
 
     /**
      * Parse a sound name from config, handling both old (minecraft:entity.ender_dragon.growl)
@@ -84,7 +90,7 @@ public final class Obsidianwars extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
-        getLogger().info("ObsidianWars plugini aktivlesdirildi!");
+        getLogger().info("ObsidianWars plugin activated!");
 
         // Save default config.yml if it doesn't exist
         saveDefaultConfig();
@@ -165,6 +171,15 @@ public final class Obsidianwars extends JavaPlugin {
         // Initialize LobbyScoreboardManager
         LobbyScoreboardManager.initialize();
 
+        // Initialize new features
+        autoDeathListener = new AutoDeathListener(this);
+        getServer().getPluginManager().registerEvents(autoDeathListener, this);
+
+        perWorldChatListener = new PerWorldChatListener(this);
+        getServer().getPluginManager().registerEvents(perWorldChatListener, this);
+
+        perWorldTablistManager = new PerWorldTablistManager(this);
+
         // Cleanup any stuck arena statuses from server crash/shutdown
         cleanupStuckArenaStatuses();
 
@@ -240,6 +255,7 @@ public final class Obsidianwars extends JavaPlugin {
         TeamListener.cleanup();
         ObsidianCommand.cleanup();
         TabListManager.shutdown();
+        AutoDeathListener.cleanup();
 
         // Cleanup all games to prevent task leaks
         GameManager.cleanupAllGames();

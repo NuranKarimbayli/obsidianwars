@@ -178,3 +178,19 @@ queue:
   matchmaking-interval: 20
   # Maximum queue time before auto-assign (in seconds, 0 = disabled)
   max-queue-time: 300
+
+# Auto-Death Configuration
+# Automatically kills players who fall below a certain Y-level in arena worlds
+auto-death:
+  enabled: true
+  # Y-level at which players die (default: -64, void level)
+  y-level: -64
+  # Message sent to player when they die from void
+  death-message: "&cYou fell into the void!"
+
+# Per-World Features Configuration
+per-world:
+  # Separate chat channels per world (players in different worlds cannot see each other's chat)
+  chat: false
+  # Separate tablist per world (players only see others in their world)
+  tablist: true
