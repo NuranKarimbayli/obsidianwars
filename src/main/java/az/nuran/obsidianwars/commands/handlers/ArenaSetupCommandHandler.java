@@ -13,6 +13,7 @@ import az.nuran.obsidianwars.managers.WallManager;
 import az.nuran.obsidianwars.services.GameFeedbackService;
 import az.nuran.obsidianwars.services.PlayerUtils;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -42,6 +43,11 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         String subCommand = args[0].toLowerCase();
 
         if (subCommand.equals("arena")) {
+            if (!player.hasPermission("obsidianwars.command.arena")) {
+                String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+                player.sendMessage(noPermMessage.replace("&", "§"));
+                return true;
+            }
             if (args.length < 2) {
                 player.sendMessage(MessagesConfigManager.getMessage("usage_arena"));
                 return true;
@@ -51,21 +57,48 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         }
 
         if (subCommand.equals("create")) {
+            if (!player.hasPermission("obsidianwars.command.create")) {
+                String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+                player.sendMessage(noPermMessage.replace("&", "§"));
+                return true;
+            }
             handleCreateCommand(player, args);
             return true;
         }
 
         if (subCommand.equals("delete")) {
+            if (!player.hasPermission("obsidianwars.command.delete")) {
+                String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+                player.sendMessage(noPermMessage.replace("&", "§"));
+                return true;
+            }
             handleDeleteCommand(player, args);
             return true;
         }
 
         if (subCommand.equals("wand")) {
+            if (!player.hasPermission("obsidianwars.command.wand")) {
+                String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+                player.sendMessage(noPermMessage.replace("&", "§"));
+                return true;
+            }
             handleWandCommand(player);
             return true;
         }
 
         return false;
+    }
+
+    private void handleWandCommand(Player player) {
+        ItemStack wand = new ItemStack(Material.WOODEN_AXE);
+        ItemMeta meta = wand.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§6Obsidian Wars Wand");
+            meta.setLore(Collections.singletonList("§eLeft and right click on blocks to select corners."));
+            wand.setItemMeta(meta);
+        }
+        player.getInventory().addItem(wand);
+        player.sendMessage(MessagesConfigManager.getMessage("wand_received"));
     }
 
     private void handleArenaCommand(Player player, String[] args) {
@@ -445,8 +478,9 @@ public class ArenaSetupCommandHandler implements CommandHandler {
     }
 
     private void handleArenaTeleportCommand(Player player, String[] args) {
-        if (!player.hasPermission("obsidianwars.admin")) {
-            player.sendMessage("§cYou don't have permission to use this command.");
+        if (!player.hasPermission("obsidianwars.command.arena")) {
+            String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+            player.sendMessage(noPermMessage.replace("&", "§"));
             return;
         }
 
@@ -681,17 +715,5 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         }
 
         player.sendMessage(MessagesConfigManager.getMessage("arena_deleted", "arenaName", arenaName));
-    }
-
-    private void handleWandCommand(Player player) {
-        ItemStack wand = new ItemStack(Material.WOODEN_AXE);
-        ItemMeta meta = wand.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName("§6Obsidian Wars Wand");
-            meta.setLore(Collections.singletonList("§eLeft and right click on blocks to select corners."));
-            wand.setItemMeta(meta);
-        }
-        player.getInventory().addItem(wand);
-        player.sendMessage(MessagesConfigManager.getMessage("wand_received"));
     }
 }

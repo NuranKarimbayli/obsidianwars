@@ -1,7 +1,14 @@
 package az.nuran.obsidianwars.commands;
 
 import az.nuran.obsidianwars.Obsidianwars;
+import az.nuran.obsidianwars.commands.handlers.AdminCommandHandler;
+import az.nuran.obsidianwars.commands.handlers.ArenaSetupCommandHandler;
 import az.nuran.obsidianwars.commands.handlers.CommandHandler;
+import az.nuran.obsidianwars.commands.handlers.ForceCommandHandler;
+import az.nuran.obsidianwars.commands.handlers.GUICommandHandler;
+import az.nuran.obsidianwars.commands.handlers.JoinLeaveCommandHandler;
+import az.nuran.obsidianwars.commands.handlers.SpectateCommandHandler;
+import az.nuran.obsidianwars.commands.handlers.StatsCommandHandler;
 import az.nuran.obsidianwars.handlers.ChatListener;
 import az.nuran.obsidianwars.handlers.TeamListener;
 import az.nuran.obsidianwars.handlers.WandListener;
@@ -33,6 +40,8 @@ import az.nuran.obsidianwars.models.PlayerLevel;
 import az.nuran.obsidianwars.models.PlayerStats;
 import az.nuran.obsidianwars.services.DeathMessagesConfigManager;
 import az.nuran.obsidianwars.services.DebugManager;
+import az.nuran.obsidianwars.services.ObsidianWarsExpansion;
+import az.nuran.obsidianwars.services.ObsidianWarsMetrics;
 import az.nuran.obsidianwars.services.PerformanceMonitor;
 import az.nuran.obsidianwars.services.PlayerUtils;
 import az.nuran.obsidianwars.services.StatsDAO;
@@ -119,6 +128,24 @@ public class ObsidianCommand implements CommandExecutor {
 
     private String getMessage(String key, String... replacements) {
         return MessagesConfigManager.getMessage(key, replacements);
+    }
+
+    /**
+     * Checks if a player has the required permission.
+     * If not, sends the configured no-permission message and returns false.
+     *
+     * @param player The player to check
+     * @param permission The permission node (e.g., "obsidianwars.command.join")
+     * @return true if the player has permission, false otherwise
+     */
+    private boolean checkPermission(Player player, String permission) {
+        if (player.hasPermission(permission)) {
+            return true;
+        }
+
+        String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+        player.sendMessage(noPermMessage.replace("&", "§"));
+        return false;
     }
 
     @Override
@@ -220,11 +247,15 @@ public class ObsidianCommand implements CommandExecutor {
 
         // ==================== ARENA MANAGEMENT COMMANDS ====================
         if (subCommand.equals("arena")) {
+            if (!checkPermission(player, "obsidianwars.command.arena")) {
+                return true;
+            }
             if (args.length < 2) {
                 player.sendMessage(getMessage("usage_arena"));
                 return true;
             }
-            handleArenaCommand(player, args);
+            // Delegate to ArenaSetupCommandHandler
+            commandHandlers.get("arena").handle(player, args);
             return true;
         }
 
@@ -301,6 +332,9 @@ public class ObsidianCommand implements CommandExecutor {
 
         // ==================== ADMIN COMMANDS ====================
         if (subCommand.equals("admin")) {
+            if (!checkPermission(player, "obsidianwars.command.admin")) {
+                return true;
+            }
             handleAdminCommand(player, args);
             return true;
         }
@@ -680,6 +714,10 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleWandCommand(Player player) {
+        if (!checkPermission(player, "obsidianwars.command.wand")) {
+            return;
+        }
+
         ItemStack wand = new ItemStack(Material.WOODEN_AXE);
         ItemMeta meta = wand.getItemMeta();
         if (meta != null) {
@@ -692,6 +730,10 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleDebugCommand(Player player, String[] args) {
+        if (!checkPermission(player, "obsidianwars.command.debug")) {
+            return;
+        }
+
         // If no arguments, show current status and usage
         if (args.length == 1) {
             DebugManager.DebugMode currentMode = DebugManager.getDebugMode(player);
@@ -752,8 +794,7 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleReloadCommand(Player player, String[] args) {
-        if (!player.hasPermission("obsidianwars.admin")) {
-            player.sendMessage("§cYou don't have permission to use this command.");
+        if (!checkPermission(player, "obsidianwars.command.reload")) {
             return;
         }
 
@@ -835,6 +876,10 @@ public class ObsidianCommand implements CommandExecutor {
 
 
     private void handleCreateCommand(Player player, String[] args) {
+        if (!checkPermission(player, "obsidianwars.command.create")) {
+            return;
+        }
+
         if (args.length < 5) {
             player.sendMessage("§cUsage: /o create arena <arena_name> <min_players> <max_players>");
             return;
@@ -891,6 +936,10 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleDeleteCommand(Player player, String[] args) {
+        if (!checkPermission(player, "obsidianwars.command.delete")) {
+            return;
+        }
+
         if (args.length < 3) {
             player.sendMessage("§cUsage: /o delete arena <arenaName>");
             return;
@@ -934,6 +983,10 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleForceendCommand(Player player, String[] args) {
+        if (!checkPermission(player, "obsidianwars.command.forceend")) {
+            return;
+        }
+
         if (args.length < 2) {
             player.sendMessage("§cUsage: /o forceend <arenaName>");
             return;
@@ -1024,6 +1077,10 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleForcestartCommand(Player player, String[] args) {
+        if (!checkPermission(player, "obsidianwars.command.forcestart")) {
+            return;
+        }
+
         if (args.length < 2) {
             player.sendMessage("§cUsage: /o forcestart <arenaName>");
             return;
@@ -1064,6 +1121,10 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleForceprepCommand(Player player, String[] args) {
+        if (!checkPermission(player, "obsidianwars.command.forceprep")) {
+            return;
+        }
+
         if (args.length < 2) {
             player.sendMessage("§cUsage: /o forceprep <arenaName>");
             return;
@@ -1088,6 +1149,10 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleForceCommand(Player player, String[] args) {
+        if (!checkPermission(player, "obsidianwars.command.force")) {
+            return;
+        }
+
         if (args.length < 2) {
             player.sendMessage("§cUsage: /o force <start|end> <arena|preperation> [arena]");
             return;
@@ -1174,6 +1239,10 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleDisableArenaCommand(Player player, String[] args) {
+        if (!checkPermission(player, "obsidianwars.command.disablearena")) {
+            return;
+        }
+
         if (args.length < 2) {
             player.sendMessage("§cUsage: /o disableArena <arenaName>");
             return;
@@ -1190,6 +1259,10 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleEnableArenaCommand(Player player, String[] args) {
+        if (!checkPermission(player, "obsidianwars.command.enablearena")) {
+            return;
+        }
+
         if (args.length < 2) {
             player.sendMessage("§cUsage: /o enableArena <arenaName>");
             return;
@@ -1271,8 +1344,7 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void handleArenaTeleportCommand(Player player, String[] args) {
-        if (!player.hasPermission("obsidianwars.admin")) {
-            player.sendMessage("§cYou don't have permission to use this command.");
+        if (!checkPermission(player, "obsidianwars.command.arena")) {
             return;
         }
 
@@ -1885,7 +1957,7 @@ public class ObsidianCommand implements CommandExecutor {
         return players;
     }
 
-    private void openArenaSelectorGUI(Player player, boolean isAdmin) {
+    public void openArenaSelectorGUI(Player player, boolean isAdmin) {
         List<String> arenaNames = ArenaConfigManager.getArenaNames();
 
         if (arenaNames.isEmpty()) {
@@ -2017,6 +2089,6 @@ public class ObsidianCommand implements CommandExecutor {
         // This includes: setlobby, setwaitingspawn, setwaitingregion, setplayers, setspawn, setobsidian, setblocks, setwall, settimer, setmobarea, setspectspawn
         // For brevity, we'll keep the original implementation for now
         // This can be further refactored into individual sub-handlers later
-        handleArenaCommand(player, args);
+        // Note: Arena subcommands are now handled by ArenaSetupCommandHandler
     }
 }

@@ -3,13 +3,13 @@ package az.nuran.obsidianwars.commands.handlers;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.handlers.ChatListener;
-import az.nuran.obsidianwars.handlers.SpectatorManager;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
 import az.nuran.obsidianwars.managers.GameManager;
 import az.nuran.obsidianwars.managers.LobbyScoreboardManager;
 import az.nuran.obsidianwars.managers.MessagesConfigManager;
 import az.nuran.obsidianwars.managers.ParticleManager;
 import az.nuran.obsidianwars.managers.ScoreboardManager;
+import az.nuran.obsidianwars.managers.SpectatorManager;
 import az.nuran.obsidianwars.managers.TeamManager;
 import az.nuran.obsidianwars.services.GameFeedbackService;
 import az.nuran.obsidianwars.services.PlayerUtils;
@@ -34,16 +34,28 @@ public class JoinLeaveCommandHandler implements CommandHandler {
         String subCommand = args[0].toLowerCase();
 
         if (subCommand.equals("play") || subCommand.equals("join")) {
+            if (!player.hasPermission("obsidianwars.command.join")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleJoinCommand(player, args);
             return true;
         }
 
         if (subCommand.equals("leave")) {
+            if (!player.hasPermission("obsidianwars.command.leave")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleLeaveCommand(player);
             return true;
         }
 
         if (subCommand.equals("rejoin")) {
+            if (!player.hasPermission("obsidianwars.command.rejoin")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleRejoinCommand(player);
             return true;
         }

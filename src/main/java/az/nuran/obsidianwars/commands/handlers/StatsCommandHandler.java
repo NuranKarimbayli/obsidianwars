@@ -1,5 +1,6 @@
 package az.nuran.obsidianwars.commands.handlers;
 
+import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.StatsManager;
 import az.nuran.obsidianwars.services.DebugManager;
@@ -17,6 +18,10 @@ public class StatsCommandHandler implements CommandHandler {
         String subCommand = args[0].toLowerCase();
 
         if (subCommand.equals("stats")) {
+            if (!player.hasPermission("obsidianwars.command.stats")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleStatsCommand(player, args);
             return true;
         }

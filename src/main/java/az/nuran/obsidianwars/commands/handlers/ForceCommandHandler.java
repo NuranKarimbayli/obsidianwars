@@ -1,12 +1,15 @@
 package az.nuran.obsidianwars.commands.handlers;
 
+import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
+import az.nuran.obsidianwars.handlers.WandListener;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
 import az.nuran.obsidianwars.managers.ArenaStateManager;
 import az.nuran.obsidianwars.managers.GameManager;
 import az.nuran.obsidianwars.managers.MessagesConfigManager;
 import az.nuran.obsidianwars.managers.WallManager;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 /**
@@ -14,26 +17,48 @@ import org.bukkit.entity.Player;
  */
 public class ForceCommandHandler implements CommandHandler {
 
+    private final Obsidianwars plugin;
+
+    public ForceCommandHandler() {
+        this.plugin = Obsidianwars.getInstance();
+    }
+
     @Override
     public boolean handle(Player player, String[] args) {
         String subCommand = args[0].toLowerCase();
 
         if (subCommand.equals("force")) {
+            if (!player.hasPermission("obsidianwars.command.force")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleForceCommand(player, args);
             return true;
         }
 
         if (subCommand.equals("forceend")) {
+            if (!player.hasPermission("obsidianwars.command.forceend")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleForceendCommand(player, args);
             return true;
         }
 
         if (subCommand.equals("forcestart")) {
+            if (!player.hasPermission("obsidianwars.command.forcestart")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleForcestartCommand(player, args);
             return true;
         }
 
         if (subCommand.equals("forceprep")) {
+            if (!player.hasPermission("obsidianwars.command.forceprep")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleForceprepCommand(player, args);
             return true;
         }

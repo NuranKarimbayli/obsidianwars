@@ -1,5 +1,6 @@
 package az.nuran.obsidianwars.commands.handlers;
 
+import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
 import az.nuran.obsidianwars.managers.QueueManager;
@@ -19,11 +20,19 @@ public class SpectateCommandHandler implements CommandHandler {
         String subCommand = args[0].toLowerCase();
 
         if (subCommand.equals("spectate")) {
+            if (!player.hasPermission("obsidianwars.command.spectate")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleSpectateCommand(player, args);
             return true;
         }
 
         if (subCommand.equals("queue")) {
+            if (!player.hasPermission("obsidianwars.command.queue")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleQueueCommand(player, args);
             return true;
         }

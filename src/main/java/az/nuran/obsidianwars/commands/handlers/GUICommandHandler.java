@@ -26,21 +26,37 @@ public class GUICommandHandler implements CommandHandler {
         String subCommand = args[0].toLowerCase();
 
         if (subCommand.equals("gui")) {
+            if (!player.hasPermission("obsidianwars.command.gui")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleGUICommand(player);
             return true;
         }
 
         if (subCommand.equals("cmds")) {
+            if (!player.hasPermission("obsidianwars.command.cmds")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleCmdsCommand(player);
             return true;
         }
 
         if (subCommand.equals("arenalist")) {
+            if (!player.hasPermission("obsidianwars.command.arenalist")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleArenalistCommand(player);
             return true;
         }
 
         if (subCommand.equals("team")) {
+            if (!player.hasPermission("obsidianwars.command.team")) {
+                player.sendMessage("§cYou don't have permission to use this command.");
+                return true;
+            }
             handleTeamCommand(player);
             return true;
         }
@@ -49,7 +65,7 @@ public class GUICommandHandler implements CommandHandler {
     }
 
     private void handleGUICommand(Player player) {
-        ObsidianCommand.openArenaSelectorGUI(player, false);
+        ObsidianCommand.getInstance().openArenaSelectorGUI(player, false);
     }
 
     private void handleCmdsCommand(Player player) {
@@ -149,6 +165,6 @@ public class GUICommandHandler implements CommandHandler {
             return;
         }
 
-        ObsidianCommand.openTeamSelectionGUI(player);
+        ObsidianCommand.getInstance().openTeamSelectionGUI(player);
     }
 }

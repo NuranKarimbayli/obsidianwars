@@ -39,12 +39,104 @@ commands:
 permissions:
   obsidianwars.*:
     description: Gives access to all ObsidianWars permissions
+    default: op
     children:
-      obsidianwars.play: true
-      obsidianwars.admin: true
-  obsidianwars.play:
-    description: Allows players to join and play games
+      obsidianwars.command.*: true
+  obsidianwars.command.*:
+    description: Gives access to all ObsidianWars commands
+    default: op
+    children:
+      obsidianwars.command.join: true
+      obsidianwars.command.leave: true
+      obsidianwars.command.stats: true
+      obsidianwars.command.rejoin: true
+      obsidianwars.command.spectate: true
+      obsidianwars.command.queue: true
+      obsidianwars.command.gui: true
+      obsidianwars.command.team: true
+      obsidianwars.command.cmds: true
+      obsidianwars.command.arenalist: true
+      obsidianwars.command.create: true
+      obsidianwars.command.delete: true
+      obsidianwars.command.arena: true
+      obsidianwars.command.wand: true
+      obsidianwars.command.force: true
+      obsidianwars.command.forceend: true
+      obsidianwars.command.forcestart: true
+      obsidianwars.command.forceprep: true
+      obsidianwars.command.disablearena: true
+      obsidianwars.command.enablearena: true
+      obsidianwars.command.admin: true
+      obsidianwars.command.reload: true
+      obsidianwars.command.debug: true
+  # Player Commands (default: true)
+  obsidianwars.command.join:
+    description: Join an arena
     default: true
-  obsidianwars.admin:
-    description: Allows arena management and admin commands
+  obsidianwars.command.leave:
+    description: Leave current arena
+    default: true
+  obsidianwars.command.stats:
+    description: View player statistics
+    default: true
+  obsidianwars.command.rejoin:
+    description: Rejoin after disconnect
+    default: true
+  obsidianwars.command.spectate:
+    description: Spectate an arena or player
+    default: true
+  obsidianwars.command.queue:
+    description: Join queue for an arena
+    default: true
+  obsidianwars.command.gui:
+    description: Open arena selector GUI
+    default: true
+  obsidianwars.command.team:
+    description: Open team selection GUI
+    default: true
+  obsidianwars.command.cmds:
+    description: Show command list
+    default: true
+  obsidianwars.command.arenalist:
+    description: List all arenas
+    default: true
+  # Admin Commands (default: op)
+  obsidianwars.command.create:
+    description: Create a new arena
+    default: op
+  obsidianwars.command.delete:
+    description: Delete an arena
+    default: op
+  obsidianwars.command.arena:
+    description: Arena setup and management commands
+    default: op
+  obsidianwars.command.wand:
+    description: Get arena setup wand
+    default: op
+  obsidianwars.command.force:
+    description: Force start/end game
+    default: op
+  obsidianwars.command.forceend:
+    description: Force end game (legacy)
+    default: op
+  obsidianwars.command.forcestart:
+    description: Force start game (legacy)
+    default: op
+  obsidianwars.command.forceprep:
+    description: Skip preparation phase (legacy)
+    default: op
+  obsidianwars.command.disablearena:
+    description: Disable an arena
+    default: op
+  obsidianwars.command.enablearena:
+    description: Enable an arena
+    default: op
+  obsidianwars.command.admin:
+    description: Admin management commands (level, coin, exp, stats)
+    default: op
+  obsidianwars.command.reload:
+    description: Reload plugin configurations
+    default: op
+  obsidianwars.command.debug:
+    description: Toggle debug logging
     default: op

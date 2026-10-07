@@ -52,16 +52,31 @@ public class AdminCommandHandler implements CommandHandler {
         }
 
         if (subCommand.equals("debug")) {
+            if (!player.hasPermission("obsidianwars.command.debug")) {
+                String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+                player.sendMessage(noPermMessage.replace("&", "§"));
+                return true;
+            }
             handleDebugCommand(player, args);
             return true;
         }
 
         if (subCommand.equals("disablearena")) {
+            if (!player.hasPermission("obsidianwars.command.disablearena")) {
+                String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+                player.sendMessage(noPermMessage.replace("&", "§"));
+                return true;
+            }
             handleDisableArenaCommand(player, args);
             return true;
         }
 
         if (subCommand.equals("enablearena")) {
+            if (!player.hasPermission("obsidianwars.command.enablearena")) {
+                String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+                player.sendMessage(noPermMessage.replace("&", "§"));
+                return true;
+            }
             handleEnableArenaCommand(player, args);
             return true;
         }
@@ -71,8 +86,9 @@ public class AdminCommandHandler implements CommandHandler {
 
     private void handleAdminCommand(Player player, String[] args) {
         // Check permission
-        if (!player.hasPermission("obsidianwars.admin")) {
-            player.sendMessage("§cYou don't have permission to use admin commands.");
+        if (!player.hasPermission("obsidianwars.command.admin")) {
+            String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+            player.sendMessage(noPermMessage.replace("&", "§"));
             return;
         }
 
@@ -85,7 +101,7 @@ public class AdminCommandHandler implements CommandHandler {
 
         // Handle admin gui command
         if (category.equals("gui")) {
-            ObsidianCommand.openArenaSelectorGUI(player, true);
+            ObsidianCommand.getInstance().openArenaSelectorGUI(player, true);
             return;
         }
 
@@ -261,8 +277,9 @@ public class AdminCommandHandler implements CommandHandler {
     }
 
     private void handleAdminStatsResetCommand(Player player, String[] args) {
-        if (!player.hasPermission("obsidianwars.admin")) {
-            player.sendMessage("§cYou don't have permission to use this command.");
+        if (!player.hasPermission("obsidianwars.command.admin")) {
+            String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+            player.sendMessage(noPermMessage.replace("&", "§"));
             return;
         }
 
@@ -292,8 +309,9 @@ public class AdminCommandHandler implements CommandHandler {
     }
 
     private void handleReloadCommand(Player player, String[] args) {
-        if (!player.hasPermission("obsidianwars.admin")) {
-            player.sendMessage("§cYou don't have permission to use this command.");
+        if (!player.hasPermission("obsidianwars.command.reload")) {
+            String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
+            player.sendMessage(noPermMessage.replace("&", "§"));
             return;
         }
 

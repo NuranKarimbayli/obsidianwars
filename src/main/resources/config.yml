@@ -1,5 +1,8 @@
 # ObsidianWars Main Configuration
 
+# Permission Configuration
+no-permission-message: "&cYou don't have permission to use this command."
+
 # UI Features Toggle
 # Set to false to disable built-in features if you prefer custom plugins
 features:
