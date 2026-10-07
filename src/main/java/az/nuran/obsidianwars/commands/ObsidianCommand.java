@@ -10,6 +10,7 @@ import az.nuran.obsidianwars.commands.handlers.JoinLeaveCommandHandler;
 import az.nuran.obsidianwars.commands.handlers.SpectateCommandHandler;
 import az.nuran.obsidianwars.commands.handlers.StatsCommandHandler;
 import az.nuran.obsidianwars.handlers.ChatListener;
+import az.nuran.obsidianwars.handlers.MovementListener;
 import az.nuran.obsidianwars.handlers.TeamListener;
 import az.nuran.obsidianwars.handlers.WandListener;
 import az.nuran.obsidianwars.handlers.XPAwardListener;
@@ -917,6 +918,9 @@ public class ObsidianCommand implements CommandExecutor {
         // Create arena config with parameters immediately (no wand positions required)
         ArenaConfigManager.createArenaConfigWithParams(arenaName, minPlayers, maxPlayers);
 
+        // Rebuild arena world cache for MovementListener
+        MovementListener.rebuildArenaWorldCache();
+
         player.sendMessage(getMessage("arena_created", "arenaName", arenaName));
         player.sendMessage("§ePlayer limits set: Min " + minPlayers + ", Max " + maxPlayers);
         player.sendMessage("§eDefault timers set: Preparation 10min, Game Time 30min, Sudden Death 15min");
@@ -953,6 +957,9 @@ public class ObsidianCommand implements CommandExecutor {
 
         // Delete arena
         ArenaConfigManager.deleteArenaConfig(arenaName);
+
+        // Rebuild arena world cache for MovementListener
+        MovementListener.rebuildArenaWorldCache();
 
         // Remove game from GameManager
         GameManager.removeGame(arenaName);

@@ -2,6 +2,7 @@ package az.nuran.obsidianwars.commands.handlers;
 
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
+import az.nuran.obsidianwars.handlers.MovementListener;
 import az.nuran.obsidianwars.handlers.WandListener;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
 import az.nuran.obsidianwars.managers.GameManager;
@@ -167,6 +168,9 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         Location loc = player.getLocation();
         ArenaConfigManager.setLobbySpawn(arenaName, loc);
 
+        // Rebuild arena world cache for MovementListener
+        MovementListener.rebuildArenaWorldCache();
+
         player.sendMessage(MessagesConfigManager.getMessage("lobby_spawn_set", "arenaName", arenaName));
         GameFeedbackService.playSuccessSound(player);
         ObsidianCommand.suggestNextSetupStep(player, arenaName, "lobby");
@@ -283,6 +287,9 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
         Location loc = player.getLocation();
         ArenaConfigManager.setTeamSpawn(arenaName, teamColor, loc);
+
+        // Rebuild arena world cache for MovementListener
+        MovementListener.rebuildArenaWorldCache();
 
         String teamName = teamColor.equals("red") ? "Red" : "Blue";
         String teamColorCode = teamColor.equals("red") ? "§c" : "§9";
@@ -656,6 +663,9 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         // Create arena config with parameters immediately (no wand positions required)
         ArenaConfigManager.createArenaConfigWithParams(arenaName, minPlayers, maxPlayers);
 
+        // Rebuild arena world cache for MovementListener
+        MovementListener.rebuildArenaWorldCache();
+
         player.sendMessage(MessagesConfigManager.getMessage("arena_created", "arenaName", arenaName));
         player.sendMessage("§ePlayer limits set: Min " + minPlayers + ", Max " + maxPlayers);
         player.sendMessage("§eDefault timers set: Preparation 10min, Game Time 30min, Sudden Death 15min");
@@ -688,6 +698,9 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
         // Delete arena
         ArenaConfigManager.deleteArenaConfig(arenaName);
+
+        // Rebuild arena world cache for MovementListener
+        MovementListener.rebuildArenaWorldCache();
 
         // Remove game from GameManager
         GameManager.removeGame(arenaName);

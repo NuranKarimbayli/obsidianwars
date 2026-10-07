@@ -3,9 +3,9 @@ package az.nuran.obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.commands.ObsidianTabCompleter;
 import az.nuran.obsidianwars.handlers.ArenaSelectorGUIListener;
-import az.nuran.obsidianwars.handlers.AutoDeathListener;
 import az.nuran.obsidianwars.handlers.ChatListener;
 import az.nuran.obsidianwars.handlers.GameListener;
+import az.nuran.obsidianwars.handlers.MovementListener;
 import az.nuran.obsidianwars.handlers.LobbyItemClickListener;
 import az.nuran.obsidianwars.handlers.PerWorldChatListener;
 import az.nuran.obsidianwars.handlers.SpectatorListener;
@@ -60,7 +60,7 @@ public final class Obsidianwars extends JavaPlugin {
 
     private static Obsidianwars instance;
     private ObsidianCommand obsidianCommand;
-    private AutoDeathListener autoDeathListener;
+    private MovementListener movementListener;
     private PerWorldChatListener perWorldChatListener;
     private PerWorldTablistManager perWorldTablistManager;
 
@@ -172,8 +172,8 @@ public final class Obsidianwars extends JavaPlugin {
         LobbyScoreboardManager.initialize();
 
         // Initialize new features
-        autoDeathListener = new AutoDeathListener(this);
-        getServer().getPluginManager().registerEvents(autoDeathListener, this);
+        movementListener = new MovementListener(this);
+        getServer().getPluginManager().registerEvents(movementListener, this);
 
         perWorldChatListener = new PerWorldChatListener(this);
         getServer().getPluginManager().registerEvents(perWorldChatListener, this);
@@ -255,7 +255,7 @@ public final class Obsidianwars extends JavaPlugin {
         TeamListener.cleanup();
         ObsidianCommand.cleanup();
         TabListManager.shutdown();
-        AutoDeathListener.cleanup();
+        MovementListener.cleanup();
 
         // Cleanup all games to prevent task leaks
         GameManager.cleanupAllGames();
