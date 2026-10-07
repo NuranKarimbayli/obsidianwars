@@ -35,6 +35,10 @@ commands:
   queue:
     description: Join queue for an arena
     usage: /queue [arena]
+  lang:
+    description: Set your language preference
+    usage: /lang <language_code>
+    aliases: [language]
 
 permissions:
   obsidianwars.*:
@@ -69,6 +73,7 @@ permissions:
       obsidianwars.command.admin: true
       obsidianwars.command.reload: true
       obsidianwars.command.debug: true
+      obsidianwars.command.lang: true
   # Player Commands (default: true)
   obsidianwars.command.join:
     description: Join an arena
@@ -140,3 +145,6 @@ permissions:
   obsidianwars.command.debug:
     description: Toggle debug logging
     default: op
+  obsidianwars.command.lang:
+    description: Set language preference
+    default: true

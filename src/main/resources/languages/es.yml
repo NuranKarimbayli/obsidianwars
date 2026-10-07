@@ -1,0 +1,70 @@
+# ObsidianWars Spanish Localization File
+# Archivo de localización en español para ObsidianWars
+
+messages:
+  # General messages
+  plugin_enabled: "§a¡Plugin ObsidianWars activado!"
+  plugin_disabled: "§a¡Plugin ObsidianWars desactivado!"
+  player_only: "§cEste comando solo puede ser usado por jugadores."
+
+  # Arena management
+  arena_created: "§a¡Arena {arenaName} creada exitosamente!"
+  arena_deleted: "§a¡Arena {arenaName} eliminada exitosamente!"
+  arena_finished: "§a¡Arena {arenaName} completada exitosamente! Estado: LISTO"
+  arena_not_found: "§cError: El arena llamado {arenaName} no existe!"
+  arena_no_arenas: "§c¡No se han creado arenas todavía!"
+  arena_not_ready: "§c¡No hay arenas LISTAS disponibles todavía! Contacta a los administradores."
+  arena_full: "§c¡El arena está lleno! ({current}/{max})"
+  arena_incomplete: "§c¡Configuración del arena incompleta! Elementos faltantes:"
+
+  # Lobby & Join
+  join_lobby: "§a¡Teletransportado al spawn del lobby del arena {arenaName}!"
+  player_joined: "§a[+] {player} se unió al arena! ({current}/{max})"
+  player_left: "§c[-] {player} dejó el arena!"
+  player_quit: "§e{player} abandonó el juego!"
+  not_in_arena: "§c¡No estás en un arena!"
+  join_first: "§c¡Debes unirte a un arena primero! /obsidian play"
+
+  # Team system
+  team_selection_title: "§6Selección de Equipo"
+  red_team: "§cEquipo Rojo"
+  blue_team: "§9Equipo Azul"
+  team_joined: "§a¡Te uniste al equipo {teamColor}{teamName}§a!"
+  team_left: "§eDejaste el equipo {teamColor}{teamName}."
+  already_in_team: "§c¡Ya estás en el equipo {teamColor}{teamName}!"
+  auto_team: "§a¡Asignado automáticamente al equipo {teamColor}{teamName}!"
+  team_damage: "§c¡No puedes dañar a tus compañeros!"
+
+  # Game flow
+  game_starting: "§e§l¡El juego comienza en {seconds} segundos!"
+  game_countdown: "§eEl juego comienza en {seconds} segundos!"
+  game_countdown_final: "§c§l{seconds}!"
+  game_started: "§a§l¡JUEGO INICIADO!"
+  game_ended: "§aArena terminado, regresado al spawn principal!"
+  game_admin_ended: "§c¡Juego terminado por administrador!"
+  force_started: "§a¡Arena {arenaName} iniciado forzosamente!"
+  match_start_sequence: "§6§l=== INICIO DEL PARTIDO ==="
+  team_assignment: "§a¡Fuiste asignado al equipo {teamColor}{teamName}§a!"
+
+  # Combat & Death
+  obsidian_destroyed: "§c§l¡OBSIDIANA DESTRUIDA!"
+  obsidian_destroyed_message: "§f{player} §7destruyó la Obsidiana del equipo {teamColor}{teamName}!"
+  obsidian_team_destroyed: "§c§l¡La Obsidiana del equipo {teamColor}{teamName} fue destruida por {player}!"
+  cant_destroy_own: "§c¡No puedes romper la obsidiana de tu propio equipo!"
+  already_destroyed: "§c¡Esta obsidiana ya ha sido destruida!"
+  you_died: "§c§l¡MORISTE!"
+  final_elimination: "§7(Eliminación Final)"
+  respawning: "§eRevivirás en 5 segundos..."
+  respawned: "§a¡Reviviste!"
+
+  # Victory
+  victory: "§a§l¡VICTORIA!"
+  victory_title: "{teamColor}§l¡VICTORIA!"
+  victory_message: "¡El equipo {teamColor}{teamName} ganó el juego!"
+
+  # Language System
+  language_set: "§a¡Tu idioma ha sido establecido a {language}!"
+  language_not_found: "§c¡Idioma '{language}' no encontrado! Disponibles: {languages}"
+  language_invalid: "§cCódigo de idioma inválido. Disponibles: {languages}"
+  language_global_set: "§a¡Idioma global establecido a {language}!"
+  language_global_reload: "§a¡Sistema de idiomas recargado!"

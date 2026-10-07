@@ -35,8 +35,15 @@ database:
     password: "password"
     pool-size: 10
 
-# System Language (Default: english)
-language: "english"
+# Language Configuration
+# Global plugin language (default: en)
+# Available languages: en, es, az (add more in languages/ folder)
+language: "en"
+
+# Per-Player Language Preferences
+# Allow players to set their own language with /lang command
+player-language:
+  enabled: true
 
 # Respawn wait time in seconds (default: 5)
 respawn-wait-time: 5

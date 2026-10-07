@@ -24,12 +24,14 @@ import az.nuran.obsidianwars.managers.DatabaseManager;
 import az.nuran.obsidianwars.managers.EconomyManager;
 import az.nuran.obsidianwars.managers.GameManager;
 import az.nuran.obsidianwars.managers.KillStreaksConfigManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 import az.nuran.obsidianwars.managers.LevelManager;
 import az.nuran.obsidianwars.managers.LobbyScoreboardManager;
 import az.nuran.obsidianwars.managers.MessagesConfigManager;
 import az.nuran.obsidianwars.managers.MobSpawnerManager;
 import az.nuran.obsidianwars.managers.ParticleManager;
 import az.nuran.obsidianwars.managers.PerWorldTablistManager;
+import az.nuran.obsidianwars.managers.PlayerDataManager;
 import az.nuran.obsidianwars.managers.QueueManager;
 import az.nuran.obsidianwars.managers.ResourceBlockManager;
 import az.nuran.obsidianwars.managers.ResourceBlocksConfigManager;
@@ -123,6 +125,10 @@ public final class Obsidianwars extends JavaPlugin {
         ParticleManager.loadConfig();
         ResourceBlockManager.loadAllowedResourceBlocks();
 
+        // Initialize language system
+        LanguageManager.initialize();
+        PlayerDataManager.initialize();
+
         // Komanda we TabCompleter Registrasiýasy
         obsidianCommand = new ObsidianCommand(this);
         if (getCommand("obsidian") != null) {
@@ -147,6 +153,9 @@ public final class Obsidianwars extends JavaPlugin {
         if (getCommand("spectate") != null) {
             getCommand("spectate").setExecutor(obsidianCommand);
             getCommand("spectate").setTabCompleter(new ObsidianTabCompleter(this));
+        }
+        if (getCommand("lang") != null) {
+            getCommand("lang").setExecutor(obsidianCommand);
         }
 
         // Event-i regisrasion etmek
@@ -284,6 +293,7 @@ public final class Obsidianwars extends JavaPlugin {
         ArenaManager.getInstance().cleanup();
         EconomyManager.getInstance().cleanup();
         SuddenDeathManager.getInstance().cleanup();
+        PlayerDataManager.getInstance().cleanup();
     }
 
     private void startCleanupTask() {

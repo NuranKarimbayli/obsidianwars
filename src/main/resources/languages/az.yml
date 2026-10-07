@@ -1,0 +1,70 @@
+# ObsidianWars Azərbaycan Dili Lokallaşdırma Faylı
+# Azərbaycan dilində lokalizasiya faylı
+
+messages:
+  # Ümumi mesajlar
+  plugin_enabled: "§aObsidianWars plugini aktivləşdirildi!"
+  plugin_disabled: "§aObsidianWars plugini dayandırıldı!"
+  player_only: "§cBu əmr yalnız oyunçular tərəfindən istifadə edilə bilər."
+
+  # Arena idarəetməsi
+  arena_created: "§a{arenaName} arenası uğurla yaradıldı!"
+  arena_deleted: "§a{arenaName} arenası uğurla silindi!"
+  arena_finished: "§a{arenaName} arenası uğurla tamamlandı! Status: HAZIR"
+  arena_not_found: "§cXəta: {arenaName} adlı arena mövcud deyil!"
+  arena_no_arenas: "§cHələ heç bir arena yaradılmayıb!"
+  arena_not_ready: "§cHələ HAZIR arena yoxdur! Adminlərlə əlaqə saxlayın."
+  arena_full: "§cArena doludur! ({current}/{max})"
+  arena_incomplete: "§cArena qurulması tamamlanmayıb! Çatışmayan elementlər:"
+
+  # Lobi & Qoşulma
+  join_lobby: "§a{arenaName} arena lobbi spawn-ına teleport edildiniz!"
+  player_joined: "§a[+] {player} arenaya qoşuldu! ({current}/{max})"
+  player_left: "§c[-] {player} arenadan çıxdı!"
+  player_quit: "§e{player} oyundan çıxdı!"
+  not_in_arena: "§cSiz arenada deyilsiniz!"
+  join_first: "§cƏvvəlcə bir arenaya qoşulmalısınız! /obsidian play"
+
+  # Komanda sistemi
+  team_selection_title: "§6Komanda Seçimi"
+  red_team: "§cQırmızı Komanda"
+  blue_team: "§9Mavi Komanda"
+  team_joined: "§a{teamColor}{teamName}§a komandasına qoşuldunuz!"
+  team_left: "§e{teamColor}{teamName} komandasından çıxdınız."
+  already_in_team: "§cSiz artıq {teamColor}{teamName} komandasındasınız!"
+  auto_team: "§a{teamColor}{teamName} komandasına avtomatik olaraq təyin edildiniz!"
+  team_damage: "§cKamanda yoldaşlarına zərər vura bilməzsiniz!"
+
+  # Oyun axını
+  game_starting: "§e§lOyun {seconds} saniyəyə başlayır!"
+  game_countdown: "§eOyun {seconds} saniyəyə başlayır!"
+  game_countdown_final: "§c§l{seconds}!"
+  game_started: "§a§lOYUN BAŞLADI!"
+  game_ended: "§aArena bitdi, əsas spawna qayıdılır!"
+  game_admin_ended: "§cOyun admin tərəfindən dayandırıldı!"
+  force_started: "§a{arenaName} arenası məcburi başladılıb!"
+  match_start_sequence: "§6§l=== MATCH BAŞLAYIR ==="
+  team_assignment: "§a{teamColor}{teamName}§a komandasına təyin edildiniz!"
+
+  # Döyüş və Ölüm
+  obsidian_destroyed: "§c§lOBSIDIAN DAĞIDILDI!"
+  obsidian_destroyed_message: "§f{player} §7{teamColor}{teamName} Komandasının Obsidianını dağıtdı!"
+  obsidian_team_destroyed: "§c§l{teamColor}{teamName} Komandasının Obsidianı {player} tərəfindən dağıdıldı!"
+  cant_destroy_own: "§cÖz komandanızın obsidianını qıra bilməzsiniz!"
+  already_destroyed: "§cBu obsidian artıq dağıdılıb!"
+  you_died: "§c§lÖLDÜNÜZ!"
+  final_elimination: "§7(Final Eliminasiya)"
+  respawning: "§e5 saniyəyə diriləcəksiniz..."
+  respawned: "§aDirildiniz!"
+
+  # Qələbə
+  victory: "§a§lQƏLƏBƏ!"
+  victory_title: "{teamColor}§lQƏLƏBƏ!"
+  victory_message: "{teamColor}{teamName} Komandası oyunu qazandı!"
+
+  # Dil Sistemi
+  language_set: "§aDiliniz {language} olaraq təyin edildi!"
+  language_not_found: "§c'{language}' dili tapılmadı! Mövcud: {languages}"
+  language_invalid: "§cDil kodu düzgün deyil. Mövcud: {languages}"
+  language_global_set: "§aGlobal dil {language} olaraq təyin edildi!"
+  language_global_reload: "§aDil sistemi yenidən yükləndi!"

@@ -6,6 +6,7 @@ import az.nuran.obsidianwars.managers.ArenaConfigManager;
 import az.nuran.obsidianwars.managers.ArenaStateManager;
 import az.nuran.obsidianwars.managers.EconomyManager;
 import az.nuran.obsidianwars.managers.KillStreaksConfigManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 import az.nuran.obsidianwars.managers.LevelManager;
 import az.nuran.obsidianwars.managers.MessagesConfigManager;
 import az.nuran.obsidianwars.managers.ParticleManager;
@@ -112,6 +113,16 @@ public class AdminCommandHandler implements CommandHandler {
                 return;
             }
             handleAdminStatsResetCommand(player, args);
+            return;
+        }
+
+        // Handle language command
+        if (category.equals("lang") || category.equals("language")) {
+            if (args.length < 3) {
+                player.sendMessage("§cUsage: /o admin lang <language_code>");
+                return;
+            }
+            handleAdminLanguageCommand(player, args);
             return;
         }
 
@@ -545,6 +556,24 @@ public class AdminCommandHandler implements CommandHandler {
 
         ArenaConfigManager.setArenaStatus(arenaName, "READY");
         player.sendMessage("§aArena " + arenaName + " has been enabled.");
+    }
+
+    private void handleAdminLanguageCommand(Player player, String[] args) {
+        String langCode = args[2].toLowerCase();
+
+        // Validate language exists
+        if (!LanguageManager.getInstance().isLanguageAvailable(langCode)) {
+            String available = LanguageManager.getInstance().getAvailableLanguagesString();
+            player.sendMessage("§cLanguage '" + langCode + "' not found! Available: " + available);
+            return;
+        }
+
+        // Set global language
+        LanguageManager.getInstance().setGlobalLanguage(langCode);
+
+        // Send confirmation
+        player.sendMessage("§aGlobal language set to " + langCode + "!");
+        plugin.getLogger().info("Global language set to " + langCode + " by " + player.getName());
     }
 
     private boolean hasActiveGames() {

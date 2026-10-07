@@ -7,6 +7,7 @@ import az.nuran.obsidianwars.commands.handlers.CommandHandler;
 import az.nuran.obsidianwars.commands.handlers.ForceCommandHandler;
 import az.nuran.obsidianwars.commands.handlers.GUICommandHandler;
 import az.nuran.obsidianwars.commands.handlers.JoinLeaveCommandHandler;
+import az.nuran.obsidianwars.commands.handlers.LanguageCommandHandler;
 import az.nuran.obsidianwars.commands.handlers.SpectateCommandHandler;
 import az.nuran.obsidianwars.commands.handlers.StatsCommandHandler;
 import az.nuran.obsidianwars.handlers.ChatListener;
@@ -121,6 +122,8 @@ public class ObsidianCommand implements CommandExecutor {
         commandHandlers.put("admin", new AdminCommandHandler(plugin));
         commandHandlers.put("reload", new AdminCommandHandler(plugin));
         commandHandlers.put("debug", new AdminCommandHandler(plugin));
+        commandHandlers.put("lang", new LanguageCommandHandler(plugin));
+        commandHandlers.put("language", new LanguageCommandHandler(plugin));
     }
 
     private String getMessage(String key) {
@@ -181,6 +184,11 @@ public class ObsidianCommand implements CommandExecutor {
 
         if (command.getName().equalsIgnoreCase("spectate")) {
             handleSpectateCommand(player, args);
+            return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("lang") || command.getName().equalsIgnoreCase("language")) {
+            commandHandlers.get("lang").handle(player, args);
             return true;
         }
 
