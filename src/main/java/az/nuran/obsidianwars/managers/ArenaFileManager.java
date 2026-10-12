@@ -435,12 +435,17 @@ public class ArenaFileManager {
 
         config.set("arena.status", status);
 
-        // Save synchronously to prevent file corruption from rapid updates
-        try {
-            config.save(getArenaConfigFile(arenaName));
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to save arena config for " + arenaName, e);
-        }
+        // Save asynchronously to prevent main-thread blocking
+        // Use resourceBlockLock to prevent concurrent writes to same arena
+        Bukkit.getScheduler().runTaskAsynchronously(Obsidianwars.getInstance(), () -> {
+            synchronized (resourceBlockLock) {
+                try {
+                    config.save(getArenaConfigFile(arenaName));
+                } catch (IOException e) {
+                    plugin.getLogger().log(Level.SEVERE, "Failed to save arena config for " + arenaName, e);
+                }
+            }
+        });
     }
 
     public static String getArenaStatus(String arenaName) {

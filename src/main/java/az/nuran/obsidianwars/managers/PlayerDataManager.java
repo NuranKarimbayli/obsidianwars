@@ -72,20 +72,22 @@ public class PlayerDataManager {
     }
 
     /**
-     * Saves player data to file.
+     * Saves player data to file asynchronously.
      */
     public void savePlayerData() {
-        try {
-            // Save player languages
-            for (Map.Entry<UUID, String> entry : playerLanguages.entrySet()) {
-                playerDataConfig.set("languages." + entry.getKey().toString(), entry.getValue());
-            }
+        org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(Obsidianwars.getInstance(), () -> {
+            try {
+                // Save player languages
+                for (Map.Entry<UUID, String> entry : playerLanguages.entrySet()) {
+                    playerDataConfig.set("languages." + entry.getKey().toString(), entry.getValue());
+                }
 
-            playerDataConfig.save(playerDataFile);
-            Obsidianwars.getInstance().getLogger().info("Player data saved");
-        } catch (IOException e) {
-            Obsidianwars.getInstance().getLogger().log(Level.SEVERE, "Failed to save player-data.yml", e);
-        }
+                playerDataConfig.save(playerDataFile);
+                Obsidianwars.getInstance().getLogger().info("Player data saved");
+            } catch (IOException e) {
+                Obsidianwars.getInstance().getLogger().log(Level.SEVERE, "Failed to save player-data.yml", e);
+            }
+        });
     }
 
     /**

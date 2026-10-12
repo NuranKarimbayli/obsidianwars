@@ -68,6 +68,10 @@ timers:
   # Default total maximum game duration
   game-time: "45m"
 
+# Reconnect Settings
+# Time in seconds players have to rejoin after disconnecting before being counted as a loss
+reconnect-timeout-seconds: 300
+
 # Sound Effects Configuration
 # Spigot Sound Reference: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Sound.html
 sounds:

@@ -37,14 +37,21 @@ public class GameManager {
 
     private static final Map<String, ArenaGame> activeGames = new ConcurrentHashMap<>();
     private static final Map<String, Set<UUID>> arenaPlayers = new ConcurrentHashMap<>();
-    private static int COUNTDOWN_SECONDS = 20; // Now configurable via config
+    private static int COUNTDOWN_SECONDS = 20; // Configurable via config.yml (timers.default-countdown)
+    private static int RECONNECT_TIMEOUT_SECONDS = 300; // Configurable via config.yml (5 minutes default)
 
     /**
      * Loads configuration values from config.yml
      */
     public static void loadConfig() {
         COUNTDOWN_SECONDS = Obsidianwars.getInstance().getConfig().getInt("timers.default-countdown", 20);
+        RECONNECT_TIMEOUT_SECONDS = Obsidianwars.getInstance().getConfig().getInt("reconnect-timeout-seconds", 300);
         Obsidianwars.getInstance().getLogger().info("Loaded countdown duration: " + COUNTDOWN_SECONDS + " seconds");
+        Obsidianwars.getInstance().getLogger().info("Loaded reconnect timeout: " + RECONNECT_TIMEOUT_SECONDS + " seconds");
+    }
+
+    public static int getReconnectTimeoutSeconds() {
+        return RECONNECT_TIMEOUT_SECONDS;
     }
 
     public static int getCountdownSeconds() {
