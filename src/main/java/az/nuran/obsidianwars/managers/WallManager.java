@@ -19,6 +19,32 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Manages defense walls and sudden death countdown for ObsidianWars arenas.
+ * Handles wall construction, removal, restoration, and timing coordination.
+ *
+ * <p>Key features:</p>
+ * <ul>
+ *   <li>Chunk-based block iteration for optimal performance</li>
+ *   <li>Preparation phase with configurable timer</li>
+ *   <li>Sudden death countdown with configurable duration</li>
+ *   <li>Bedrock wall construction and removal</li>
+ *   <li>Action bar and scoreboard integration for timers</li>
+ * </ul>
+ *
+ * <p>Wall lifecycle:</p>
+ * <pre>
+ * Game Start → Build Walls → Preparation Timer → Remove Walls → Combat Phase
+ * </pre>
+ *
+ * <p>Sudden death lifecycle:</p>
+ * <pre>
+ * Combat Phase → Sudden Death Countdown → Trigger Sudden Death Effects
+ * </pre>
+ *
+ * <p>All block operations use chunk-based iteration to avoid excessive Location object
+ * allocation and ensure optimal performance even for large wall regions.</p>
+ */
 public class WallManager {
 
     // NOTE: Tasks are now managed by TaskManager for consistency
@@ -26,6 +52,66 @@ public class WallManager {
     private static final Map<String, Integer> wallDurations = new HashMap<>();
     private static final Map<String, Integer> currentRemainingTime = new HashMap<>();
     private static final Map<String, Integer> suddenDeathRemainingTime = new HashMap<>();
+
+    /**
+     * Functional interface for block operations within a region.
+     */
+    @FunctionalInterface
+    private interface BlockOperation {
+        void apply(Chunk chunk, int x, int y, int z);
+    }
+
+    /**
+     * Utility method to iterate over blocks in a region chunk-by-chunk.
+     * This deduplicates the logic used in build, remove, and restore operations.
+     *
+     * @param pos1 First corner of the region
+     * @param pos2 Second corner of the region
+     * @param operation The block operation to perform
+     */
+    private static void iterateRegionBlocks(Location pos1, Location pos2, BlockOperation operation) {
+        World world = pos1.getWorld();
+        if (world == null) return;
+
+        // Calculate min/max coordinates
+        int minX = Math.min(pos1.getBlockX(), pos2.getBlockX());
+        int maxX = Math.max(pos1.getBlockX(), pos2.getBlockX());
+        int minY = Math.min(pos1.getBlockY(), pos2.getBlockY());
+        int maxY = Math.max(pos1.getBlockY(), pos2.getBlockY());
+        int minZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
+        int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
+
+        // Calculate chunk boundaries
+        int minChunkX = minX >> 4;
+        int maxChunkX = maxX >> 4;
+        int minChunkZ = minZ >> 4;
+        int maxChunkZ = maxZ >> 4;
+
+        // Iterate chunk-by-chunk directly without allocating Location objects
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                Chunk chunk = world.getChunkAt(chunkX, chunkZ);
+                if (!chunk.isLoaded()) {
+                    chunk.load();
+                }
+
+                // Calculate block boundaries within this chunk
+                int chunkMinX = Math.max(minX, chunkX << 4);
+                int chunkMaxX = Math.min(maxX, (chunkX << 4) + 15);
+                int chunkMinZ = Math.max(minZ, chunkZ << 4);
+                int chunkMaxZ = Math.min(maxZ, (chunkZ << 4) + 15);
+
+                // Apply operation to each block
+                for (int x = chunkMinX; x <= chunkMaxX; x++) {
+                    for (int y = minY; y <= maxY; y++) {
+                        for (int z = chunkMinZ; z <= chunkMaxZ; z++) {
+                            operation.apply(chunk, x, y, z);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     public static void setWall(String arenaName, String team, Location pos1, Location pos2) {
         ArenaConfigManager.setWallRegion(arenaName, team, pos1, pos2);
@@ -58,49 +144,9 @@ public class WallManager {
         Location[] wallRegion = ArenaConfigManager.getWallRegion(arenaName, team);
         if (wallRegion == null) return;
 
-        Location pos1 = wallRegion[0];
-        Location pos2 = wallRegion[1];
-        World world = pos1.getWorld();
-        if (world == null) return;
-
-        // Calculate min/max coordinates
-        int minX = Math.min(pos1.getBlockX(), pos2.getBlockX());
-        int maxX = Math.max(pos1.getBlockX(), pos2.getBlockX());
-        int minY = Math.min(pos1.getBlockY(), pos2.getBlockY());
-        int maxY = Math.max(pos1.getBlockY(), pos2.getBlockY());
-        int minZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
-        int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
-
-        // Calculate chunk boundaries
-        int minChunkX = minX >> 4;
-        int maxChunkX = maxX >> 4;
-        int minChunkZ = minZ >> 4;
-        int maxChunkZ = maxZ >> 4;
-
-        // Iterate chunk-by-chunk directly without allocating Location objects
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                Chunk chunk = world.getChunkAt(chunkX, chunkZ);
-                if (!chunk.isLoaded()) {
-                    chunk.load();
-                }
-
-                // Calculate block boundaries within this chunk
-                int chunkMinX = Math.max(minX, chunkX << 4);
-                int chunkMaxX = Math.min(maxX, (chunkX << 4) + 15);
-                int chunkMinZ = Math.max(minZ, chunkZ << 4);
-                int chunkMaxZ = Math.min(maxZ, (chunkZ << 4) + 15);
-
-                // Set blocks directly within chunk
-                for (int x = chunkMinX; x <= chunkMaxX; x++) {
-                    for (int y = minY; y <= maxY; y++) {
-                        for (int z = chunkMinZ; z <= chunkMaxZ; z++) {
-                            chunk.getBlock(x & 15, y, z & 15).setType(Material.BEDROCK);
-                        }
-                    }
-                }
-            }
-        }
+        iterateRegionBlocks(wallRegion[0], wallRegion[1], (chunk, x, y, z) -> {
+            chunk.getBlock(x & 15, y, z & 15).setType(Material.BEDROCK);
+        });
     }
 
     public static void removeWalls(String arenaName) {
@@ -113,49 +159,9 @@ public class WallManager {
         Location[] wallRegion = ArenaConfigManager.getWallRegion(arenaName, team);
         if (wallRegion == null) return;
 
-        Location pos1 = wallRegion[0];
-        Location pos2 = wallRegion[1];
-        World world = pos1.getWorld();
-        if (world == null) return;
-
-        // Calculate min/max coordinates
-        int minX = Math.min(pos1.getBlockX(), pos2.getBlockX());
-        int maxX = Math.max(pos1.getBlockX(), pos2.getBlockX());
-        int minY = Math.min(pos1.getBlockY(), pos2.getBlockY());
-        int maxY = Math.max(pos1.getBlockY(), pos2.getBlockY());
-        int minZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
-        int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
-
-        // Calculate chunk boundaries
-        int minChunkX = minX >> 4;
-        int maxChunkX = maxX >> 4;
-        int minChunkZ = minZ >> 4;
-        int maxChunkZ = maxZ >> 4;
-
-        // Iterate chunk-by-chunk directly without allocating Location objects
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                Chunk chunk = world.getChunkAt(chunkX, chunkZ);
-                if (!chunk.isLoaded()) {
-                    chunk.load();
-                }
-
-                // Calculate block boundaries within this chunk
-                int chunkMinX = Math.max(minX, chunkX << 4);
-                int chunkMaxX = Math.min(maxX, (chunkX << 4) + 15);
-                int chunkMinZ = Math.max(minZ, chunkZ << 4);
-                int chunkMaxZ = Math.min(maxZ, (chunkZ << 4) + 15);
-
-                // Set blocks directly within chunk
-                for (int x = chunkMinX; x <= chunkMaxX; x++) {
-                    for (int y = minY; y <= maxY; y++) {
-                        for (int z = chunkMinZ; z <= chunkMaxZ; z++) {
-                            chunk.getBlock(x & 15, y, z & 15).setType(Material.AIR);
-                        }
-                    }
-                }
-            }
-        }
+        iterateRegionBlocks(wallRegion[0], wallRegion[1], (chunk, x, y, z) -> {
+            chunk.getBlock(x & 15, y, z & 15).setType(Material.AIR);
+        });
     }
 
     public static void restoreWalls(String arenaName) {
@@ -168,49 +174,9 @@ public class WallManager {
         Location[] wallRegion = ArenaConfigManager.getWallRegion(arenaName, team);
         if (wallRegion == null) return;
 
-        Location pos1 = wallRegion[0];
-        Location pos2 = wallRegion[1];
-        World world = pos1.getWorld();
-        if (world == null) return;
-
-        // Calculate min/max coordinates
-        int minX = Math.min(pos1.getBlockX(), pos2.getBlockX());
-        int maxX = Math.max(pos1.getBlockX(), pos2.getBlockX());
-        int minY = Math.min(pos1.getBlockY(), pos2.getBlockY());
-        int maxY = Math.max(pos1.getBlockY(), pos2.getBlockY());
-        int minZ = Math.min(pos1.getBlockZ(), pos2.getBlockZ());
-        int maxZ = Math.max(pos1.getBlockZ(), pos2.getBlockZ());
-
-        // Calculate chunk boundaries
-        int minChunkX = minX >> 4;
-        int maxChunkX = maxX >> 4;
-        int minChunkZ = minZ >> 4;
-        int maxChunkZ = maxZ >> 4;
-
-        // Iterate chunk-by-chunk directly without allocating Location objects
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                Chunk chunk = world.getChunkAt(chunkX, chunkZ);
-                if (!chunk.isLoaded()) {
-                    chunk.load();
-                }
-
-                // Calculate block boundaries within this chunk
-                int chunkMinX = Math.max(minX, chunkX << 4);
-                int chunkMaxX = Math.min(maxX, (chunkX << 4) + 15);
-                int chunkMinZ = Math.max(minZ, chunkZ << 4);
-                int chunkMaxZ = Math.min(maxZ, (chunkZ << 4) + 15);
-
-                // Set blocks directly within chunk
-                for (int x = chunkMinX; x <= chunkMaxX; x++) {
-                    for (int y = minY; y <= maxY; y++) {
-                        for (int z = chunkMinZ; z <= chunkMaxZ; z++) {
-                            chunk.getBlock(x & 15, y, z & 15).setType(Material.BEDROCK);
-                        }
-                    }
-                }
-            }
-        }
+        iterateRegionBlocks(wallRegion[0], wallRegion[1], (chunk, x, y, z) -> {
+            chunk.getBlock(x & 15, y, z & 15).setType(Material.BEDROCK);
+        });
     }
 
     public static void startPreparationTimer(String arenaName) {

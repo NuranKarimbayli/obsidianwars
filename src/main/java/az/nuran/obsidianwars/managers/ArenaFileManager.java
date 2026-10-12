@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
+@SuppressWarnings("unchecked")
 public class ArenaFileManager {
 
     private static final String ARENAS_FOLDER = "arenas";

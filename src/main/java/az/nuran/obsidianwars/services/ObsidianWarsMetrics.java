@@ -148,6 +148,41 @@ public class ObsidianWarsMetrics {
                     return "disabled";
                 }
             }));
+
+            // Total arenas configured chart
+            metrics.addCustomChart(new SimplePie("total_arenas", () -> {
+                try {
+                    int arenaCount = ArenaConfigManager.getArenaNames().size();
+                    if (arenaCount == 0) return "0";
+                    if (arenaCount == 1) return "1";
+                    if (arenaCount <= 3) return "2-3";
+                    if (arenaCount <= 5) return "4-5";
+                    if (arenaCount <= 10) return "6-10";
+                    return "10+";
+                } catch (Exception e) {
+                    return "0";
+                }
+            }));
+
+            // Average game duration (in minutes) chart
+            metrics.addCustomChart(new SimplePie("avg_game_duration", () -> {
+                try {
+                    String duration = plugin.getConfig().getString("timers.game-time", "45m");
+                    return duration != null ? duration : "45m";
+                } catch (Exception e) {
+                    return "45m";
+                }
+            }));
+
+            // Language configuration chart
+            metrics.addCustomChart(new SimplePie("language", () -> {
+                try {
+                    String lang = plugin.getConfig().getString("language", "en");
+                    return lang != null ? lang : "en";
+                } catch (Exception e) {
+                    return "en";
+                }
+            }));
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to add custom charts: " + e.getMessage());
         }

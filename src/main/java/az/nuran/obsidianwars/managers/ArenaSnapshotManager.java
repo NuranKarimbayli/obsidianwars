@@ -26,6 +26,25 @@ import java.util.Map;
 /**
  * Manages arena snapshots using efficient runtime block-change tracking.
  * NO region scanning - only tracks actual block changes during games.
+ *
+ * <p>Key features:</p>
+ * <ul>
+ *   <li>Instant snapshot capture (no region scanning)</li>
+ *   <li>Runtime block change tracking via event listeners</li>
+ *   <li>Essential elements capture (obsidians, walls, resources)</li>
+ *   <li>Efficient restoration with reverse iteration</li>
+ *   <li>Memory-efficient change tracking</li>
+ * </ul>
+ *
+ * <p>Snapshot process:</p>
+ * <pre>
+ * 1. Before game: Capture obsidians, walls, and resource blocks
+ * 2. During game: Track all block places/breaks via events
+ * 3. After game: Restore in reverse order, then restore essentials
+ * </pre>
+ *
+ * <p>This approach is O(n) where n is the number of actual block changes,
+ * rather than O(arena volume) which would be prohibitively expensive.</p>
  */
 public class ArenaSnapshotManager implements Listener {
 

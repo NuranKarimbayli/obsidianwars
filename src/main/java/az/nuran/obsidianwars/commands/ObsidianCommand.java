@@ -455,10 +455,10 @@ public class ObsidianCommand implements CommandExecutor {
         // Send welcome message
         sendWelcomeMessage(player);
 
-        // Schedule rules announcement after 5 seconds
+        // Schedule rules announcement after configured delay
         TaskManager.getInstance().runLater("rules-announce-" + player.getUniqueId(), () -> {
             sendRulesAnnouncement(player);
-        }, 100L); // 5 seconds (100 ticks)
+        }, GameManager.getRulesAnnouncementDelaySeconds() * 20L); // Convert seconds to ticks
 
         // Check game start condition
         GameManager.checkGameStart(arenaName);

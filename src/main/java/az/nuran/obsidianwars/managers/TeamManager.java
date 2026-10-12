@@ -24,6 +24,25 @@ import java.util.UUID;
 /**
  * Centralized team management for ObsidianWars.
  * Handles all team-related operations including assignment, switching, balance checking, and visual effects.
+ *
+ * <p>Key responsibilities:</p>
+ * <ul>
+ *   <li>Auto-assigning players to teams based on balance</li>
+ *   <li>Manual team assignment with visual effects (armor, scoreboard, tablist)</li>
+ *   <li>Team balance validation to prevent unfair advantages</li>
+ *   <li>Team switching with imbalance protection</li>
+ *   <li>Player removal and cleanup</li>
+ * </ul>
+ *
+ * <p>Team balance rules:</p>
+ * <ul>
+ *   <li>Auto-assignment always assigns to the team with fewer players</li>
+ *   <li>Manual switching is prevented if it would create >1 player difference</li>
+ *   <li>Both teams must have at least 1 player before game can start</li>
+ * </ul>
+ *
+ * <p>Visual effects include colored leather armor, scoreboard team prefixes,
+ * and tablist name colors synchronized with team assignment.</p>
  */
 public class TeamManager {
 

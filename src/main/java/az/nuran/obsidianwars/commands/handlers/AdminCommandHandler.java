@@ -18,6 +18,7 @@ import az.nuran.obsidianwars.models.PlayerLevel;
 import az.nuran.obsidianwars.models.PlayerStats;
 import az.nuran.obsidianwars.services.DebugManager;
 import az.nuran.obsidianwars.services.DeathMessagesConfigManager;
+import az.nuran.obsidianwars.services.HealthCheckService;
 import az.nuran.obsidianwars.services.PerformanceMonitor;
 import az.nuran.obsidianwars.services.StatsDAO;
 import az.nuran.obsidianwars.util.ColorUtils;
@@ -124,6 +125,12 @@ public class AdminCommandHandler implements CommandHandler {
                 return;
             }
             handleAdminLanguageCommand(player, args);
+            return;
+        }
+
+        // Handle health check command
+        if (category.equals("health") || category.equals("healthcheck")) {
+            handleHealthCheckCommand(player);
             return;
         }
 
@@ -578,6 +585,36 @@ public class AdminCommandHandler implements CommandHandler {
         // Send confirmation
         player.sendMessage(ColorUtils.translate("&aGlobal language set to " + langCode + "!"));
         plugin.getLogger().info("Global language set to " + langCode + " by " + player.getName());
+    }
+
+    /**
+     * Handles the health check admin command.
+     * Runs health checks on all critical components and displays results.
+     *
+     * @param player The player running the command
+     */
+    private void handleHealthCheckCommand(Player player) {
+        if (!HealthCheckService.getInstance().isHealthCheckEnabled()) {
+            player.sendMessage(ColorUtils.translate("&cHealth checks are disabled."));
+            return;
+        }
+
+        player.sendMessage(ColorUtils.translate("&6&l=== Health Check Results ==="));
+
+        java.util.Map<String, HealthCheckService.HealthCheckResult> results =
+            HealthCheckService.getInstance().checkAllComponents();
+
+        for (HealthCheckService.HealthCheckResult result : results.values()) {
+            String statusColor = result.getStatus() == HealthCheckService.HealthStatus.HEALTHY ? "&a" :
+                              result.getStatus() == HealthCheckService.HealthStatus.DEGRADED ? "&e" : "&c";
+
+            player.sendMessage(ColorUtils.translate(
+                statusColor + result.getComponent() + ": " + result.getStatus().getDisplayName()
+            ));
+            player.sendMessage(ColorUtils.translate("  &7" + result.getMessage()));
+        }
+
+        player.sendMessage(ColorUtils.translate("&7Health check completed."));
     }
 
     private boolean hasActiveGames() {

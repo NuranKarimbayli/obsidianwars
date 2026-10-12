@@ -33,12 +33,33 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Central game management for ObsidianWars.
+ * Handles game lifecycle, player tracking, countdowns, and win conditions.
+ * Provides O(1) player lookups and centralized iteration utilities.
+ *
+ * <p>Key responsibilities:</p>
+ * <ul>
+ *   <li>Managing active games and their states</li>
+ *   <li>Tracking players in arenas with O(1) lookups</li>
+ *   <li>Handling countdowns and game timers</li>
+ *   <li>Checking win conditions and team elimination</li>
+ *   <li>Managing player disconnects and rejoins</li>
+ * </ul>
+ *
+ * <p>All player iteration patterns should use the provided utility methods
+ * ({@link #forEachArenaPlayer}, {@link #mapArenaPlayers}, {@link #getArenaPlayers})
+ * to ensure consistency and O(1) performance.</p>
+ */
 public class GameManager {
 
     private static final Map<String, ArenaGame> activeGames = new ConcurrentHashMap<>();
     private static final Map<String, Set<UUID>> arenaPlayers = new ConcurrentHashMap<>();
     private static int COUNTDOWN_SECONDS = 20; // Configurable via config.yml (timers.default-countdown)
     private static int RECONNECT_TIMEOUT_SECONDS = 300; // Configurable via config.yml (5 minutes default)
+    private static int RECONNECT_GRACE_PERIOD_SECONDS = 30; // Configurable via config.yml (30 seconds default)
+    private static int ARENA_CLEANUP_DELAY_SECONDS = 10; // Configurable via config.yml (10 seconds default)
+    private static int RULES_ANNOUNCEMENT_DELAY_SECONDS = 5; // Configurable via config.yml (5 seconds default)
 
     /**
      * Loads configuration values from config.yml
@@ -46,12 +67,30 @@ public class GameManager {
     public static void loadConfig() {
         COUNTDOWN_SECONDS = Obsidianwars.getInstance().getConfig().getInt("timers.default-countdown", 20);
         RECONNECT_TIMEOUT_SECONDS = Obsidianwars.getInstance().getConfig().getInt("reconnect-timeout-seconds", 300);
+        RECONNECT_GRACE_PERIOD_SECONDS = Obsidianwars.getInstance().getConfig().getInt("reconnect-grace-period-seconds", 30);
+        ARENA_CLEANUP_DELAY_SECONDS = Obsidianwars.getInstance().getConfig().getInt("arena-cleanup-delay-seconds", 10);
+        RULES_ANNOUNCEMENT_DELAY_SECONDS = Obsidianwars.getInstance().getConfig().getInt("rules-announcement-delay-seconds", 5);
         Obsidianwars.getInstance().getLogger().info("Loaded countdown duration: " + COUNTDOWN_SECONDS + " seconds");
         Obsidianwars.getInstance().getLogger().info("Loaded reconnect timeout: " + RECONNECT_TIMEOUT_SECONDS + " seconds");
+        Obsidianwars.getInstance().getLogger().info("Loaded reconnect grace period: " + RECONNECT_GRACE_PERIOD_SECONDS + " seconds");
+        Obsidianwars.getInstance().getLogger().info("Loaded arena cleanup delay: " + ARENA_CLEANUP_DELAY_SECONDS + " seconds");
+        Obsidianwars.getInstance().getLogger().info("Loaded rules announcement delay: " + RULES_ANNOUNCEMENT_DELAY_SECONDS + " seconds");
     }
 
     public static int getReconnectTimeoutSeconds() {
         return RECONNECT_TIMEOUT_SECONDS;
+    }
+
+    public static int getReconnectGracePeriodSeconds() {
+        return RECONNECT_GRACE_PERIOD_SECONDS;
+    }
+
+    public static int getArenaCleanupDelaySeconds() {
+        return ARENA_CLEANUP_DELAY_SECONDS;
+    }
+
+    public static int getRulesAnnouncementDelaySeconds() {
+        return RULES_ANNOUNCEMENT_DELAY_SECONDS;
     }
 
     public static int getCountdownSeconds() {
@@ -383,15 +422,7 @@ public class GameManager {
             }
 
             // Remove spawn protection from all players immediately so they can take damage
-            for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                String playerArena = ObsidianCommand.playersInArena.get(uuid);
-                if (playerArena != null && playerArena.equals(arenaName)) {
-                    Player player = Bukkit.getPlayer(uuid);
-                    if (player != null && player.isOnline()) {
-                        ParticleManager.removeSpawnProtection(player);
-                    }
-                }
-            }
+            forEachArenaPlayer(arenaName, ParticleManager::removeSpawnProtection);
 
             // Clear all dropped items in the arena world
             clearDroppedItems(arenaName);
@@ -514,25 +545,19 @@ public class GameManager {
                 broadcastToArena(arenaName, MessagesConfigManager.getMessage("victory") + " " + victoryMessage);
 
                 // Track stats - wins for winning team, losses for losing team
-                for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
-                    String playerArena = ObsidianCommand.playersInArena.get(uuid);
-                    if (playerArena != null && playerArena.equals(arenaName)) {
-                        Player player = Bukkit.getPlayer(uuid);
-                        if (player != null) {
-                            String playerTeam = TeamListener.playerTeams.get(uuid);
-                            PlayerStats stats = StatsManager.getPlayerStats(player);
-                            if (winningTeam.equals(playerTeam)) {
-                                stats.addWin();
-                                // Award XP for winning
-                                XPAwardListener.awardWinXP(player);
-                            } else {
-                                stats.addLoss();
-                            }
-                            // Save stats asynchronously
-                            StatsManager.savePlayerStats(uuid, player.getName());
-                        }
+                forEachArenaPlayer(arenaName, player -> {
+                    String playerTeam = TeamListener.playerTeams.get(player.getUniqueId());
+                    PlayerStats stats = StatsManager.getPlayerStats(player);
+                    if (winningTeam.equals(playerTeam)) {
+                        stats.addWin();
+                        // Award XP for winning
+                        XPAwardListener.awardWinXP(player);
+                    } else {
+                        stats.addLoss();
                     }
-                }
+                    // Save stats asynchronously
+                    StatsManager.savePlayerStats(player.getUniqueId(), player.getName());
+                });
 
                 // Send post-game chat summary (wrapped in try-catch to ensure cleanup always completes)
                 try {
@@ -566,10 +591,10 @@ public class GameManager {
                 broadcastToArena(arenaName, message);
             }
 
-            // Cleanup after 10 seconds
+            // Cleanup after configured delay
             TaskManager.getInstance().runLater("arena-cleanup-" + arenaName, () -> {
                 cleanupArena(arenaName);
-            }, 200L, arenaName); // 10 seconds (200 ticks)
+            }, ARENA_CLEANUP_DELAY_SECONDS * 20L, arenaName); // Convert seconds to ticks
         }
     }
 
@@ -932,6 +957,71 @@ public class GameManager {
         checkTeamEliminationOnDisconnect(arenaName);
     }
 
+    // ============================================
+    // Player Iteration Utilities
+    // ============================================
+
+    /**
+     * Executes an action for each player in a specific arena.
+     * This centralizes the common iteration pattern used throughout the codebase.
+     *
+     * @param arenaName The arena name
+     * @param action The action to perform on each player
+     */
+    public static void forEachArenaPlayer(String arenaName, java.util.function.Consumer<Player> action) {
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null && player.isOnline()) {
+                    action.accept(player);
+                }
+            }
+        }
+    }
+
+    /**
+     * Executes an action for each player in a specific arena, returning a list of results.
+     *
+     * @param arenaName The arena name
+     * @param action The action to perform on each player
+     * @param <T> The result type
+     * @return List of results from each player
+     */
+    public static <T> java.util.List<T> mapArenaPlayers(String arenaName, java.util.function.Function<Player, T> action) {
+        java.util.List<T> results = new java.util.ArrayList<>();
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null && player.isOnline()) {
+                    results.add(action.apply(player));
+                }
+            }
+        }
+        return results;
+    }
+
+    /**
+     * Gets a list of all online players in a specific arena.
+     *
+     * @param arenaName The arena name
+     * @return List of players in the arena
+     */
+    public static java.util.List<Player> getArenaPlayers(String arenaName) {
+        java.util.List<Player> players = new java.util.ArrayList<>();
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null && player.isOnline()) {
+                    players.add(player);
+                }
+            }
+        }
+        return players;
+    }
+
     /**
      * Checks if a team has been eliminated due to all players being offline.
      * If so, declares the opposing team as winner.
@@ -963,7 +1053,7 @@ public class GameManager {
         // Also check disconnected players still in grace period
         for (DisconnectedPlayerData data : RejoinManager.getDisconnectedPlayersForArena(arenaName)) {
             long elapsed = System.currentTimeMillis() - data.getDisconnectTime();
-            if (elapsed < 30000) { // 30 seconds grace period
+            if (elapsed < (RECONNECT_GRACE_PERIOD_SECONDS * 1000L)) {
                 // Still in grace period, count as potentially returning
                 if (data.getTeam().equals("red")) redOnline++;
                 else if (data.getTeam().equals("blue")) blueOnline++;

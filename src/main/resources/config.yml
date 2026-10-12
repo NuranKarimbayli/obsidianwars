@@ -71,6 +71,14 @@ timers:
 # Reconnect Settings
 # Time in seconds players have to rejoin after disconnecting before being counted as a loss
 reconnect-timeout-seconds: 300
+# Grace period in seconds for team elimination check (prevents instant elimination on brief disconnect)
+reconnect-grace-period-seconds: 30
+
+# Game Cleanup Settings
+# Delay in seconds before arena cleanup after game ends
+arena-cleanup-delay-seconds: 10
+# Delay in seconds before rules announcement after joining lobby
+rules-announcement-delay-seconds: 5
 
 # Sound Effects Configuration
 # Spigot Sound Reference: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Sound.html

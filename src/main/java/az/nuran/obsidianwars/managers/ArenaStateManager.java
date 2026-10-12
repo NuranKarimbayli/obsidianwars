@@ -10,6 +10,23 @@ import java.util.logging.Logger;
 /**
  * Arena State Machine for ObsidianWars.
  * Implements a strict lifecycle with guard methods to prevent illegal state transitions.
+ *
+ * <p>State Lifecycle:</p>
+ * <pre>
+ * CREATED → READY → WAITING → STARTING → PREPARATION → PLAYING → SUDDEN_DEATH → ENDED → READY
+ * </pre>
+ *
+ * <p>Key features:</p>
+ * <ul>
+ *   <li>State transition validation with guard methods</li>
+ *   <li>Singleton pattern for global arena state tracking</li>
+ *   <li>O(1) state lookups by arena name</li>
+ *   <li>Synchronization with file-based arena status for GUI</li>
+ *   <li>Initialization from file-based status on plugin startup</li>
+ * </ul>
+ *
+ * <p>Use {@link #setState(String, ArenaState)} for normal transitions and
+ * {@link #forceSetState(String, ArenaState)} only for recovery scenarios.</p>
  */
 public class ArenaStateManager {
 

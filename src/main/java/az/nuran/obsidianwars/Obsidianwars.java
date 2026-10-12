@@ -47,6 +47,7 @@ import az.nuran.obsidianwars.managers.WallManager;
 import az.nuran.obsidianwars.managers.WorldRulesManager;
 import az.nuran.obsidianwars.services.DeathMessagesConfigManager;
 import az.nuran.obsidianwars.services.DebugManager;
+import az.nuran.obsidianwars.services.HealthCheckService;
 import az.nuran.obsidianwars.services.ObsidianWarsExpansion;
 import az.nuran.obsidianwars.services.ObsidianWarsMetrics;
 import az.nuran.obsidianwars.services.PerformanceMonitor;
@@ -190,6 +191,9 @@ public final class Obsidianwars extends JavaPlugin {
 
         perWorldTablistManager = new PerWorldTablistManager(this);
 
+        // Initialize health check service
+        HealthCheckService.initialize(this);
+
         // Cleanup any stuck arena statuses from server crash/shutdown
         cleanupStuckArenaStatuses();
 
@@ -295,6 +299,7 @@ public final class Obsidianwars extends JavaPlugin {
         EconomyManager.getInstance().cleanup();
         SuddenDeathManager.getInstance().cleanup();
         PlayerDataManager.getInstance().cleanup();
+        HealthCheckService.getInstance().cleanup();
     }
 
     private void startCleanupTask() {

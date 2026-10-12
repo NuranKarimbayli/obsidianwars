@@ -19,6 +19,20 @@ import java.util.function.Consumer;
 /**
  * Manages database connections and operations for ObsidianWars statistics.
  * Supports both SQLite (local file) and MySQL (remote) storage.
+ *
+ * <p>Key features:</p>
+ * <ul>
+ *   <li>HikariCP connection pooling for efficient connection management</li>
+ *   <li>Bounded thread pool for async database operations</li>
+ *   <li>Automatic connection leak detection</li>
+ *   <li>Configurable pool sizes and timeouts</li>
+ *   <li>Thread-safe async operations with {@link #executeAsync(Consumer)}</li>
+ * </ul>
+ *
+ * <p>Database configuration is loaded from config.yml under the "database" section.</p>
+ *
+ * <p>All database operations should use async methods to prevent main-thread blocking.
+ * For operations that require immediate results, use CompletableFuture with proper error handling.</p>
  */
 public class DatabaseManager {
 
