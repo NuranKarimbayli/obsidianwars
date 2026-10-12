@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
 import az.nuran.obsidianwars.managers.MessagesConfigManager;
@@ -129,20 +131,20 @@ public class ChatListener implements Listener {
 
             String message = event.getMessage();
             // Format: [RED] PlayerName: Message or [BLUE] PlayerName: Message
-            String teamPrefix = playerTeam.equals("red") ? "§c[RED]" : "§9[BLUE]";
-            String formattedMessage = teamPrefix + " " + player.getDisplayName() + "§f: " + message;
+            String teamPrefix = playerTeam.equals("red") ? "&c[RED]" : "&9[BLUE]";
+            String formattedMessage = teamPrefix + " " + player.getDisplayName() + "&f: " + message;
 
             // Send to all players in the arena (using cached list)
             for (UUID uuid : getAllArenaPlayers(arenaName)) {
                 Player arenaPlayer = Bukkit.getPlayer(uuid);
                 if (arenaPlayer != null && arenaPlayer.isOnline()) {
-                    arenaPlayer.sendMessage(formattedMessage);
+                    arenaPlayer.sendMessage(ColorUtils.translate(formattedMessage));
                 }
             }
 
             // Also send to spectators in the arena
             for (Player spectator : SpectatorManager.getSpectatorsInArena(arenaName)) {
-                spectator.sendMessage(formattedMessage);
+                spectator.sendMessage(ColorUtils.translate(formattedMessage));
             }
 
             return;
@@ -159,25 +161,25 @@ public class ChatListener implements Listener {
             // Strip the leading '!'
             String globalMessage = message.substring(1).trim();
             if (globalMessage.isEmpty()) {
-                player.sendMessage(MessagesConfigManager.getMessage("chat_empty_global"));
+                player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("chat_empty_global")));
                 return;
             }
 
             // Format: [GLOBAL] [RED] PlayerName: Message or [GLOBAL] [BLUE] PlayerName: Message
-            String teamPrefix = playerTeam.equals("red") ? "§c[RED]" : "§9[BLUE]";
-            String formattedMessage = "§6[GLOBAL] " + teamPrefix + " " + player.getDisplayName() + "§f: " + globalMessage;
+            String teamPrefix = playerTeam.equals("red") ? "&c[RED]" : "&9[BLUE]";
+            String formattedMessage = "&6[GLOBAL] " + teamPrefix + " " + player.getDisplayName() + "&f: " + globalMessage;
 
             // Send to all players in the arena (using cached list)
             for (UUID uuid : getAllArenaPlayers(arenaName)) {
                 Player arenaPlayer = Bukkit.getPlayer(uuid);
                 if (arenaPlayer != null && arenaPlayer.isOnline()) {
-                    arenaPlayer.sendMessage(formattedMessage);
+                    arenaPlayer.sendMessage(ColorUtils.translate(formattedMessage));
                 }
             }
 
             // Also send to spectators in the arena
             for (Player spectator : SpectatorManager.getSpectatorsInArena(arenaName)) {
-                spectator.sendMessage(formattedMessage);
+                spectator.sendMessage(ColorUtils.translate(formattedMessage));
             }
 
             return;
@@ -187,20 +189,20 @@ public class ChatListener implements Listener {
         event.setCancelled(true);
 
         // Format: [TEAM] PlayerName: Message
-        String teamPrefix = playerTeam.equals("red") ? "§c[RED]" : "§9[BLUE]";
-        String formattedMessage = teamPrefix + " " + player.getDisplayName() + "§f: " + message;
+        String teamPrefix = playerTeam.equals("red") ? "&c[RED]" : "&9[BLUE]";
+        String formattedMessage = teamPrefix + " " + player.getDisplayName() + "&f: " + message;
 
         // Send to all teammates in the same arena (using cached list)
         for (UUID uuid : getTeamMembers(arenaName, playerTeam)) {
             Player teammate = Bukkit.getPlayer(uuid);
             if (teammate != null && teammate.isOnline()) {
-                teammate.sendMessage(formattedMessage);
+                teammate.sendMessage(ColorUtils.translate(formattedMessage));
             }
         }
 
         // Also send to spectators in the arena (they can see team chat)
         for (Player spectator : SpectatorManager.getSpectatorsInArena(arenaName)) {
-            spectator.sendMessage(formattedMessage);
+            spectator.sendMessage(ColorUtils.translate(formattedMessage));
         }
     }
 }

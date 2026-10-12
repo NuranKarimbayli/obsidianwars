@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.managers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.handlers.XPAwardListener;
@@ -222,7 +224,7 @@ public class WallManager {
 
         // Broadcast preparation phase start
         String prepStartMsg = MessagesConfigManager.getMessage("preparation_phase_start");
-        if (prepStartMsg == null) prepStartMsg = "§ePreparation phase started! Gather resources!";
+        if (prepStartMsg == null) prepStartMsg = "&ePreparation phase started! Gather resources!";
         ObsidianCommand.broadcastToArena(arenaName, prepStartMsg);
 
         // Start countdown task using BukkitRunnable with robust error handling
@@ -241,7 +243,7 @@ public class WallManager {
                     String timeStr = String.format("%02d:%02d", minutes, seconds);
                     
                     // Send action bar to all players in arena
-                    String actionBar = "§ePreparation Time: §f" + timeStr;
+                    String actionBar = "&ePreparation Time: &f" + timeStr;
                     
                     for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
                         String playerArena = ObsidianCommand.playersInArena.get(uuid);
@@ -249,7 +251,7 @@ public class WallManager {
                             org.bukkit.entity.Player player = Bukkit.getPlayer(uuid);
                             if (player != null && player.isOnline()) {
                                 try {
-                                    player.sendActionBar(actionBar);
+                                    player.sendActionBar(ColorUtils.translate(actionBar));
                                 } catch (Exception e) {
                                     Obsidianwars.getInstance().getLogger().log(java.util.logging.Level.WARNING, "Failed to send action bar to player " + player.getName(), e);
                                 }
@@ -276,7 +278,11 @@ public class WallManager {
                         GameManager.ArenaGame game = GameManager.getGame(arenaName);
                         if (game != null) {
                             game.setGameState(ArenaStateManager.ArenaState.PLAYING);
-                            ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.PLAYING);
+                            boolean transitionSuccess = ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.PLAYING);
+                            if (!transitionSuccess) {
+                                // If transition failed, force it to ensure game can continue
+                                ArenaStateManager.getInstance().forceSetState(arenaName, ArenaStateManager.ArenaState.PLAYING);
+                            }
                             DebugManager.logDebug("State transition: PREPARATION -> PLAYING", arenaName);
                             game.startGameTimer();
 
@@ -309,7 +315,7 @@ public class WallManager {
                                             int fadeIn = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.fade-in", 10);
                                             int stay = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.stay", 60);
                                             int fadeOut = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.fade-out", 20);
-                                            player.sendTitle(title, subtitle, fadeIn, stay, fadeOut);
+                                            player.sendTitle(ColorUtils.translate(title), ColorUtils.translate(subtitle), fadeIn, stay, fadeOut);
                                         } catch (Exception e) {
                                             Obsidianwars.getInstance().getLogger().log(java.util.logging.Level.WARNING, "Failed to play sound for player " + player.getName(), e);
                                         }
@@ -319,7 +325,7 @@ public class WallManager {
                         }
                         
                         String message = MessagesConfigManager.getMessage("preparation_over");
-                        if (message == null) message = "§aPreparation phase over! Combat begins!";
+                        if (message == null) message = "&aPreparation phase over! Combat begins!";
                         ObsidianCommand.broadcastToArena(arenaName, message);
                         
                         // Start sudden death countdown
@@ -437,7 +443,11 @@ public class WallManager {
         GameManager.ArenaGame game = GameManager.getGame(arenaName);
         if (game != null) {
             game.setGameState(ArenaStateManager.ArenaState.PLAYING);
-            ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.PLAYING);
+            boolean transitionSuccess = ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.PLAYING);
+            if (!transitionSuccess) {
+                // If transition failed, force it to ensure game can continue
+                ArenaStateManager.getInstance().forceSetState(arenaName, ArenaStateManager.ArenaState.PLAYING);
+            }
             DebugManager.logDebug("State transition: PREPARATION -> PLAYING (forced)", arenaName);
             game.startGameTimer();
 
@@ -470,7 +480,7 @@ public class WallManager {
                             int fadeIn = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.fade-in", 10);
                             int stay = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.stay", 60);
                             int fadeOut = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.fade-out", 20);
-                            player.sendTitle(title, subtitle, fadeIn, stay, fadeOut);
+                            player.sendTitle(ColorUtils.translate(title), ColorUtils.translate(subtitle), fadeIn, stay, fadeOut);
                         } catch (Exception e) {
                             Obsidianwars.getInstance().getLogger().log(java.util.logging.Level.WARNING, "Failed to play sound for player " + player.getName(), e);
                         }
@@ -480,7 +490,7 @@ public class WallManager {
         }
 
         String message = MessagesConfigManager.getMessage("preparation_over");
-        if (message == null) message = "§aPreparation phase over! Combat begins!";
+        if (message == null) message = "&aPreparation phase over! Combat begins!";
         ObsidianCommand.broadcastToArena(arenaName, message);
 
         // Start sudden death countdown

@@ -48,7 +48,34 @@ public class ArenaFileManager {
         if (!arenaConfigFile.exists()) {
             return null;
         }
-        return YamlConfiguration.loadConfiguration(arenaConfigFile);
+        try {
+            return YamlConfiguration.loadConfiguration(arenaConfigFile);
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to load arena config for " + arenaName + " - file may be corrupted, attempting repair", e);
+            // Attempt to repair the file by creating a backup and recreating it
+            return repairArenaConfig(arenaName, arenaConfigFile);
+        }
+    }
+
+    private static FileConfiguration repairArenaConfig(String arenaName, File arenaConfigFile) {
+        try {
+            // Create backup of corrupted file
+            File backupFile = new File(arenaConfigFile.getParent(), arenaName + "_settings_backup_" + System.currentTimeMillis() + ".yml");
+            java.nio.file.Files.copy(arenaConfigFile.toPath(), backupFile.toPath());
+            plugin.getLogger().warning("Created backup of corrupted config: " + backupFile.getName());
+
+            // Delete corrupted file
+            arenaConfigFile.delete();
+
+            // Recreate the file with basic structure
+            createArenaConfigFileInternal(arenaName, true);
+            plugin.getLogger().warning("Recreated arena config for " + arenaName + " with default values");
+
+            return YamlConfiguration.loadConfiguration(arenaConfigFile);
+        } catch (Exception e2) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to repair arena config for " + arenaName, e2);
+            return null;
+        }
     }
 
     public static FileConfiguration getResourceBlocksConfig(String arenaName) {
@@ -75,13 +102,20 @@ public class ArenaFileManager {
         createResourceBlocksFile(arenaName);
     }
 
-    private static void createArenaConfigFile(String arenaName) {
+    static void createArenaConfigFile(String arenaName) {
+        createArenaConfigFileInternal(arenaName, false);
+    }
+
+    private static void createArenaConfigFileInternal(String arenaName, boolean forceOverwrite) {
         File arenaConfigFile = getArenaConfigFile(arenaName);
-        if (arenaConfigFile.exists()) {
+        if (arenaConfigFile.exists() && !forceOverwrite) {
             return;
         }
 
         try {
+            if (arenaConfigFile.exists() && forceOverwrite) {
+                arenaConfigFile.delete();
+            }
             arenaConfigFile.createNewFile();
             FileConfiguration config = YamlConfiguration.loadConfiguration(arenaConfigFile);
 
@@ -400,7 +434,13 @@ public class ArenaFileManager {
         if (config == null) return;
 
         config.set("arena.status", status);
-        saveArenaConfig(arenaName, config);
+
+        // Save synchronously to prevent file corruption from rapid updates
+        try {
+            config.save(getArenaConfigFile(arenaName));
+        } catch (IOException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to save arena config for " + arenaName, e);
+        }
     }
 
     public static String getArenaStatus(String arenaName) {
@@ -515,8 +555,12 @@ public class ArenaFileManager {
             resourceBlocks.add(blockData);
             config.set("resource-blocks", resourceBlocks);
 
-            // IMMEDIATELY flush to disk
-            saveResourceBlocksConfig(arenaName, config);
+            // Save synchronously to ensure count is accurate immediately
+            try {
+                config.save(getResourceBlocksFile(arenaName));
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to save resource blocks config for " + arenaName, e);
+            }
         }
     }
 
@@ -552,8 +596,12 @@ public class ArenaFileManager {
                 resourceBlocks.remove(toRemove);
                 config.set("resource-blocks", resourceBlocks);
 
-                // IMMEDIATELY flush to disk
-                saveResourceBlocksConfig(arenaName, config);
+                // Save synchronously to ensure count is accurate immediately
+                try {
+                    config.save(getResourceBlocksFile(arenaName));
+                } catch (IOException e) {
+                    plugin.getLogger().log(Level.SEVERE, "Failed to save resource blocks config for " + arenaName, e);
+                }
             }
         }
     }

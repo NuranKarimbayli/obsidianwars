@@ -1,6 +1,7 @@
 package az.nuran.obsidianwars.managers;
 
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,11 +17,10 @@ public class ArenaStateManager {
     private final Logger logger;
 
     // Map of arena names to their current state
-    private final Map<String, ArenaState> arenaStates;
+    private static final Map<String, ArenaState> arenaStates = new ConcurrentHashMap<>();
 
     public ArenaStateManager(Logger logger) {
         this.logger = logger;
-        this.arenaStates = new ConcurrentHashMap<>();
     }
 
     /**
@@ -31,6 +31,47 @@ public class ArenaStateManager {
     public static void initialize(Logger logger) {
         if (instance == null) {
             instance = new ArenaStateManager(logger);
+        }
+    }
+
+    /**
+     * Initializes all existing arenas to their proper states based on file status.
+     * Should be called after ArenaConfigManager.initialize().
+     */
+    public static void initializeExistingArenas() {
+        java.util.List<String> arenaNames = az.nuran.obsidianwars.managers.ArenaFileManager.getArenaNames();
+        for (String arenaName : arenaNames) {
+            String fileStatus = az.nuran.obsidianwars.managers.ArenaFileManager.getArenaStatus(arenaName);
+            ArenaState initialState = mapFileStatusToState(fileStatus);
+            if (initialState != null) {
+                arenaStates.put(arenaName, initialState);
+                if (instance != null) {
+                    instance.logger.fine("Initialized arena " + arenaName + " in state: " + initialState);
+                }
+            }
+        }
+    }
+
+    /**
+     * Maps file-based status string to ArenaState enum.
+     */
+    private static ArenaState mapFileStatusToState(String fileStatus) {
+        if (fileStatus == null) return ArenaState.READY;
+        switch (fileStatus) {
+            case "STARTING":
+                return ArenaState.READY; // Reset to READY on startup (game shouldn't be in countdown)
+            case "STARTED":
+                return ArenaState.READY; // Reset to READY on startup (game shouldn't be running)
+            case "WAITING":
+                return ArenaState.WAITING;
+            case "READY":
+                return ArenaState.READY;
+            case "DISABLED":
+                return ArenaState.READY; // Treat disabled as ready for now
+            case "SETUP":
+                return ArenaState.READY; // Treat setup as ready
+            default:
+                return ArenaState.READY;
         }
     }
 
@@ -96,6 +137,10 @@ public class ArenaStateManager {
 
         arenaStates.put(arenaName, newState);
         logger.fine("Arena " + arenaName + " state transition: " + currentState + " -> " + newState);
+
+        // Sync to file-based arena status for GUI display
+        syncToFileStatus(arenaName, newState);
+
         return true;
     }
 
@@ -109,6 +154,43 @@ public class ArenaStateManager {
         ArenaState oldState = arenaStates.get(arenaName);
         arenaStates.put(arenaName, newState);
         logger.warning("Arena " + arenaName + " state forced: " + oldState + " -> " + newState + " (validation bypassed)");
+
+        // Sync to file-based arena status for GUI display
+        syncToFileStatus(arenaName, newState);
+    }
+
+    /**
+     * Syncs the ArenaStateManager state to the file-based arena status used by GUI.
+     * This ensures the admin GUI displays the correct status.
+     *
+     * @param arenaName The arena name
+     * @param state The current arena state
+     */
+    private void syncToFileStatus(String arenaName, ArenaState state) {
+        String fileStatus;
+        switch (state) {
+            case STARTING:
+                fileStatus = "STARTING";
+                break;
+            case PREPARATION:
+            case PLAYING:
+            case SUDDEN_DEATH:
+                fileStatus = "STARTED";
+                break;
+            case ENDED:
+                fileStatus = "READY";
+                break;
+            case WAITING:
+                fileStatus = "WAITING";
+                break;
+            case READY:
+                fileStatus = "READY";
+                break;
+            default:
+                fileStatus = "READY";
+                break;
+        }
+        ArenaConfigManager.setArenaStatus(arenaName, fileStatus);
     }
 
     /**

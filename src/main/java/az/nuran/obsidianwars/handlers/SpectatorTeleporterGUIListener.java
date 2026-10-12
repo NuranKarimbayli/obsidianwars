@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.managers.SpectatorManager;
 
 import org.bukkit.entity.Player;
@@ -18,7 +20,7 @@ public class SpectatorTeleporterGUIListener implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         // Handle spectator teleporter GUI
         String title = event.getView().getTitle();
-        if (!title.equals("§6§lTeleport to Player")) {
+        if (!ColorUtils.matches(title, "&6&lTeleport to Player")) {
             return;
         }
 
@@ -37,20 +39,20 @@ public class SpectatorTeleporterGUIListener implements Listener {
 
         // Get the target player name from the display name
         String displayName = clicked.getItemMeta().getDisplayName();
-        if (displayName == null || !displayName.startsWith("§e")) {
+        if (displayName == null || !ColorUtils.startsWithFormatted(displayName, "&e")) {
             return;
         }
 
-        String targetName = displayName.substring(2); // Remove "§e" prefix
+        String targetName = ColorUtils.stripColors(displayName);
         Player target = org.bukkit.Bukkit.getPlayerExact(targetName);
 
         if (target != null && target.isOnline() && !SpectatorManager.isSpectator(target)) {
             // Teleport spectator to target
             player.teleport(target.getLocation());
-            player.sendMessage("§aTeleported to " + targetName + "!");
+            player.sendMessage(ColorUtils.translate("&aTeleported to " + targetName + "!"));
             player.closeInventory();
         } else {
-            player.sendMessage("§cPlayer is no longer available!");
+            player.sendMessage(ColorUtils.translate("&cPlayer is no longer available!"));
             player.closeInventory();
         }
     }

@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.managers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.handlers.TeamListener;
@@ -76,6 +78,8 @@ public class GameManager {
             players.remove(uuid);
             if (players.isEmpty()) {
                 arenaPlayers.remove(arenaName);
+                // Reset arena state to READY when arena becomes empty
+                ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.READY);
             }
         }
     }
@@ -180,7 +184,7 @@ public class GameManager {
             // Note: Players stay in arena lobby after countdown cancellation, so no lobby scoreboard update needed
 
             // Broadcast cancellation message
-            broadcastToArena(arenaName, "§cCountdown cancelled! Waiting for players...");
+            broadcastToArena(arenaName, "&cCountdown cancelled! Waiting for players...");
 
             // Play warning sound
             String sound = Obsidianwars.getInstance().getConfig().getString("sounds.countdown_cancelled", "ENTITY_VILLAGER_NO");
@@ -272,12 +276,17 @@ public class GameManager {
         activeGames.put(arenaName, game);
 
         // Initialize arena state if not already tracked
-        if (ArenaStateManager.getInstance().getState(arenaName) == null) {
+        ArenaStateManager.ArenaState currentState = ArenaStateManager.getInstance().getState(arenaName);
+        if (currentState == null) {
             ArenaStateManager.getInstance().forceSetState(arenaName, ArenaStateManager.ArenaState.READY);
         }
 
         // Set arena state to STARTING while lobby countdown is running
-        ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.STARTING);
+        boolean transitionSuccess = ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.STARTING);
+        if (!transitionSuccess) {
+            // If transition failed, force it to ensure countdown can start
+            ArenaStateManager.getInstance().forceSetState(arenaName, ArenaStateManager.ArenaState.STARTING);
+        }
 
         DebugManager.logDebug("State transition: WAITING -> STARTING (countdown started)", arenaName);
 
@@ -310,7 +319,7 @@ public class GameManager {
                 String teamName = TeamConfig.getTeamName(team);
                 String teamColor = TeamConfig.getTeamColor(team);
                 String message = MessagesConfigManager.getMessage("auto_team", "teamColor", teamColor, "teamName", teamName);
-                player.sendMessage(message);
+                player.sendMessage(ColorUtils.translate(message));
             }
         }
     }
@@ -361,13 +370,10 @@ public class GameManager {
             DebugManager.logDebug("Starting game for arena " + arenaName);
 
             // Initialize arena state if not already tracked
-            if (ArenaStateManager.getInstance().getState(arenaName) == null) {
+            ArenaStateManager.ArenaState currentState = ArenaStateManager.getInstance().getState(arenaName);
+            if (currentState == null) {
                 ArenaStateManager.getInstance().forceSetState(arenaName, ArenaStateManager.ArenaState.READY);
             }
-
-            // Set arena state to PLAYING immediately when match starts
-            ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.PLAYING);
-            DebugManager.logDebug("State transition: STARTING -> PLAYING (match started)", arenaName);
 
             // Remove spawn protection from all players immediately so they can take damage
             for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
@@ -387,7 +393,7 @@ public class GameManager {
             boolean snapshotSuccess = ArenaSnapshotManager.takeSnapshot(arenaName);
             if (!snapshotSuccess) {
                 Obsidianwars.getInstance().getLogger().severe("Failed to take snapshot for arena " + arenaName + " - game start aborted!");
-                broadcastToArena(arenaName, "§cGame start failed - please contact an administrator.");
+                broadcastToArena(arenaName, "&cGame start failed - please contact an administrator.");
                 // Reset arena state
                 ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.READY);
                 return;
@@ -406,14 +412,23 @@ public class GameManager {
             if (hasWalls) {
                 // Set to PREPARATION state and start preparation timer
                 game.setGameState(ArenaStateManager.ArenaState.PREPARATION);
-                ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.PREPARATION);
-                DebugManager.logDebug("State transition: PLAYING -> PREPARATION", arenaName);
+                boolean transitionSuccess = ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.PREPARATION);
+                if (!transitionSuccess) {
+                    // If transition failed, force it to ensure game can start
+                    ArenaStateManager.getInstance().forceSetState(arenaName, ArenaStateManager.ArenaState.PREPARATION);
+                }
+                DebugManager.logDebug("State transition: STARTING -> PREPARATION", arenaName);
                 WallManager.buildWalls(arenaName);
                 WallManager.startPreparationTimer(arenaName);
             } else {
                 // No walls - go directly to PLAYING state
                 game.setGameState(ArenaStateManager.ArenaState.PLAYING);
-                DebugManager.logDebug("State transition: PLAYING -> PLAYING (no walls, game starts)", arenaName);
+                boolean transitionSuccess = ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.PLAYING);
+                if (!transitionSuccess) {
+                    // If transition failed, force it to ensure game can start
+                    ArenaStateManager.getInstance().forceSetState(arenaName, ArenaStateManager.ArenaState.PLAYING);
+                }
+                DebugManager.logDebug("State transition: STARTING -> PLAYING (no walls, game starts)", arenaName);
                 game.startGameTimer();
 
                 // Apply world game rules
@@ -455,7 +470,7 @@ public class GameManager {
                     if (player != null) {
                         List<String> rulesLines = MessagesConfigManager.getMessagesConfig().getStringList("messages.rules_announcement");
                         for (String line : rulesLines) {
-                            player.sendMessage(line);
+                            player.sendMessage(ColorUtils.translate(line));
                         }
                     }
                 }
@@ -633,7 +648,7 @@ public class GameManager {
                 Location mainSpawn = player.getWorld().getSpawnLocation();
                 PlayerUtils.resetPlayerFull(player, mainSpawn);
 
-                player.sendMessage("§aArena ended, returned to main spawn!");
+                player.sendMessage(ColorUtils.translate("&aArena ended, returned to main spawn!"));
 
                 // Update lobby scoreboard after game ends
                 LobbyScoreboardManager.updateLobbyScoreboard(player);
@@ -952,12 +967,12 @@ public class GameManager {
         if (redOnline == 0 && game.isObsidianDestroyed("red")) {
             // Red team eliminated
             DebugManager.logDebug("Team elimination: Red team eliminated (0 players alive, obsidian destroyed)", arenaName);
-            GameFeedbackService.broadcastToArena(arenaName, "§cRed team completely eliminated!");
+            GameFeedbackService.broadcastToArena(arenaName, "&cRed team completely eliminated!");
             endGame(arenaName, "blue");
         } else if (blueOnline == 0 && game.isObsidianDestroyed("blue")) {
             // Blue team eliminated
             DebugManager.logDebug("Team elimination: Blue team eliminated (0 players alive, obsidian destroyed)", arenaName);
-            GameFeedbackService.broadcastToArena(arenaName, "§cBlue team completely eliminated!");
+            GameFeedbackService.broadcastToArena(arenaName, "&cBlue team completely eliminated!");
             endGame(arenaName, "red");
         }
     }
@@ -991,7 +1006,7 @@ public class GameManager {
             Obsidianwars.getInstance().getLogger().info("Starting countdown for arena " + arenaName + " with " + COUNTDOWN_SECONDS + " seconds");
 
             String startMessage = MessagesConfigManager.getMessage("game_starting", "seconds", String.valueOf(COUNTDOWN_SECONDS));
-            if (startMessage == null) startMessage = "§eGame starting in " + COUNTDOWN_SECONDS + " seconds!";
+            if (startMessage == null) startMessage = "&eGame starting in " + COUNTDOWN_SECONDS + " seconds!";
             broadcastToArena(arenaName, startMessage);
 
             countdownTask = TaskManager.getInstance().runTimer("countdown-" + arenaName, () -> {
@@ -1031,7 +1046,7 @@ public class GameManager {
                         if (countdown <= 5) {
                             // Enhanced countdown broadcast at 5 seconds and below
                             String countdownMessage = MessagesConfigManager.getMessage("game_countdown", "seconds", String.valueOf(countdown));
-                            if (countdownMessage == null) countdownMessage = "§eGame starting in " + countdown + " seconds!";
+                            if (countdownMessage == null) countdownMessage = "&eGame starting in " + countdown + " seconds!";
                             broadcastToArena(arenaName, countdownMessage);
 
                             // Title/Subtitle broadcast
@@ -1041,7 +1056,7 @@ public class GameManager {
                                     Player player = Bukkit.getPlayer(uuid);
                                     if (player != null && player.isOnline()) {
                                         try {
-                                            player.sendTitle("§c" + countdown, "§eGame starting!", 0, 20, 0);
+                                            player.sendTitle(ColorUtils.translate("&c" + countdown), ColorUtils.translate("&eGame starting!"), 0, 20, 0);
                                         } catch (Exception e) {
                                             Obsidianwars.getInstance().getLogger().warning("Failed to send title to player " + player.getName() + ": " + e.getMessage());
                                         }
@@ -1051,7 +1066,7 @@ public class GameManager {
                         } else if (countdown % 5 == 0) {
                             // Regular countdown for 10, 15, etc.
                             String countdownMessage = MessagesConfigManager.getMessage("game_countdown", "seconds", String.valueOf(countdown));
-                            if (countdownMessage == null) countdownMessage = "§eGame starting in " + countdown + " seconds!";
+                            if (countdownMessage == null) countdownMessage = "&eGame starting in " + countdown + " seconds!";
                             broadcastToArena(arenaName, countdownMessage);
                         }
                         updateArenaScoreboards(arenaName);
@@ -1155,11 +1170,11 @@ public class GameManager {
                     // Warn at 5 minutes, 1 minute, and 30 seconds remaining
                     int remaining = timeLimitSeconds - gameTime;
                     if (remaining == 300) { // 5 minutes
-                        broadcastToArena(arenaName, "§e5 minutes remaining!");
+                        broadcastToArena(arenaName, "&e5 minutes remaining!");
                     } else if (remaining == 60) { // 1 minute
-                        broadcastToArena(arenaName, "§c1 minute remaining!");
+                        broadcastToArena(arenaName, "&c1 minute remaining!");
                     } else if (remaining == 30) { // 30 seconds
-                        broadcastToArena(arenaName, "§c30 seconds remaining!");
+                        broadcastToArena(arenaName, "&c30 seconds remaining!");
                     }
                     
                     updateArenaScoreboards(arenaName);
@@ -1263,14 +1278,14 @@ public class GameManager {
             int points = KillStreaksConfigManager.getKillStreaksConfig().getInt(path + ".points", 0);
             if (points > 0) {
                 // Assuming points will be used when shop is implemented
-                player.sendMessage("§a+" + points + " points for " + streak + " kill streak!");
+                player.sendMessage(ColorUtils.translate("&a+" + points + " points for " + streak + " kill streak!"));
             }
 
             // Message to player
             String message = KillStreaksConfigManager.getKillStreaksConfig().getString(path + ".message", "");
             if (!message.isEmpty()) {
                 message = message.replace("%player%", player.getName()).replace("%streak%", String.valueOf(streak));
-                player.sendMessage(message);
+                player.sendMessage(ColorUtils.translate(message));
             }
 
             // Broadcast message
@@ -1294,7 +1309,7 @@ public class GameManager {
                         Obsidianwars.getInstance().getLogger().warning("Invalid potion effect type: " + effectType);
                     } else {
                         player.addPotionEffect(new org.bukkit.potion.PotionEffect(type, duration * 20, amplifier));
-                        player.sendMessage("§eYou received " + effectType + " for " + duration + " seconds!");
+                        player.sendMessage(ColorUtils.translate("&eYou received " + effectType + " for " + duration + " seconds!"));
                     }
                 } catch (Exception e) {
                     Obsidianwars.getInstance().getLogger().warning("Invalid potion effect type: " + effectType);
@@ -1315,7 +1330,7 @@ public class GameManager {
             DebugManager.logDebug("SUDDEN DEATH triggered - breaking all obsidians in 10 seconds", arenaName);
 
             // Broadcast sudden death message
-            broadcastToArena(arenaName, "§c§lSUDDEN DEATH! All obsidians will break!");
+            broadcastToArena(arenaName, "&c&lSUDDEN DEATH! All obsidians will break!");
 
             // Break both obsidians after 10 seconds
             TaskManager.getInstance().runLater("sudden-death-" + arenaName, () -> {
@@ -1340,7 +1355,7 @@ public class GameManager {
                 }
                 
                 // Broadcast message
-                broadcastToArena(arenaName, "§cAll obsidians destroyed! Final eliminations started!");
+                broadcastToArena(arenaName, "&cAll obsidians destroyed! Final eliminations started!");
 
                 // Check win condition by calling the static method after both obsidians are destroyed
                 TaskManager.getInstance().runLater("win-check-" + arenaName, () -> {

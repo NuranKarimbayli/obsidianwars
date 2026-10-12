@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.managers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.models.QueueEntry;
 
@@ -137,13 +139,13 @@ public class QueueManager {
 
         // Check if player is already in a queue
         if (playerQueues.containsKey(uuid)) {
-            player.sendMessage(MessagesConfigManager.getMessage("queue_already_queued"));
+            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("queue_already_queued")));
             return false;
         }
 
         // Check if player is already in an arena
         if (ObsidianCommand.playersInArena.containsKey(uuid)) {
-            player.sendMessage(MessagesConfigManager.getMessage("not_in_arena"));
+            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("not_in_arena")));
             return false;
         }
 
@@ -151,19 +153,19 @@ public class QueueManager {
         if (arenaName == null) {
             arenaName = ArenaStateManager.getInstance().getBestAvailableArena();
             if (arenaName == null) {
-                player.sendMessage(MessagesConfigManager.getMessage("arena_not_ready"));
+                player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_ready")));
                 return false;
             }
         }
 
         // Check if arena exists and can accept players
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName));
+            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
             return false;
         }
 
         if (!ArenaStateManager.getInstance().canAcceptPlayers(arenaName)) {
-            player.sendMessage(MessagesConfigManager.getMessage("arena_not_available", "arenaName", arenaName));
+            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_available", "arenaName", arenaName)));
             return false;
         }
 
@@ -171,7 +173,7 @@ public class QueueManager {
         int currentPlayers = TeamManager.getTotalPlayerCount(arenaName);
         int maxPlayers = ArenaConfigManager.getMaxPlayers(arenaName);
         if (currentPlayers >= maxPlayers) {
-            player.sendMessage(MessagesConfigManager.getMessage("arena_full", "current", String.valueOf(currentPlayers), "max", String.valueOf(maxPlayers)));
+            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_full", "current", String.valueOf(currentPlayers), "max", String.valueOf(maxPlayers))));
             return false;
         }
 
@@ -180,7 +182,7 @@ public class QueueManager {
         playerQueues.put(uuid, entry);
         arenaQueues.computeIfAbsent(arenaName, k -> ConcurrentHashMap.newKeySet()).add(uuid);
 
-        player.sendMessage(MessagesConfigManager.getMessage("queue_joined", "arenaName", arenaName));
+        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("queue_joined", "arenaName", arenaName)));
 
         // If arena is in READY state, try to join immediately
         if (ArenaStateManager.getInstance().isState(arenaName, ArenaStateManager.ArenaState.READY)) {
@@ -210,7 +212,7 @@ public class QueueManager {
 
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
-                player.sendMessage(MessagesConfigManager.getMessage("queue_left"));
+                player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("queue_left")));
             }
 
             return true;
@@ -271,7 +273,7 @@ public class QueueManager {
                 playerQueues.remove(uuid);
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null && player.isOnline()) {
-                    player.sendMessage(MessagesConfigManager.getMessage("queue_arena_closed"));
+                    player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("queue_arena_closed")));
                 }
             }
         }
@@ -284,7 +286,7 @@ public class QueueManager {
         for (UUID uuid : new ArrayList<>(playerQueues.keySet())) {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
-                player.sendMessage(MessagesConfigManager.getMessage("queue_cleared"));
+                player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("queue_cleared")));
             }
         }
         playerQueues.clear();

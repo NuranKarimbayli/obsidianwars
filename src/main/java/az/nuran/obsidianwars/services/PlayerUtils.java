@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.services;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.managers.ScoreboardManager;
 import az.nuran.obsidianwars.managers.TeamManager;
 import org.bukkit.entity.Player;
@@ -42,7 +44,7 @@ public class PlayerUtils {
         resetPlayerState(player);
 
         // Clear display name
-        player.setDisplayName(player.getName());
+        player.setDisplayName(ColorUtils.translate(player.getName()));
         player.setPlayerListName(player.getName());
 
         // Remove from teams
@@ -66,7 +68,7 @@ public class PlayerUtils {
         resetPlayerState(player);
 
         // Clear display name
-        player.setDisplayName(player.getName());
+        player.setDisplayName(ColorUtils.translate(player.getName()));
         player.setPlayerListName(player.getName());
 
         // Remove from teams

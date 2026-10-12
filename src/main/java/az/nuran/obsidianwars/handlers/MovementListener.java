@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
@@ -160,8 +162,7 @@ public class MovementListener implements Listener {
         player.setHealth(0);
 
         // Send death message
-        String formattedMessage = autoDeathMessage.replace("&", "§");
-        player.sendMessage(formattedMessage);
+        player.sendMessage(ColorUtils.translate(autoDeathMessage));
 
         Obsidianwars.getInstance().getLogger().info("Player " + player.getName() + " died from auto-death at Y=" + player.getLocation().getY());
     }
@@ -199,7 +200,7 @@ public class MovementListener implements Listener {
 
             if (waitingSpawn != null) {
                 player.teleport(waitingSpawn);
-                player.sendMessage("§cYou cannot leave the lobby area!");
+                player.sendMessage(ColorUtils.translate("&cYou cannot leave the lobby area!"));
             }
         }
     }
@@ -221,7 +222,7 @@ public class MovementListener implements Listener {
                 player.teleport(teamSpawn);
                 player.setHealth(20);
                 player.setFoodLevel(20);
-                player.sendMessage("§eYou fell during preparation - respawned at team spawn!");
+                player.sendMessage(ColorUtils.translate("&eYou fell during preparation - respawned at team spawn!"));
             }
             return;
         }
@@ -252,8 +253,8 @@ public class MovementListener implements Listener {
                     int fadeIn = Obsidianwars.getInstance().getConfig().getInt("titles.death.fade-in", 10);
                     int stay = Obsidianwars.getInstance().getConfig().getInt("titles.death.stay", 40);
                     int fadeOut = Obsidianwars.getInstance().getConfig().getInt("titles.death.fade-out", 20);
-                    player.sendTitle(diedTitle, finalElim, fadeIn, stay, fadeOut);
-                    player.sendMessage("§cYou fell into the void and were finally eliminated!");
+                    player.sendTitle(ColorUtils.translate(diedTitle), ColorUtils.translate(finalElim), fadeIn, stay, fadeOut);
+                    player.sendMessage(ColorUtils.translate("&cYou fell into the void and were finally eliminated!"));
 
                     // Update scoreboard
                     ScoreboardManager.updateScoreboard(player);
@@ -285,7 +286,7 @@ public class MovementListener implements Listener {
         player.teleport(teamSpawn);
         player.setHealth(20);
         player.setFoodLevel(20);
-        player.sendMessage("§eYou fell into the void - respawned at team spawn!");
+        player.sendMessage(ColorUtils.translate("&eYou fell into the void - respawned at team spawn!"));
     }
 
     private Location getTeamSpawn(String arenaName, String team) {

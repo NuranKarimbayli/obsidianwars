@@ -20,6 +20,7 @@ import az.nuran.obsidianwars.services.DebugManager;
 import az.nuran.obsidianwars.services.DeathMessagesConfigManager;
 import az.nuran.obsidianwars.services.PerformanceMonitor;
 import az.nuran.obsidianwars.services.StatsDAO;
+import az.nuran.obsidianwars.util.ColorUtils;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -55,7 +56,7 @@ public class AdminCommandHandler implements CommandHandler {
         if (subCommand.equals("debug")) {
             if (!player.hasPermission("obsidianwars.command.debug")) {
                 String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-                player.sendMessage(noPermMessage.replace("&", "§"));
+                player.sendMessage(ColorUtils.translate(noPermMessage));
                 return true;
             }
             handleDebugCommand(player, args);
@@ -65,7 +66,7 @@ public class AdminCommandHandler implements CommandHandler {
         if (subCommand.equals("disablearena")) {
             if (!player.hasPermission("obsidianwars.command.disablearena")) {
                 String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-                player.sendMessage(noPermMessage.replace("&", "§"));
+                player.sendMessage(ColorUtils.translate(noPermMessage));
                 return true;
             }
             handleDisableArenaCommand(player, args);
@@ -75,7 +76,7 @@ public class AdminCommandHandler implements CommandHandler {
         if (subCommand.equals("enablearena")) {
             if (!player.hasPermission("obsidianwars.command.enablearena")) {
                 String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-                player.sendMessage(noPermMessage.replace("&", "§"));
+                player.sendMessage(ColorUtils.translate(noPermMessage));
                 return true;
             }
             handleEnableArenaCommand(player, args);
@@ -89,12 +90,12 @@ public class AdminCommandHandler implements CommandHandler {
         // Check permission
         if (!player.hasPermission("obsidianwars.command.admin")) {
             String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-            player.sendMessage(noPermMessage.replace("&", "§"));
+            player.sendMessage(ColorUtils.translate(noPermMessage));
             return;
         }
 
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o admin <level|coin|exp|stats|gui> [action] [player] [amount]");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o admin <level|coin|exp|stats|gui> [action] [player] [amount]"));
             return;
         }
 
@@ -109,7 +110,7 @@ public class AdminCommandHandler implements CommandHandler {
         // Handle stats reset command
         if (category.equals("stats")) {
             if (args.length < 4 || !args[2].equalsIgnoreCase("reset")) {
-                player.sendMessage("§cUsage: /o admin stats reset <player>");
+                player.sendMessage(ColorUtils.translate("&cUsage: /o admin stats reset <player>"));
                 return;
             }
             handleAdminStatsResetCommand(player, args);
@@ -119,7 +120,7 @@ public class AdminCommandHandler implements CommandHandler {
         // Handle language command
         if (category.equals("lang") || category.equals("language")) {
             if (args.length < 3) {
-                player.sendMessage("§cUsage: /o admin lang <language_code>");
+                player.sendMessage(ColorUtils.translate("&cUsage: /o admin lang <language_code>"));
                 return;
             }
             handleAdminLanguageCommand(player, args);
@@ -129,14 +130,14 @@ public class AdminCommandHandler implements CommandHandler {
         // Handle currency/level commands: level, coin, exp
         if (category.equals("level") || category.equals("coin") || category.equals("exp")) {
             if (args.length < 3) {
-                player.sendMessage("§cUsage: /o admin " + category + " <set|add|remove> <player> <amount>");
+                player.sendMessage(ColorUtils.translate("&cUsage: /o admin " + category + " <set|add|remove> <player> <amount>"));
                 return;
             }
 
             String action = args[2].toLowerCase();
 
             if (args.length < 5) {
-                player.sendMessage("§cUsage: /o admin " + category + " " + action + " <player> <amount>");
+                player.sendMessage(ColorUtils.translate("&cUsage: /o admin " + category + " " + action + " <player> <amount>"));
                 return;
             }
 
@@ -144,7 +145,7 @@ public class AdminCommandHandler implements CommandHandler {
             Player target = Bukkit.getPlayer(targetName);
 
             if (target == null || !target.isOnline()) {
-                player.sendMessage("§cPlayer '" + targetName + "' is not online.");
+                player.sendMessage(ColorUtils.translate("&cPlayer '" + targetName + "' is not online."));
                 return;
             }
 
@@ -152,7 +153,7 @@ public class AdminCommandHandler implements CommandHandler {
             try {
                 amount = Double.parseDouble(args[4]);
             } catch (NumberFormatException e) {
-                player.sendMessage("§cInvalid amount: " + args[4]);
+                player.sendMessage(ColorUtils.translate("&cInvalid amount: " + args[4]));
                 return;
             }
 
@@ -171,8 +172,8 @@ public class AdminCommandHandler implements CommandHandler {
                 handleCoinCommand(player, target, action, amount);
             }
         } else {
-            player.sendMessage("§cUnknown admin category: " + category);
-            player.sendMessage("§cAvailable categories: level, coin, exp, stats, gui");
+            player.sendMessage(ColorUtils.translate("&cUnknown admin category: " + category));
+            player.sendMessage(ColorUtils.translate("&cAvailable categories: level, coin, exp, stats, gui"));
         }
     }
 
@@ -182,16 +183,16 @@ public class AdminCommandHandler implements CommandHandler {
         switch (action) {
             case "set":
                 playerLevel.setLevel(Math.max(1, amount));
-                player.sendMessage("§aSet " + target.getName() + "'s level to " + amount);
-                target.sendMessage("§eYour level has been set to " + amount + " by an admin!");
+                player.sendMessage(ColorUtils.translate("&aSet " + target.getName() + "'s level to " + amount));
+                target.sendMessage(ColorUtils.translate("&eYour level has been set to " + amount + " by an admin!"));
                 StatsDAO.savePlayerLevel(targetUuid);
                 break;
 
             case "add":
                 int newLevel = playerLevel.getLevel() + amount;
                 playerLevel.setLevel(newLevel);
-                player.sendMessage("§aAdded " + amount + " levels to " + target.getName() + " (now level " + newLevel + ")");
-                target.sendMessage("§eYou received " + amount + " levels from an admin! (now level " + newLevel + ")");
+                player.sendMessage(ColorUtils.translate("&aAdded " + amount + " levels to " + target.getName() + " (now level " + newLevel + ")"));
+                target.sendMessage(ColorUtils.translate("&eYou received " + amount + " levels from an admin! (now level " + newLevel + ")"));
                 StatsDAO.savePlayerLevel(targetUuid);
                 break;
 
@@ -199,14 +200,14 @@ public class AdminCommandHandler implements CommandHandler {
                 int currentLevel = playerLevel.getLevel();
                 int reducedLevel = Math.max(1, currentLevel - amount);
                 playerLevel.setLevel(reducedLevel);
-                player.sendMessage("§aRemoved " + (currentLevel - reducedLevel) + " levels from " + target.getName() + " (now level " + reducedLevel + ")");
-                target.sendMessage("§e" + (currentLevel - reducedLevel) + " levels were removed by an admin! (now level " + reducedLevel + ")");
+                player.sendMessage(ColorUtils.translate("&aRemoved " + (currentLevel - reducedLevel) + " levels from " + target.getName() + " (now level " + reducedLevel + ")"));
+                target.sendMessage(ColorUtils.translate("&e" + (currentLevel - reducedLevel) + " levels were removed by an admin! (now level " + reducedLevel + ")"));
                 StatsDAO.savePlayerLevel(targetUuid);
                 break;
 
             default:
-                player.sendMessage("§cUnknown action: " + action);
-                player.sendMessage("§cAvailable actions: set, add, remove");
+                player.sendMessage(ColorUtils.translate("&cUnknown action: " + action));
+                player.sendMessage(ColorUtils.translate("&cAvailable actions: set, add, remove"));
                 break;
         }
     }
@@ -217,36 +218,36 @@ public class AdminCommandHandler implements CommandHandler {
         switch (action) {
             case "set":
                 xpLevel.setXp(Math.max(0, amount));
-                player.sendMessage("§aSet " + target.getName() + "'s XP to " + amount);
-                target.sendMessage("§eYour XP has been set to " + amount + " by an admin!");
+                player.sendMessage(ColorUtils.translate("&aSet " + target.getName() + "'s XP to " + amount));
+                target.sendMessage(ColorUtils.translate("&eYour XP has been set to " + amount + " by an admin!"));
                 StatsDAO.savePlayerLevel(targetUuid);
                 break;
 
             case "add":
                 LevelManager.addXp(target, amount);
-                player.sendMessage("§aAdded " + amount + " XP to " + target.getName());
-                target.sendMessage("§eYou received " + amount + " XP from an admin!");
+                player.sendMessage(ColorUtils.translate("&aAdded " + amount + " XP to " + target.getName()));
+                target.sendMessage(ColorUtils.translate("&eYou received " + amount + " XP from an admin!"));
                 break;
 
             case "remove":
                 int currentXp = xpLevel.getCurrentXp();
                 int newXP = Math.max(0, currentXp - amount);
                 xpLevel.setXp(newXP);
-                player.sendMessage("§aRemoved " + (currentXp - newXP) + " XP from " + target.getName());
-                target.sendMessage("§e" + (currentXp - newXP) + " XP was removed by an admin!");
+                player.sendMessage(ColorUtils.translate("&aRemoved " + (currentXp - newXP) + " XP from " + target.getName()));
+                target.sendMessage(ColorUtils.translate("&e" + (currentXp - newXP) + " XP was removed by an admin!"));
                 StatsDAO.savePlayerLevel(targetUuid);
                 break;
 
             default:
-                player.sendMessage("§cUnknown action: " + action);
-                player.sendMessage("§cAvailable actions: set, add, remove");
+                player.sendMessage(ColorUtils.translate("&cUnknown action: " + action));
+                player.sendMessage(ColorUtils.translate("&cAvailable actions: set, add, remove"));
                 break;
         }
     }
 
     private void handleCoinCommand(Player player, Player target, String action, double amount) {
         if (!EconomyManager.getInstance().isEnabled()) {
-            player.sendMessage("§cEconomy is not enabled!");
+            player.sendMessage(ColorUtils.translate("&cEconomy is not enabled!"));
             return;
         }
 
@@ -260,29 +261,29 @@ public class AdminCommandHandler implements CommandHandler {
                 } else if (difference < 0) {
                     EconomyManager.getInstance().withdrawPlayer(target, -difference);
                 }
-                player.sendMessage("§aSet " + target.getName() + "'s coins to " + String.format("%.2f", amount));
-                target.sendMessage("§eYour coins have been set to " + String.format("%.2f", amount) + " by an admin!");
+                player.sendMessage(ColorUtils.translate("&aSet " + target.getName() + "'s coins to " + String.format("%.2f", amount)));
+                target.sendMessage(ColorUtils.translate("&eYour coins have been set to " + String.format("%.2f", amount) + " by an admin!"));
                 break;
 
             case "add":
                 EconomyManager.getInstance().awardPlayer(target, amount, "admin add");
-                player.sendMessage("§aAdded " + String.format("%.2f", amount) + " coins to " + target.getName());
-                target.sendMessage("§eYou received " + String.format("%.2f", amount) + " coins from an admin!");
+                player.sendMessage(ColorUtils.translate("&aAdded " + String.format("%.2f", amount) + " coins to " + target.getName()));
+                target.sendMessage(ColorUtils.translate("&eYou received " + String.format("%.2f", amount) + " coins from an admin!"));
                 break;
 
             case "remove":
                 boolean success = EconomyManager.getInstance().withdrawPlayer(target, amount);
                 if (success) {
-                    player.sendMessage("§aRemoved " + String.format("%.2f", amount) + " coins from " + target.getName());
-                    target.sendMessage("§e" + String.format("%.2f", amount) + " coins were removed by an admin!");
+                    player.sendMessage(ColorUtils.translate("&aRemoved " + String.format("%.2f", amount) + " coins from " + target.getName()));
+                    target.sendMessage(ColorUtils.translate("&e" + String.format("%.2f", amount) + " coins were removed by an admin!"));
                 } else {
-                    player.sendMessage("§c" + target.getName() + " doesn't have enough coins!");
+                    player.sendMessage(ColorUtils.translate("&c" + target.getName() + " doesn't have enough coins!"));
                 }
                 break;
 
             default:
-                player.sendMessage("§cUnknown action: " + action);
-                player.sendMessage("§cAvailable actions: set, add, remove");
+                player.sendMessage(ColorUtils.translate("&cUnknown action: " + action));
+                player.sendMessage(ColorUtils.translate("&cAvailable actions: set, add, remove"));
                 break;
         }
     }
@@ -290,12 +291,12 @@ public class AdminCommandHandler implements CommandHandler {
     private void handleAdminStatsResetCommand(Player player, String[] args) {
         if (!player.hasPermission("obsidianwars.command.admin")) {
             String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-            player.sendMessage(noPermMessage.replace("&", "§"));
+            player.sendMessage(ColorUtils.translate(noPermMessage));
             return;
         }
 
         if (args.length < 4) {
-            player.sendMessage("§cUsage: /o admin stats reset <player>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o admin stats reset <player>"));
             return;
         }
 
@@ -303,7 +304,7 @@ public class AdminCommandHandler implements CommandHandler {
         Player target = Bukkit.getPlayer(targetName);
 
         if (target == null) {
-            player.sendMessage("§cPlayer not found: " + targetName);
+            player.sendMessage(ColorUtils.translate("&cPlayer not found: " + targetName));
             return;
         }
 
@@ -312,24 +313,26 @@ public class AdminCommandHandler implements CommandHandler {
         if (stats != null) {
             stats.reset();
             az.nuran.obsidianwars.managers.StatsManager.savePlayerStats(target.getUniqueId(), target.getName());
-            player.sendMessage("§aStatistics reset for player " + targetName);
-            target.sendMessage("§cYour statistics have been reset by an admin.");
+            // Force reload from database to ensure in-memory stats match
+            az.nuran.obsidianwars.managers.StatsManager.reloadPlayerStatsSync(target.getUniqueId());
+            player.sendMessage(ColorUtils.translate("&aStatistics reset for player " + targetName));
+            target.sendMessage(ColorUtils.translate("&cYour statistics have been reset by an admin."));
         } else {
-            player.sendMessage("§cCould not find statistics for player " + targetName);
+            player.sendMessage(ColorUtils.translate("&cCould not find statistics for player " + targetName));
         }
     }
 
     private void handleReloadCommand(Player player, String[] args) {
         if (!player.hasPermission("obsidianwars.command.reload")) {
             String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-            player.sendMessage(noPermMessage.replace("&", "§"));
+            player.sendMessage(ColorUtils.translate(noPermMessage));
             return;
         }
 
         // Check if any arena is in an active game state
         if (hasActiveGames()) {
-            player.sendMessage("§cCannot reload configuration while games are in progress!");
-            player.sendMessage("§ePlease wait for all games to finish, or use /o forceend <arena> to end games manually.");
+            player.sendMessage(ColorUtils.translate("&cCannot reload configuration while games are in progress!"));
+            player.sendMessage(ColorUtils.translate("&ePlease wait for all games to finish, or use /o forceend <arena> to end games manually."));
             return;
         }
 
@@ -339,65 +342,66 @@ public class AdminCommandHandler implements CommandHandler {
             target = args[1].toLowerCase();
         }
 
-        player.sendMessage("§eReloading ObsidianWars configuration...");
+        player.sendMessage(ColorUtils.translate("&eReloading ObsidianWars configuration..."));
 
         if (target.equals("all") || target.equals("config")) {
             // Reload main config
             plugin.reloadConfig();
-            player.sendMessage("§aconfig.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&aconfig.yml reloaded"));
 
             // Reload messages config
             MessagesConfigManager.initialize();
-            player.sendMessage("§amessages.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&amessages.yml reloaded"));
 
             // Reload kill streaks config
             KillStreaksConfigManager.initialize();
-            player.sendMessage("§akill-streaks.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&akill-streaks.yml reloaded"));
 
             // Reload death messages config
             DeathMessagesConfigManager.initialize();
-            player.sendMessage("§adeath-messages.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&adeath-messages.yml reloaded"));
 
             // Reload resource blocks config
             ResourceBlocksConfigManager.initialize();
-            player.sendMessage("§aresource-blocks.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&aresource-blocks.yml reloaded"));
 
             // Reload scoreboards config
             ScoreboardsConfigManager.initialize();
-            player.sendMessage("§ascoreboards.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&ascoreboards.yml reloaded"));
 
             // Reload particles config
             ParticleManager.loadConfig();
-            player.sendMessage("§aparticles reloaded");
+            player.sendMessage(ColorUtils.translate("&aparticles reloaded"));
 
             // Reload economy config
             EconomyManager.getInstance().reload();
-            player.sendMessage("§aeconomy configuration reloaded");
+            player.sendMessage(ColorUtils.translate("&aeconomy configuration reloaded"));
 
             // Reload sudden death config
             SuddenDeathManager.getInstance().reload();
-            player.sendMessage("§asudden death configuration reloaded");
+            player.sendMessage(ColorUtils.translate("&asudden death configuration reloaded"));
 
             // Reload GameManager config (countdown, timers)
             GameManager.loadConfig();
-            player.sendMessage("§agame manager configuration reloaded");
+            player.sendMessage(ColorUtils.translate("&agame manager configuration reloaded"));
 
             // Reload performance thresholds (if any)
             PerformanceMonitor.getInstance().reset();
-            player.sendMessage("§aperformance metrics reset");
+            player.sendMessage(ColorUtils.translate("&aperformance metrics reset"));
         }
 
         if (target.equals("all") || target.equals("arenas")) {
             // Reload arena config
             ArenaConfigManager.initialize();
-            player.sendMessage("§aarenas.yml reloaded");
+            ArenaStateManager.initializeExistingArenas(); // Reinitialize arena states
+            player.sendMessage(ColorUtils.translate("&aarenas.yml reloaded"));
         }
 
         if (target.equals("all")) {
-            player.sendMessage("§a§lConfiguration reloaded successfully!");
-            player.sendMessage("§eNote: Some changes may require a server restart to take full effect.");
+            player.sendMessage(ColorUtils.translate("&a&lConfiguration reloaded successfully!"));
+            player.sendMessage(ColorUtils.translate("&eNote: Some changes may require a server restart to take full effect."));
         } else {
-            player.sendMessage("§a§l" + target + " reloaded successfully!");
+            player.sendMessage(ColorUtils.translate("&a&l" + target + " reloaded successfully!"));
         }
     }
 
@@ -405,13 +409,13 @@ public class AdminCommandHandler implements CommandHandler {
         // If no arguments, show current status and usage
         if (args.length == 1) {
             DebugManager.DebugMode currentMode = DebugManager.getDebugMode(player);
-            player.sendMessage("§6§l=== Debug Mode Status ===");
-            player.sendMessage("§eCurrent mode: §f" + currentMode);
-            player.sendMessage("§7Usage: /o debug <console|chat|both|off>");
-            player.sendMessage("§7  console - Log to server console only");
-            player.sendMessage("§7  chat - Log to your chat only");
-            player.sendMessage("§7  both - Log to both console and chat");
-            player.sendMessage("§7  off - Disable debug logging");
+            player.sendMessage(ColorUtils.translate("&6&l=== Debug Mode Status ==="));
+            player.sendMessage(ColorUtils.translate("&eCurrent mode: &f" + currentMode));
+            player.sendMessage(ColorUtils.translate("&7Usage: /o debug <console|chat|both|off>"));
+            player.sendMessage(ColorUtils.translate("&7  console - Log to server console only"));
+            player.sendMessage(ColorUtils.translate("&7  chat - Log to your chat only"));
+            player.sendMessage(ColorUtils.translate("&7  both - Log to both console and chat"));
+            player.sendMessage(ColorUtils.translate("&7  off - Disable debug logging"));
             return;
         }
 
@@ -425,7 +429,7 @@ public class AdminCommandHandler implements CommandHandler {
                 boolean newConsoleState = !currentConsoleState;
                 DebugManager.setConsoleDebugEnabled(newConsoleState);
                 DebugManager.setDebugMode(player, newConsoleState ? DebugManager.DebugMode.CONSOLE : DebugManager.DebugMode.OFF);
-                player.sendMessage("§aConsole debug mode: §f" + (newConsoleState ? "ENABLED" : "DISABLED"));
+                player.sendMessage(ColorUtils.translate("&aConsole debug mode: &f" + (newConsoleState ? "ENABLED" : "DISABLED")));
                 return;
             case "chat":
                 // Toggle chat debug mode
@@ -433,7 +437,7 @@ public class AdminCommandHandler implements CommandHandler {
                 boolean newChatState = !currentChatState;
                 DebugManager.setChatDebugEnabled(newChatState);
                 DebugManager.setDebugMode(player, newChatState ? DebugManager.DebugMode.CHAT : DebugManager.DebugMode.OFF);
-                player.sendMessage("§aChat debug mode: §f" + (newChatState ? "ENABLED" : "DISABLED"));
+                player.sendMessage(ColorUtils.translate("&aChat debug mode: &f" + (newChatState ? "ENABLED" : "DISABLED")));
                 return;
             case "both":
                 newMode = DebugManager.DebugMode.BOTH;
@@ -447,23 +451,23 @@ public class AdminCommandHandler implements CommandHandler {
                 DebugManager.setChatDebugEnabled(false);
                 break;
             default:
-                player.sendMessage("§cInvalid debug mode. Use: console, chat, both, or off");
+                player.sendMessage(ColorUtils.translate("&cInvalid debug mode. Use: console, chat, both, or off"));
                 return;
         }
 
         DebugManager.setDebugMode(player, newMode);
-        player.sendMessage("§aDebug mode set to: §f" + newMode);
+        player.sendMessage(ColorUtils.translate("&aDebug mode set to: &f" + newMode));
 
         if (newMode != DebugManager.DebugMode.OFF) {
-            player.sendMessage("§eDebug logging is now enabled. You will see detailed game events.");
+            player.sendMessage(ColorUtils.translate("&eDebug logging is now enabled. You will see detailed game events."));
         } else {
-            player.sendMessage("§eDebug logging disabled.");
+            player.sendMessage(ColorUtils.translate("&eDebug logging disabled."));
         }
     }
 
     private void handleDisableArenaCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o disableArena <arenaName>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o disableArena <arenaName>"));
             return;
         }
         String arenaName = args[1];
@@ -474,12 +478,12 @@ public class AdminCommandHandler implements CommandHandler {
         }
 
         ArenaConfigManager.setArenaStatus(arenaName, "DISABLED");
-        player.sendMessage("§aArena " + arenaName + " has been disabled.");
+        player.sendMessage(ColorUtils.translate("&aArena " + arenaName + " has been disabled."));
     }
 
     private void handleEnableArenaCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o enableArena <arenaName>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o enableArena <arenaName>"));
             return;
         }
         String arenaName = args[1];
@@ -539,9 +543,9 @@ public class AdminCommandHandler implements CommandHandler {
 
         // If requirements are missing, block activation
         if (!missingRequirements.isEmpty()) {
-            player.sendMessage("§cArena cannot be enabled. Missing requirements:");
+            player.sendMessage(ColorUtils.translate("&cArena cannot be enabled. Missing requirements:"));
             for (String req : missingRequirements) {
-                player.sendMessage("§c- " + req);
+                player.sendMessage(ColorUtils.translate("&c- " + req));
             }
             // Play error sound
             org.bukkit.Sound errorSound = Obsidianwars.parseSound("ENTITY_VILLAGER_NO");
@@ -555,7 +559,7 @@ public class AdminCommandHandler implements CommandHandler {
         }
 
         ArenaConfigManager.setArenaStatus(arenaName, "READY");
-        player.sendMessage("§aArena " + arenaName + " has been enabled.");
+        player.sendMessage(ColorUtils.translate("&aArena " + arenaName + " has been enabled."));
     }
 
     private void handleAdminLanguageCommand(Player player, String[] args) {
@@ -564,7 +568,7 @@ public class AdminCommandHandler implements CommandHandler {
         // Validate language exists
         if (!LanguageManager.getInstance().isLanguageAvailable(langCode)) {
             String available = LanguageManager.getInstance().getAvailableLanguagesString();
-            player.sendMessage("§cLanguage '" + langCode + "' not found! Available: " + available);
+            player.sendMessage(ColorUtils.translate("&cLanguage '" + langCode + "' not found! Available: " + available));
             return;
         }
 
@@ -572,7 +576,7 @@ public class AdminCommandHandler implements CommandHandler {
         LanguageManager.getInstance().setGlobalLanguage(langCode);
 
         // Send confirmation
-        player.sendMessage("§aGlobal language set to " + langCode + "!");
+        player.sendMessage(ColorUtils.translate("&aGlobal language set to " + langCode + "!"));
         plugin.getLogger().info("Global language set to " + langCode + " by " + player.getName());
     }
 

@@ -49,7 +49,7 @@ public class LevelManager {
      */
     public static String getFormattedLevel(UUID uuid) {
         PlayerLevel playerLevel = playerLevels.get(uuid);
-        return playerLevel != null ? playerLevel.getLevelName() : "§7[1★]";
+        return playerLevel != null ? playerLevel.getLevelName() : "&7[1★]";
     }
 
     /**
@@ -109,7 +109,7 @@ public class LevelManager {
      */
     public static String getProgressBar(UUID uuid) {
         PlayerLevel playerLevel = playerLevels.get(uuid);
-        return playerLevel != null ? playerLevel.getProgressBar() : "§8[§7■■■■■■■■■■§8]";
+        return playerLevel != null ? playerLevel.getProgressBar() : "&8[&7■■■■■■■■■■&8]";
     }
 
     /**

@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.services;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.managers.GameManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -52,7 +54,7 @@ public class ArenaUtils {
      * @param message The message to send
      */
     public static void broadcastToArena(String arenaName, String message) {
-        forEachArenaPlayer(arenaName, player -> player.sendMessage(message));
+        forEachArenaPlayer(arenaName, player -> player.sendMessage(ColorUtils.translate(message)));
     }
 
     /**
@@ -62,6 +64,6 @@ public class ArenaUtils {
      * @param message The message to send
      */
     public static void broadcastToArenaSender(String arenaName, String message) {
-        forEachArenaPlayer(arenaName, sender -> sender.sendMessage(message));
+        forEachArenaPlayer(arenaName, sender -> sender.sendMessage(ColorUtils.translate(message)));
     }
 }

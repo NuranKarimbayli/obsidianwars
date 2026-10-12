@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.services;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
@@ -30,7 +32,7 @@ public class GameFeedbackService {
             if (playerArena != null && playerArena.equals(arenaName)) {
                 Player arenaPlayer = Bukkit.getPlayer(uuid);
                 if (arenaPlayer != null) {
-                    arenaPlayer.sendMessage(message);
+                    arenaPlayer.sendMessage(ColorUtils.translate(message));
                 }
             }
         }
@@ -63,7 +65,7 @@ public class GameFeedbackService {
             if (playerArena != null && playerArena.equals(arenaName)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
-                    player.sendTitle(title, subtitle, fadeIn, stay, fadeOut);
+                    player.sendTitle(ColorUtils.translate(title), ColorUtils.translate(subtitle), fadeIn, stay, fadeOut);
                 }
             }
         }
@@ -131,7 +133,7 @@ public class GameFeedbackService {
             // Get victory title from messages config
             String victoryTitle = MessagesConfigManager.getMessage("victory_title", "teamColor", teamColor, "teamName", teamName);
             if (victoryTitle == null) {
-                victoryTitle = "§a§lVICTORY!";
+                victoryTitle = "&a&lVICTORY!";
             }
 
             for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
@@ -140,7 +142,7 @@ public class GameFeedbackService {
                     Player player = Bukkit.getPlayer(uuid);
                     if (player != null) {
                         player.playSound(player.getLocation(), victorySound, 1.0f, 1.0f);
-                        player.sendTitle(victoryTitle, teamColor + teamName + " Team won!", fadeIn, stay, fadeOut);
+                        player.sendTitle(ColorUtils.translate(victoryTitle), ColorUtils.translate(teamColor + teamName + " Team won!"), fadeIn, stay, fadeOut);
                     }
                 }
             }
@@ -171,10 +173,10 @@ public class GameFeedbackService {
 
                     if (playerTeam != null && playerTeam.equals(attackerTeam)) {
                         // Attacker team gets GREEN title
-                        arenaPlayer.sendTitle("§a§lOBSIDIAN DESTROYED!", "§e" + teamName + " obsidian destroyed!", fadeIn, stay, fadeOut);
+                        arenaPlayer.sendTitle(ColorUtils.translate("&a&lOBSIDIAN DESTROYED!"), ColorUtils.translate("&e" + teamName + " obsidian destroyed!"), fadeIn, stay, fadeOut);
                     } else {
                         // Victim team gets RED title
-                        arenaPlayer.sendTitle("§c§lOBSIDIAN DESTROYED!", "§4" + teamName + " obsidian destroyed!", fadeIn, stay, fadeOut);
+                        arenaPlayer.sendTitle(ColorUtils.translate("&c&lOBSIDIAN DESTROYED!"), ColorUtils.translate("&4" + teamName + " obsidian destroyed!"), fadeIn, stay, fadeOut);
                     }
                 }
             }
@@ -222,7 +224,7 @@ public class GameFeedbackService {
     public static void sendWelcomeMessage(Player player) {
         List<String> welcomeLines = MessagesConfigManager.getMessagesConfig().getStringList("messages.welcome_message");
         for (String line : welcomeLines) {
-            player.sendMessage(line);
+            player.sendMessage(ColorUtils.translate(line));
         }
     }
 
@@ -232,7 +234,7 @@ public class GameFeedbackService {
     public static void sendRulesAnnouncement(Player player) {
         List<String> rulesLines = MessagesConfigManager.getMessagesConfig().getStringList("messages.rules_announcement");
         for (String line : rulesLines) {
-            player.sendMessage(line);
+            player.sendMessage(ColorUtils.translate(line));
         }
     }
 
@@ -244,19 +246,19 @@ public class GameFeedbackService {
         // Broadcast winner
         String teamName = TeamConfig.getTeamName(winningTeam);
         String teamColor = TeamConfig.getTeamColor(winningTeam);
-        broadcastToArena(arenaName, "§6§l=== MATCH SUMMARY ===");
-        broadcastToArena(arenaName, teamColor + "§lWinner: " + teamName + " Team");
+        broadcastToArena(arenaName, "&6&l=== MATCH SUMMARY ===");
+        broadcastToArena(arenaName, teamColor + "&lWinner: " + teamName + " Team");
 
         // Broadcast MVP
         if (mvpUuid != null) {
             Player mvpPlayer = Bukkit.getPlayer(mvpUuid);
             if (mvpPlayer != null) {
-                broadcastToArena(arenaName, "§e§lMVP: §f" + mvpPlayer.getName() + " §ewith §e" + mvpKills + " §eKills");
+                broadcastToArena(arenaName, "&e&lMVP: &f" + mvpPlayer.getName() + " &ewith &e" + mvpKills + " &eKills");
             }
         }
 
         // Broadcast individual stats
-        broadcastToArena(arenaName, "§7--------------------");
+        broadcastToArena(arenaName, "&7--------------------");
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
             String playerArena = ObsidianCommand.playersInArena.get(uuid);
             if (playerArena != null && playerArena.equals(arenaName)) {
@@ -266,11 +268,11 @@ public class GameFeedbackService {
                     int deaths = az.nuran.obsidianwars.managers.StatsManager.getDeaths(uuid);
                     String playerTeam = az.nuran.obsidianwars.handlers.TeamListener.playerTeams.get(uuid);
                     // Safe null-check for playerTeam (spectators or players with cleared team)
-                    String teamPrefix = (playerTeam != null && playerTeam.equals("red")) ? "§c" : "§9";
-                    player.sendMessage(teamPrefix + player.getName() + " §7- §eKills: " + kills + " §7| §cDeaths: " + deaths);
+                    String teamPrefix = (playerTeam != null && playerTeam.equals("red")) ? "&c" : "&9";
+                    player.sendMessage(ColorUtils.translate(teamPrefix + player.getName() + " &7- &eKills: " + kills + " &7| &cDeaths: " + deaths));
                 }
             }
         }
-        broadcastToArena(arenaName, "§7--------------------");
+        broadcastToArena(arenaName, "&7--------------------");
     }
 }

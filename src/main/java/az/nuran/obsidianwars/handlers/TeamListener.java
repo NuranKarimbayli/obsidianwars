@@ -1,11 +1,12 @@
 package az.nuran.obsidianwars.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.GameManager;
 import az.nuran.obsidianwars.managers.TeamManager;
 import az.nuran.obsidianwars.services.ArmorUtils;
 
-import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -33,7 +34,7 @@ public class TeamListener implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         // Only for team selection menu
-        if (event.getView().getTitle().equals("§6Team Selection")) {
+        if (ColorUtils.matches(event.getView().getTitle(), "&6Team Selection")) {
             event.setCancelled(true); // We prohibit taking items
 
             if (event.getWhoClicked() instanceof Player) {
@@ -49,7 +50,7 @@ public class TeamListener implements Listener {
                 // STRICT RULE: Lock team switching when countdown <= 5 seconds
                 int countdown = GameManager.getCountdown(arenaName);
                 if (countdown > 0 && countdown <= 5) {
-                    player.sendMessage("§cTeam switching is prohibited in the last 5 seconds!");
+                    player.sendMessage(ColorUtils.translate("&cTeam switching is prohibited in the last 5 seconds!"));
                     player.closeInventory();
                     return;
                 }
@@ -64,28 +65,28 @@ public class TeamListener implements Listener {
                 String currentTeam = playerTeams.get(player.getUniqueId());
 
                 // Red Team selection
-                if (itemName.equals("§cRed Team")) {
+                if (ColorUtils.matches(itemName, "&cRed Team")) {
                     if (currentTeam != null && currentTeam.equals("red")) {
-                        player.sendMessage("§cYou are already in Red Team!");
+                        player.sendMessage(ColorUtils.translate("&cYou are already in Red Team!"));
                         player.closeInventory();
                         return;
                     }
 
                     // STRICT RULE: Check if switching would create imbalance
                     if (!TeamManager.canSwitchTeam(arenaName, currentTeam, "red")) {
-                        player.sendMessage("§cSwitching to this team would disrupt team balance!");
+                        player.sendMessage(ColorUtils.translate("&cSwitching to this team would disrupt team balance!"));
                         player.closeInventory();
                         return;
                     }
 
                     // If player was in another team, we remove them from there
                     if (currentTeam != null && currentTeam.equals("blue")) {
-                        player.sendMessage("§eYou have been removed from Blue Team.");
+                        player.sendMessage(ColorUtils.translate("&eYou have been removed from Blue Team."));
                     }
 
                     // Use TeamManager to set team
                     TeamManager.setPlayerTeam(player, arenaName, "red");
-                    player.sendMessage("§aYou have joined §cRed Team§a!");
+                    player.sendMessage(ColorUtils.translate("&aYou have joined &cRed Team&a!"));
                     player.closeInventory();
 
                     // We check game start condition
@@ -93,28 +94,28 @@ public class TeamListener implements Listener {
                 }
 
                 // Blue Team selection
-                if (itemName.equals("§9Blue Team")) {
+                if (ColorUtils.matches(itemName, "&9Blue Team")) {
                     if (currentTeam != null && currentTeam.equals("blue")) {
-                        player.sendMessage("§cYou are already in Blue Team!");
+                        player.sendMessage(ColorUtils.translate("&cYou are already in Blue Team!"));
                         player.closeInventory();
                         return;
                     }
 
                     // STRICT RULE: Check if switching would create imbalance
                     if (!TeamManager.canSwitchTeam(arenaName, currentTeam, "blue")) {
-                        player.sendMessage("§cSwitching to this team would disrupt team balance!");
+                        player.sendMessage(ColorUtils.translate("&cSwitching to this team would disrupt team balance!"));
                         player.closeInventory();
                         return;
                     }
 
                     // If player was in another team, we remove them from there
                     if (currentTeam != null && currentTeam.equals("red")) {
-                        player.sendMessage("§eYou have been removed from Red Team.");
+                        player.sendMessage(ColorUtils.translate("&eYou have been removed from Red Team."));
                     }
 
                     // Use TeamManager to set team
                     TeamManager.setPlayerTeam(player, arenaName, "blue");
-                    player.sendMessage("§aYou have joined §9Blue Team§a!");
+                    player.sendMessage(ColorUtils.translate("&aYou have joined &9Blue Team&a!"));
                     player.closeInventory();
 
                     // We check game start condition
@@ -131,7 +132,7 @@ public class TeamListener implements Listener {
     public static void applyTeamColor(Player player, String team, boolean equipArmor) {
         if (team.equals("red")) {
             // Name color - Red
-            String coloredName = ChatColor.RED + player.getName();
+            String coloredName = ColorUtils.translate("&c" + player.getName());
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 
@@ -141,7 +142,7 @@ public class TeamListener implements Listener {
             }
         } else if (team.equals("blue")) {
             // Name color - Blue
-            String coloredName = ChatColor.BLUE + player.getName();
+            String coloredName = ColorUtils.translate("&9" + player.getName());
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 

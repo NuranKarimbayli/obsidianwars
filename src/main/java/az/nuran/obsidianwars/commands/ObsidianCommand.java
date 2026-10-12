@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.commands;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.handlers.AdminCommandHandler;
 import az.nuran.obsidianwars.commands.handlers.ArenaSetupCommandHandler;
@@ -21,6 +23,7 @@ import az.nuran.obsidianwars.managers.ArenaStateManager;
 import az.nuran.obsidianwars.managers.EconomyManager;
 import az.nuran.obsidianwars.managers.GameManager;
 import az.nuran.obsidianwars.managers.KillStreaksConfigManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 import az.nuran.obsidianwars.managers.LevelManager;
 import az.nuran.obsidianwars.managers.LobbyScoreboardManager;
 import az.nuran.obsidianwars.managers.MessagesConfigManager;
@@ -148,14 +151,14 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-        player.sendMessage(noPermMessage.replace("&", "§"));
+        player.sendMessage(ColorUtils.translate(noPermMessage));
         return false;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(getMessage("player_only"));
+            sender.sendMessage(ColorUtils.translate(getMessage("player_only")));
             return true;
         }
 
@@ -260,7 +263,7 @@ public class ObsidianCommand implements CommandExecutor {
                 return true;
             }
             if (args.length < 2) {
-                player.sendMessage(getMessage("usage_arena"));
+                player.sendMessage(ColorUtils.translate(getMessage("usage_arena")));
                 return true;
             }
             // Delegate to ArenaSetupCommandHandler
@@ -349,7 +352,7 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         // ==================== UNKNOWN COMMAND ====================
-        player.sendMessage(getMessage("unknown_command"));
+        player.sendMessage(ColorUtils.translate(getMessage("unknown_command")));
         return true;
     }
 
@@ -371,7 +374,7 @@ public class ObsidianCommand implements CommandExecutor {
             if (currentGame != null && (currentGame.getGameState() == ArenaStateManager.ArenaState.PLAYING ||
                                         currentGame.getGameState() == ArenaStateManager.ArenaState.PREPARATION ||
                                         currentGame.getGameState() == ArenaStateManager.ArenaState.STARTING)) {
-                player.sendMessage(MessagesConfigManager.getMessage("cannot_join_active_game"));
+                player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("cannot_join_active_game")));
                 return;
             }
         }
@@ -383,13 +386,13 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (lobbyLocation == null) {
-            player.sendMessage(MessagesConfigManager.getMessage("missing_lobby"));
+            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("missing_lobby")));
             return;
         }
 
         World world = lobbyLocation.getWorld();
         if (world == null) {
-            player.sendMessage(MessagesConfigManager.getMessage("world_not_found", "worldName", "Unknown"));
+            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("world_not_found", "worldName", "Unknown")));
             return;
         }
 
@@ -397,7 +400,7 @@ public class ObsidianCommand implements CommandExecutor {
         int currentPlayers = getArenaPlayerCount(arenaName);
         int maxPlayers = ArenaConfigManager.getMaxPlayers(arenaName);
         if (currentPlayers >= maxPlayers) {
-            player.sendMessage(MessagesConfigManager.getMessage("arena_full", "current", String.valueOf(currentPlayers), "max", String.valueOf(maxPlayers)));
+            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_full", "current", String.valueOf(currentPlayers), "max", String.valueOf(maxPlayers))));
             return;
         }
 
@@ -410,11 +413,17 @@ public class ObsidianCommand implements CommandExecutor {
         playersInArena.put(player.getUniqueId(), arenaName);
         GameManager.addPlayerToArena(player.getUniqueId(), arenaName);
 
+        // Set arena state to WAITING when first player joins
+        ArenaStateManager.ArenaState currentState = ArenaStateManager.getInstance().getState(arenaName);
+        if (currentState == null || currentState == ArenaStateManager.ArenaState.READY) {
+            ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.WAITING);
+        }
+
         // IMMEDIATE AUTO-ASSIGNMENT: Assign to balanced team right away
         String assignedTeam = TeamManager.autoAssignTeam(player, arenaName);
         String teamName = TeamConfig.getTeamName(assignedTeam);
         String teamColor = TeamConfig.getTeamColor(assignedTeam);
-        player.sendMessage(MessagesConfigManager.getMessage("auto_team", "teamColor", teamColor, "teamName", teamName));
+        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("auto_team", "teamColor", teamColor, "teamName", teamName)));
 
         // Invalidate team health cache for this arena
         ScoreboardManager.invalidateTeamHealthCache(arenaName);
@@ -431,7 +440,7 @@ public class ObsidianCommand implements CommandExecutor {
         // Broadcast message
         broadcastToArena(arenaName, MessagesConfigManager.getMessage("player_joined", "player", player.getName(), "current", String.valueOf(getArenaPlayerCount(arenaName)), "max", String.valueOf(getMaxPlayers(arenaName))));
 
-        player.sendMessage(MessagesConfigManager.getMessage("join_lobby", "arenaName", arenaName));
+        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("join_lobby", "arenaName", arenaName)));
 
         // Play join sound
         String sound = MessagesConfigManager.getSound("join_lobby");
@@ -459,7 +468,7 @@ public class ObsidianCommand implements CommandExecutor {
         List<String> arenaNames = ArenaConfigManager.getArenaNames();
 
         if (arenaNames.isEmpty()) {
-            player.sendMessage(getMessage("arena_no_arenas"));
+            player.sendMessage(ColorUtils.translate(getMessage("arena_no_arenas")));
             return;
         }
 
@@ -469,20 +478,20 @@ public class ObsidianCommand implements CommandExecutor {
         if (args.length > 1) {
             arenaName = args[1];
             if (!ArenaConfigManager.arenaExists(arenaName)) {
-                player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+                player.sendMessage(ColorUtils.translate(getMessage("arena_not_found", "arenaName", arenaName)));
                 return;
             }
             String status = ArenaConfigManager.getArenaStatus(arenaName);
             if ("DISABLED".equals(status)) {
-                player.sendMessage("§cThis arena is currently disabled.");
+                player.sendMessage(ColorUtils.translate("&cThis arena is currently disabled."));
                 return;
             }
             if (!"READY".equals(status) && !"WAITING".equals(status)) {
-                player.sendMessage("§cThis arena is not available (status: " + status + ")");
+                player.sendMessage(ColorUtils.translate("&cThis arena is not available (status: " + status + ")"));
                 return;
             }
             if ("STARTING".equals(status)) {
-                player.sendMessage("§cThis arena is currently starting. Please wait for it to finish.");
+                player.sendMessage(ColorUtils.translate("&cThis arena is currently starting. Please wait for it to finish."));
                 return;
             }
         } else {
@@ -497,7 +506,7 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (arenaName == null) {
-            player.sendMessage(getMessage("arena_not_ready"));
+            player.sendMessage(ColorUtils.translate(getMessage("arena_not_ready")));
             return;
         }
 
@@ -507,13 +516,13 @@ public class ObsidianCommand implements CommandExecutor {
 
     private void handleLeaveCommand(Player player) {
         if (!playersInArena.containsKey(player.getUniqueId())) {
-            player.sendMessage(getMessage("not_in_arena"));
+            player.sendMessage(ColorUtils.translate(getMessage("not_in_arena")));
             return;
         }
 
         String arenaName = playersInArena.get(player.getUniqueId());
         if (arenaName == null) {
-            player.sendMessage(getMessage("not_in_arena"));
+            player.sendMessage(ColorUtils.translate(getMessage("not_in_arena")));
             return;
         }
 
@@ -531,6 +540,11 @@ public class ObsidianCommand implements CommandExecutor {
         TeamManager.removePlayerFromTeam(player);
         ParticleManager.removeSpawnProtection(player);
 
+        // Check if arena is now empty and reset state to READY
+        if (getArenaPlayerCount(arenaName) == 0) {
+            ArenaStateManager.getInstance().setState(arenaName, ArenaStateManager.ArenaState.READY);
+        }
+
         // Invalidate team health cache for this arena
         ScoreboardManager.invalidateTeamHealthCache(arenaName);
 
@@ -544,7 +558,7 @@ public class ObsidianCommand implements CommandExecutor {
         // Broadcast message
         broadcastToArena(arenaName, getMessage("player_left", "player", player.getName()));
 
-        player.sendMessage(getMessage("game_ended"));
+        player.sendMessage(ColorUtils.translate(getMessage("game_ended")));
 
         // Update lobby scoreboard after leaving arena
         LobbyScoreboardManager.updateLobbyScoreboard(player);
@@ -574,11 +588,11 @@ public class ObsidianCommand implements CommandExecutor {
 
             if (restored) {
                 String arenaName = GameManager.getDisconnectedPlayerArena(player.getUniqueId());
-                String rejoinMessage = "§aYou have reconnected to the arena!";
-                player.sendMessage(rejoinMessage);
+                String rejoinMessage = "&aYou have reconnected to the arena!";
+                player.sendMessage(ColorUtils.translate(rejoinMessage));
 
                 // Broadcast to arena
-                String broadcastMessage = "§a" + player.getName() + " has reconnected!";
+                String broadcastMessage = "&a" + player.getName() + " has reconnected!";
                 ObsidianCommand.broadcastToArena(arenaName, broadcastMessage);
 
                 // Play rejoin sound
@@ -588,10 +602,10 @@ public class ObsidianCommand implements CommandExecutor {
                     player.playSound(player.getLocation(), rejoinSound, 1.0f, 1.0f);
                 }
             } else {
-                player.sendMessage("§cCould not restore your game session. It may have expired.");
+                player.sendMessage(ColorUtils.translate("&cCould not restore your game session. It may have expired."));
             }
         } else {
-            player.sendMessage("§cNo active game session found to rejoin.");
+            player.sendMessage(ColorUtils.translate("&cNo active game session found to rejoin."));
         }
     }
 
@@ -601,7 +615,7 @@ public class ObsidianCommand implements CommandExecutor {
         if (args.length > 0) {
             target = Bukkit.getPlayer(args[0]);
             if (target == null) {
-                player.sendMessage("§cPlayer not found: " + args[0]);
+                player.sendMessage(ColorUtils.translate("&cPlayer not found: " + args[0]));
                 return;
             }
         }
@@ -616,106 +630,106 @@ public class ObsidianCommand implements CommandExecutor {
 
     private void handleAdminGUICommand(Player player) {
         if (!player.hasPermission("obsidianwars.admin")) {
-            player.sendMessage("§cYou don't have permission to use admin GUI.");
+            player.sendMessage(ColorUtils.translate("&cYou don't have permission to use admin GUI."));
             return;
         }
         openArenaSelectorGUI(player, true);
     }
 
     private void handleCmdsCommand(Player player) {
-        player.sendMessage("§6§l=== ObsidianWars Commands ===");
-        player.sendMessage("§ePlayer Commands:");
-        player.sendMessage("  §a/o play [arena] §7- Join an arena (or random)");
-        player.sendMessage("  §a/o join [arena] §7- Alias for play");
-        player.sendMessage("  §a/o queue [arena] §7- Join queue for arena (or auto-assign)");
-        player.sendMessage("  §a/o leave §7- Leave current arena");
-        player.sendMessage("  §a/o rejoin §7- Rejoin after disconnect");
-        player.sendMessage("  §a/o stats [player] §7- View player statistics");
-        player.sendMessage("  §a/o gui §7- Open arena selector GUI");
-        player.sendMessage("  §a/o team §7- Open team selection GUI");
-        player.sendMessage("§eAdmin Commands:");
-        player.sendMessage("  §a/o reload [all|config|arenas] §7- Reload plugin configurations");
-        player.sendMessage("  §a/o arena teleport <arena> §7- Teleport to arena spectator spawn");
-        player.sendMessage("  §a/o admin level <set|add|remove> <player> <amount> §7- Manage player levels");
-        player.sendMessage("  §a/o admin coin <set|add|remove> <player> <amount> §7- Manage player coins");
-        player.sendMessage("  §a/o admin exp <set|add|remove> <player> <amount> §7- Manage player XP");
-        player.sendMessage("  §a/o admin stats reset <player> §7- Reset player statistics");
-        player.sendMessage("  §a/o admin gui §7- Open admin arena selector (all statuses)");
-        player.sendMessage("  §a/o create arena <name> <min> <max> §7- Create arena");
-        player.sendMessage("  §a/o delete arena <name> §7- Delete arena");
-        player.sendMessage("  §a/o disableArena <arena> §7- Disable arena");
-        player.sendMessage("  §a/o enableArena <arena> §7- Enable arena");
-        player.sendMessage("  §a/o force start arena <arena> §7- Force start game");
-        player.sendMessage("  §a/o force end arena <arena> §7- Force end game");
-        player.sendMessage("  §a/o force end preperation <arena> §7- Skip preparation phase");
-        player.sendMessage("  §a/o forcestart <arena> §7- Force start game (legacy)");
-        player.sendMessage("  §a/o forceend <arena> §7- Force end game (legacy)");
-        player.sendMessage("  §a/o forceprep <arena> §7- Skip preparation phase (legacy)");
-        player.sendMessage("  §a/o arena setlobby <arena> §7- Set main lobby");
-        player.sendMessage("  §a/o arena setwaitingspawn <arena> §7- Set waiting lobby");
-        player.sendMessage("  §a/o arena setwaitingregion <arena> §7- Set waiting boundary");
-        player.sendMessage("  §a/o arena setspawn <arena> <red|blue> §7- Set team spawn");
-        player.sendMessage("  §a/o arena setobsidian <arena> <red|blue> §7- Set obsidian");
-        player.sendMessage("  §a/o arena setblocks <arena> §7- Setup resource blocks");
-        player.sendMessage("  §a/o arena setwall <arena> <red|blue> §7- Set defense wall");
-        player.sendMessage("  §a/o arena settimer <arena> <time> §7- Set prep time");
-        player.sendMessage("  §a/o arena setplayers <arena> <min> <max> §7- Set player limits");
-        player.sendMessage("  §a/o arena finish <arena> §7- Finish arena setup");
-        player.sendMessage("  §a/o arena setspectspawn <arena> §7- Set spectator spawn");
-        player.sendMessage("  §a/o wand §7- Get arena setup wand");
-        player.sendMessage("  §a/o arenalist §7- List all arenas");
-        player.sendMessage("  §a/o debug <console|chat|both|off> §7- Toggle debug logging");
-        player.sendMessage("  §a/o cmds §7- Show this command list");
+        player.sendMessage(ColorUtils.translate("&6&l=== ObsidianWars Commands ==="));
+        player.sendMessage(ColorUtils.translate("&ePlayer Commands:"));
+        player.sendMessage(ColorUtils.translate("  &a/o play [arena] &7- Join an arena (or random)"));
+        player.sendMessage(ColorUtils.translate("  &a/o join [arena] &7- Alias for play"));
+        player.sendMessage(ColorUtils.translate("  &a/o queue [arena] &7- Join queue for arena (or auto-assign)"));
+        player.sendMessage(ColorUtils.translate("  &a/o leave &7- Leave current arena"));
+        player.sendMessage(ColorUtils.translate("  &a/o rejoin &7- Rejoin after disconnect"));
+        player.sendMessage(ColorUtils.translate("  &a/o stats [player] &7- View player statistics"));
+        player.sendMessage(ColorUtils.translate("  &a/o gui &7- Open arena selector GUI"));
+        player.sendMessage(ColorUtils.translate("  &a/o team &7- Open team selection GUI"));
+        player.sendMessage(ColorUtils.translate("&eAdmin Commands:"));
+        player.sendMessage(ColorUtils.translate("  &a/o reload [all|config|arenas] &7- Reload plugin configurations"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena teleport <arena> &7- Teleport to arena spectator spawn"));
+        player.sendMessage(ColorUtils.translate("  &a/o admin level <set|add|remove> <player> <amount> &7- Manage player levels"));
+        player.sendMessage(ColorUtils.translate("  &a/o admin coin <set|add|remove> <player> <amount> &7- Manage player coins"));
+        player.sendMessage(ColorUtils.translate("  &a/o admin exp <set|add|remove> <player> <amount> &7- Manage player XP"));
+        player.sendMessage(ColorUtils.translate("  &a/o admin stats reset <player> &7- Reset player statistics"));
+        player.sendMessage(ColorUtils.translate("  &a/o admin gui &7- Open admin arena selector (all statuses)"));
+        player.sendMessage(ColorUtils.translate("  &a/o create arena <name> <min> <max> &7- Create arena"));
+        player.sendMessage(ColorUtils.translate("  &a/o delete arena <name> &7- Delete arena"));
+        player.sendMessage(ColorUtils.translate("  &a/o disableArena <arena> &7- Disable arena"));
+        player.sendMessage(ColorUtils.translate("  &a/o enableArena <arena> &7- Enable arena"));
+        player.sendMessage(ColorUtils.translate("  &a/o force start arena <arena> &7- Force start game"));
+        player.sendMessage(ColorUtils.translate("  &a/o force end arena <arena> &7- Force end game"));
+        player.sendMessage(ColorUtils.translate("  &a/o force end preperation <arena> &7- Skip preparation phase"));
+        player.sendMessage(ColorUtils.translate("  &a/o forcestart <arena> &7- Force start game (legacy)"));
+        player.sendMessage(ColorUtils.translate("  &a/o forceend <arena> &7- Force end game (legacy)"));
+        player.sendMessage(ColorUtils.translate("  &a/o forceprep <arena> &7- Skip preparation phase (legacy)"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena setlobby <arena> &7- Set main lobby"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena setwaitingspawn <arena> &7- Set waiting lobby"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena setwaitingregion <arena> &7- Set waiting boundary"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena setspawn <arena> <red|blue> &7- Set team spawn"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena setobsidian <arena> <red|blue> &7- Set obsidian"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena setblocks <arena> &7- Setup resource blocks"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena setwall <arena> <red|blue> &7- Set defense wall"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena settimer <arena> <time> &7- Set prep time"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena setplayers <arena> <min> <max> &7- Set player limits"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena finish <arena> &7- Finish arena setup"));
+        player.sendMessage(ColorUtils.translate("  &a/o arena setspectspawn <arena> &7- Set spectator spawn"));
+        player.sendMessage(ColorUtils.translate("  &a/o wand &7- Get arena setup wand"));
+        player.sendMessage(ColorUtils.translate("  &a/o arenalist &7- List all arenas"));
+        player.sendMessage(ColorUtils.translate("  &a/o debug <console|chat|both|off> &7- Toggle debug logging"));
+        player.sendMessage(ColorUtils.translate("  &a/o cmds &7- Show this command list"));
     }
 
     private void handleArenalistCommand(Player player) {
         List<String> arenaNames = ArenaConfigManager.getArenaNames();
 
         if (arenaNames.isEmpty()) {
-            player.sendMessage("§cNo arenas created yet.");
+            player.sendMessage(ColorUtils.translate("&cNo arenas created yet."));
             return;
         }
 
-        player.sendMessage("§6§l=== Arena List ===");
+        player.sendMessage(ColorUtils.translate("&6&l=== Arena List ==="));
         for (String arenaName : arenaNames) {
             String status = ArenaConfigManager.getArenaStatus(arenaName);
             String statusColor;
             if (status.equals("READY") || status.equals("WAITING")) {
-                statusColor = "§a";
+                statusColor = "&a";
             } else if (status.equals("STARTING")) {
-                statusColor = "§6";
+                statusColor = "&6";
             } else if (status.equals("STARTED")) {
-                statusColor = "§c";
+                statusColor = "&c";
             } else if (status.equals("PLAYING")) {
-                statusColor = "§c";
+                statusColor = "&c";
             } else if (status.equals("DISABLED")) {
-                statusColor = "§8";
+                statusColor = "&8";
             } else {
-                statusColor = "§7";
+                statusColor = "&7";
             }
             int currentPlayers = getArenaPlayerCount(arenaName);
             int maxPlayers = ArenaConfigManager.getMaxPlayers(arenaName);
 
-            player.sendMessage(statusColor + arenaName + " §7[" + currentPlayers + "/" + maxPlayers + "] §8- " + statusColor + status);
+            player.sendMessage(ColorUtils.translate(statusColor + arenaName + " &7[" + currentPlayers + "/" + maxPlayers + "] &8- " + statusColor + status));
         }
     }
 
     private void handleTeamCommand(Player player) {
         if (!playersInArena.containsKey(player.getUniqueId())) {
-            player.sendMessage(getMessage("join_first"));
+            player.sendMessage(ColorUtils.translate(getMessage("join_first")));
             return;
         }
 
         // Check if countdown is 5 seconds or fewer - prevent team changes
         String arenaName = playersInArena.get(player.getUniqueId());
         if (arenaName == null) {
-            player.sendMessage(getMessage("not_in_arena"));
+            player.sendMessage(ColorUtils.translate(getMessage("not_in_arena")));
             return;
         }
         int countdown = GameManager.getCountdown(arenaName);
 
         if (countdown > 0 && countdown <= 5) {
-            player.sendMessage("§cTeam switching is prohibited in the last 5 seconds!");
+            player.sendMessage(ColorUtils.translate("&cTeam switching is prohibited in the last 5 seconds!"));
             return;
         }
 
@@ -730,12 +744,12 @@ public class ObsidianCommand implements CommandExecutor {
         ItemStack wand = new ItemStack(Material.WOODEN_AXE);
         ItemMeta meta = wand.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§6Obsidian Wars Wand");
-            meta.setLore(Collections.singletonList("§eLeft and right click on blocks to select corners."));
+            meta.setDisplayName(ColorUtils.translate("&6Obsidian Wars Wand"));
+            meta.setLore(ColorUtils.translate(Collections.singletonList("&eLeft and right click on blocks to select corners.")));
             wand.setItemMeta(meta);
         }
         player.getInventory().addItem(wand);
-        player.sendMessage(getMessage("wand_received"));
+        player.sendMessage(ColorUtils.translate(getMessage("wand_received")));
     }
 
     private void handleDebugCommand(Player player, String[] args) {
@@ -746,13 +760,13 @@ public class ObsidianCommand implements CommandExecutor {
         // If no arguments, show current status and usage
         if (args.length == 1) {
             DebugManager.DebugMode currentMode = DebugManager.getDebugMode(player);
-            player.sendMessage("§6§l=== Debug Mode Status ===");
-            player.sendMessage("§eCurrent mode: §f" + currentMode);
-            player.sendMessage("§7Usage: /o debug <console|chat|both|off>");
-            player.sendMessage("§7  console - Log to server console only");
-            player.sendMessage("§7  chat - Log to your chat only");
-            player.sendMessage("§7  both - Log to both console and chat");
-            player.sendMessage("§7  off - Disable debug logging");
+            player.sendMessage(ColorUtils.translate("&6&l=== Debug Mode Status ==="));
+            player.sendMessage(ColorUtils.translate("&eCurrent mode: &f" + currentMode));
+            player.sendMessage(ColorUtils.translate("&7Usage: /o debug <console|chat|both|off>"));
+            player.sendMessage(ColorUtils.translate("&7  console - Log to server console only"));
+            player.sendMessage(ColorUtils.translate("&7  chat - Log to your chat only"));
+            player.sendMessage(ColorUtils.translate("&7  both - Log to both console and chat"));
+            player.sendMessage(ColorUtils.translate("&7  off - Disable debug logging"));
             return;
         }
 
@@ -766,7 +780,7 @@ public class ObsidianCommand implements CommandExecutor {
                 boolean newConsoleState = !currentConsoleState;
                 DebugManager.setConsoleDebugEnabled(newConsoleState);
                 DebugManager.setDebugMode(player, newConsoleState ? DebugManager.DebugMode.CONSOLE : DebugManager.DebugMode.OFF);
-                player.sendMessage("§aConsole debug mode: §f" + (newConsoleState ? "ENABLED" : "DISABLED"));
+                player.sendMessage(ColorUtils.translate("&aConsole debug mode: &f" + (newConsoleState ? "ENABLED" : "DISABLED")));
                 return;
             case "chat":
                 // Toggle chat debug mode
@@ -774,7 +788,7 @@ public class ObsidianCommand implements CommandExecutor {
                 boolean newChatState = !currentChatState;
                 DebugManager.setChatDebugEnabled(newChatState);
                 DebugManager.setDebugMode(player, newChatState ? DebugManager.DebugMode.CHAT : DebugManager.DebugMode.OFF);
-                player.sendMessage("§aChat debug mode: §f" + (newChatState ? "ENABLED" : "DISABLED"));
+                player.sendMessage(ColorUtils.translate("&aChat debug mode: &f" + (newChatState ? "ENABLED" : "DISABLED")));
                 return;
             case "both":
                 newMode = DebugManager.DebugMode.BOTH;
@@ -788,17 +802,17 @@ public class ObsidianCommand implements CommandExecutor {
                 DebugManager.setChatDebugEnabled(false);
                 break;
             default:
-                player.sendMessage("§cInvalid debug mode. Use: console, chat, both, or off");
+                player.sendMessage(ColorUtils.translate("&cInvalid debug mode. Use: console, chat, both, or off"));
                 return;
         }
 
         DebugManager.setDebugMode(player, newMode);
-        player.sendMessage("§aDebug mode set to: §f" + newMode);
+        player.sendMessage(ColorUtils.translate("&aDebug mode set to: &f" + newMode));
 
         if (newMode != DebugManager.DebugMode.OFF) {
-            player.sendMessage("§eDebug logging is now enabled. You will see detailed game events.");
+            player.sendMessage(ColorUtils.translate("&eDebug logging is now enabled. You will see detailed game events."));
         } else {
-            player.sendMessage("§eDebug logging disabled.");
+            player.sendMessage(ColorUtils.translate("&eDebug logging disabled."));
         }
     }
 
@@ -809,8 +823,8 @@ public class ObsidianCommand implements CommandExecutor {
 
         // Check if any arena is in an active game state
         if (hasActiveGames()) {
-            player.sendMessage("§cCannot reload configuration while games are in progress!");
-            player.sendMessage("§ePlease wait for all games to finish, or use /o forceend <arena> to end games manually.");
+            player.sendMessage(ColorUtils.translate("&cCannot reload configuration while games are in progress!"));
+            player.sendMessage(ColorUtils.translate("&ePlease wait for all games to finish, or use /o forceend <arena> to end games manually."));
             return;
         }
 
@@ -820,65 +834,66 @@ public class ObsidianCommand implements CommandExecutor {
             target = args[1].toLowerCase();
         }
 
-        player.sendMessage("§eReloading ObsidianWars configuration...");
+        player.sendMessage(ColorUtils.translate("&eReloading ObsidianWars configuration..."));
 
         if (target.equals("all") || target.equals("config")) {
             // Reload main config
             plugin.reloadConfig();
-            player.sendMessage("§aconfig.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&aconfig.yml reloaded"));
 
             // Reload messages config
             MessagesConfigManager.initialize();
-            player.sendMessage("§amessages.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&amessages.yml reloaded"));
 
             // Reload kill streaks config
             KillStreaksConfigManager.initialize();
-            player.sendMessage("§akill-streaks.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&akill-streaks.yml reloaded"));
 
             // Reload death messages config
             DeathMessagesConfigManager.initialize();
-            player.sendMessage("§adeath-messages.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&adeath-messages.yml reloaded"));
 
             // Reload resource blocks config
             ResourceBlocksConfigManager.initialize();
-            player.sendMessage("§aresource-blocks.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&aresource-blocks.yml reloaded"));
 
             // Reload scoreboards config
             ScoreboardsConfigManager.initialize();
-            player.sendMessage("§ascoreboards.yml reloaded");
+            player.sendMessage(ColorUtils.translate("&ascoreboards.yml reloaded"));
 
             // Reload particles config
             ParticleManager.loadConfig();
-            player.sendMessage("§aparticles reloaded");
+            player.sendMessage(ColorUtils.translate("&aparticles reloaded"));
 
             // Reload economy config
             EconomyManager.getInstance().reload();
-            player.sendMessage("§aeconomy configuration reloaded");
+            player.sendMessage(ColorUtils.translate("&aeconomy configuration reloaded"));
 
             // Reload sudden death config
             SuddenDeathManager.getInstance().reload();
-            player.sendMessage("§asudden death configuration reloaded");
+            player.sendMessage(ColorUtils.translate("&asudden death configuration reloaded"));
 
             // Reload GameManager config (countdown, timers)
             GameManager.loadConfig();
-            player.sendMessage("§agame manager configuration reloaded");
+            player.sendMessage(ColorUtils.translate("&agame manager configuration reloaded"));
 
             // Reload performance thresholds (if any)
             PerformanceMonitor.getInstance().reset();
-            player.sendMessage("§aperformance metrics reset");
+            player.sendMessage(ColorUtils.translate("&aperformance metrics reset"));
         }
 
         if (target.equals("all") || target.equals("arenas")) {
             // Reload arena config
             ArenaConfigManager.initialize();
-            player.sendMessage("§aarenas.yml reloaded");
+            ArenaStateManager.initializeExistingArenas(); // Reinitialize arena states
+            player.sendMessage(ColorUtils.translate("&aarenas.yml reloaded"));
         }
 
         if (target.equals("all")) {
-            player.sendMessage("§a§lConfiguration reloaded successfully!");
-            player.sendMessage("§eNote: Some changes may require a server restart to take full effect.");
+            player.sendMessage(ColorUtils.translate("&a&lConfiguration reloaded successfully!"));
+            player.sendMessage(ColorUtils.translate("&eNote: Some changes may require a server restart to take full effect."));
         } else {
-            player.sendMessage("§a§l" + target + " reloaded successfully!");
+            player.sendMessage(ColorUtils.translate("&a&l" + target + " reloaded successfully!"));
         }
     }
 
@@ -890,7 +905,7 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (args.length < 5) {
-            player.sendMessage("§cUsage: /o create arena <arena_name> <min_players> <max_players>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o create arena <arena_name> <min_players> <max_players>"));
             return;
         }
 
@@ -901,24 +916,24 @@ public class ObsidianCommand implements CommandExecutor {
             minPlayers = Integer.parseInt(args[3]);
             maxPlayers = Integer.parseInt(args[4]);
         } catch (NumberFormatException e) {
-            player.sendMessage("§cInvalid numbers! Min and max must be integers.");
+            player.sendMessage(ColorUtils.translate("&cInvalid numbers! Min and max must be integers."));
             return;
         }
 
         if (minPlayers < 2) {
-            player.sendMessage("§cMinimum players must be at least 2!");
+            player.sendMessage(ColorUtils.translate("&cMinimum players must be at least 2!"));
             playErrorSound(player);
             return;
         }
 
         if (maxPlayers < minPlayers) {
-            player.sendMessage("§cMaximum players must be >= minimum players!");
+            player.sendMessage(ColorUtils.translate("&cMaximum players must be >= minimum players!"));
             playErrorSound(player);
             return;
         }
 
         if (ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(getMessage("arena_already_exists"));
+            player.sendMessage(ColorUtils.translate(getMessage("arena_already_exists")));
             playErrorSound(player);
             return;
         }
@@ -929,20 +944,20 @@ public class ObsidianCommand implements CommandExecutor {
         // Rebuild arena world cache for MovementListener
         MovementListener.rebuildArenaWorldCache();
 
-        player.sendMessage(getMessage("arena_created", "arenaName", arenaName));
-        player.sendMessage("§ePlayer limits set: Min " + minPlayers + ", Max " + maxPlayers);
-        player.sendMessage("§eDefault timers set: Preparation 10min, Game Time 30min, Sudden Death 15min");
-        player.sendMessage("§e§l=== Arena Setup Guide ===");
-        player.sendMessage("§eFollow the steps below to complete arena setup:");
-        player.sendMessage("§7Step 1: Set main lobby spawn");
-        player.sendMessage("§7Step 2: Set waiting lobby spawn");
-        player.sendMessage("§7Step 3: Set waiting region boundary (optional but recommended)");
-        player.sendMessage("§7Step 4: Set team spawns (red & blue)");
-        player.sendMessage("§7Step 5: Set obsidian targets (red & blue)");
-        player.sendMessage("§7Step 6: Setup resource blocks");
-        player.sendMessage("§7Step 7: Set wall regions (red & blue)");
-        player.sendMessage("§7Step 8: Set spectator spawn");
-        player.sendMessage("§7Step 9: Finish arena setup");
+        player.sendMessage(ColorUtils.translate(getMessage("arena_created", "arenaName", arenaName)));
+        player.sendMessage(ColorUtils.translate("&ePlayer limits set: Min " + minPlayers + ", Max " + maxPlayers));
+        player.sendMessage(ColorUtils.translate("&eDefault timers set: Preparation 10min, Game Time 30min, Sudden Death 15min"));
+        player.sendMessage(ColorUtils.translate("&e&l=== Arena Setup Guide ==="));
+        player.sendMessage(ColorUtils.translate("&eFollow the steps below to complete arena setup:"));
+        player.sendMessage(ColorUtils.translate("&7Step 1: Set main lobby spawn"));
+        player.sendMessage(ColorUtils.translate("&7Step 2: Set waiting lobby spawn"));
+        player.sendMessage(ColorUtils.translate("&7Step 3: Set waiting region boundary (optional but recommended)"));
+        player.sendMessage(ColorUtils.translate("&7Step 4: Set team spawns (red & blue)"));
+        player.sendMessage(ColorUtils.translate("&7Step 5: Set obsidian targets (red & blue)"));
+        player.sendMessage(ColorUtils.translate("&7Step 6: Setup resource blocks"));
+        player.sendMessage(ColorUtils.translate("&7Step 7: Set wall regions (red & blue)"));
+        player.sendMessage(ColorUtils.translate("&7Step 8: Set spectator spawn"));
+        player.sendMessage(ColorUtils.translate("&7Step 9: Finish arena setup"));
         playSuccessSound(player);
         suggestNextSetupStep(player, arenaName);
     }
@@ -953,13 +968,13 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (args.length < 3) {
-            player.sendMessage("§cUsage: /o delete arena <arenaName>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o delete arena <arenaName>"));
             return;
         }
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+            player.sendMessage(ColorUtils.translate(getMessage("arena_not_found", "arenaName", arenaName)));
             return;
         }
 
@@ -986,7 +1001,7 @@ public class ObsidianCommand implements CommandExecutor {
                     Location mainSpawn = arenaPlayer.getWorld().getSpawnLocation();
                     PlayerUtils.resetPlayerFull(arenaPlayer, mainSpawn);
 
-                    arenaPlayer.sendMessage("§cArena deleted, you have been removed from the arena!");
+                    arenaPlayer.sendMessage(ColorUtils.translate("&cArena deleted, you have been removed from the arena!"));
 
                     // Update lobby scoreboard
                     LobbyScoreboardManager.updateLobbyScoreboard(arenaPlayer);
@@ -994,7 +1009,7 @@ public class ObsidianCommand implements CommandExecutor {
             }
         }
 
-        player.sendMessage(getMessage("arena_deleted", "arenaName", arenaName));
+        player.sendMessage(ColorUtils.translate(getMessage("arena_deleted", "arenaName", arenaName)));
     }
 
     private void handleForceendCommand(Player player, String[] args) {
@@ -1003,13 +1018,13 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o forceend <arenaName>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o forceend <arenaName>"));
             return;
         }
         String arenaName = args[1];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+            player.sendMessage(ColorUtils.translate(getMessage("arena_not_found", "arenaName", arenaName)));
             return;
         }
 
@@ -1020,7 +1035,7 @@ public class ObsidianCommand implements CommandExecutor {
         // This handles the edge case where arena is stuck in PLAYING without an active game instance
         String currentStatus = ArenaConfigManager.getArenaStatus(arenaName);
         if (!currentStatus.equals("READY") && !currentStatus.equals("WAITING")) {
-            player.sendMessage("§eForcefully resetting arena status from " + currentStatus + " to READY...");
+            player.sendMessage(ColorUtils.translate("&eForcefully resetting arena status from " + currentStatus + " to READY..."));
             ArenaConfigManager.setArenaStatus(arenaName, "READY");
         }
 
@@ -1043,9 +1058,9 @@ public class ObsidianCommand implements CommandExecutor {
         // Restore arena snapshot if available
         boolean restoreSuccess = ArenaSnapshotManager.restoreSnapshot(arenaName);
         if (restoreSuccess) {
-            player.sendMessage("§aArena snapshot restored.");
+            player.sendMessage(ColorUtils.translate("&aArena snapshot restored."));
         } else {
-            player.sendMessage("§7No arena snapshot found or restoration failed.");
+            player.sendMessage(ColorUtils.translate("&7No arena snapshot found or restoration failed."));
         }
 
         // Clear any players still tracked in this arena
@@ -1068,7 +1083,7 @@ public class ObsidianCommand implements CommandExecutor {
                 // Reset player state and teleport to spawn
                 Location mainSpawn = p.getWorld().getSpawnLocation();
                 PlayerUtils.resetPlayerFull(p, mainSpawn);
-                p.sendMessage("§aArena force-ended by admin. Teleported to spawn.");
+                p.sendMessage(ColorUtils.translate("&aArena force-ended by admin. Teleported to spawn."));
 
                 // Update lobby scoreboard
                 LobbyScoreboardManager.updateLobbyScoreboard(p);
@@ -1088,7 +1103,7 @@ public class ObsidianCommand implements CommandExecutor {
             WandListener.pos2Map.remove(uuid);
         }
 
-        player.sendMessage("§aGame force-ended for arena " + arenaName + ". Status reset to READY.");
+        player.sendMessage(ColorUtils.translate("&aGame force-ended for arena " + arenaName + ". Status reset to READY."));
     }
 
     private void handleForcestartCommand(Player player, String[] args) {
@@ -1097,19 +1112,19 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o forcestart <arenaName>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o forcestart <arenaName>"));
             return;
         }
         String arenaName = args[1];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+            player.sendMessage(ColorUtils.translate(getMessage("arena_not_found", "arenaName", arenaName)));
             return;
         }
 
         // Check if there are players in the arena
         if (!GameManager.hasPlayersInArena(arenaName)) {
-            player.sendMessage("§cNo players in arena " + arenaName + "!");
+            player.sendMessage(ColorUtils.translate("&cNo players in arena " + arenaName + "!"));
             return;
         }
 
@@ -1120,19 +1135,19 @@ public class ObsidianCommand implements CommandExecutor {
             // If in COUNTDOWN state, cancel countdown and immediately start
             if (state == ArenaStateManager.ArenaState.STARTING) {
                 GameManager.cancelCountdownAndForceStart(arenaName);
-                player.sendMessage("§aCountdown skipped! Game starting now for arena " + arenaName);
+                player.sendMessage(ColorUtils.translate("&aCountdown skipped! Game starting now for arena " + arenaName));
                 return;
             }
             // If already in PLAYING or PREPARATION state, return error
             if (state == ArenaStateManager.ArenaState.PLAYING || state == ArenaStateManager.ArenaState.PREPARATION) {
-                player.sendMessage("§cThis arena is already active!");
+                player.sendMessage(ColorUtils.translate("&cThis arena is already active!"));
                 return;
             }
         }
 
         // Force start (no game exists or in WAITING state)
         GameManager.forceStartGame(arenaName);
-        player.sendMessage(getMessage("force_started", "arenaName", arenaName));
+        player.sendMessage(ColorUtils.translate(getMessage("force_started", "arenaName", arenaName)));
     }
 
     private void handleForceprepCommand(Player player, String[] args) {
@@ -1141,26 +1156,26 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o forceprep <arenaName>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o forceprep <arenaName>"));
             return;
         }
         String arenaName = args[1];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+            player.sendMessage(ColorUtils.translate(getMessage("arena_not_found", "arenaName", arenaName)));
             return;
         }
 
         // Check if game is in PREPARATION state
         GameManager.ArenaGame game = GameManager.getGame(arenaName);
         if (game == null || game.getGameState() != ArenaStateManager.ArenaState.PREPARATION) {
-            player.sendMessage("§cThis arena is not in preparation phase!");
+            player.sendMessage(ColorUtils.translate("&cThis arena is not in preparation phase!"));
             return;
         }
 
         // Force skip preparation - trigger wall removal immediately
         WallManager.forceSkipPreparation(arenaName);
-        player.sendMessage("§aPreparation phase skipped! Walls are breaking now!");
+        player.sendMessage(ColorUtils.translate("&aPreparation phase skipped! Walls are breaking now!"));
     }
 
     private void handleForceCommand(Player player, String[] args) {
@@ -1169,7 +1184,7 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o force <start|end> <arena|preperation> [arena]");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o force <start|end> <arena|preperation> [arena]"));
             return;
         }
 
@@ -1177,17 +1192,17 @@ public class ObsidianCommand implements CommandExecutor {
 
         if (action.equals("start")) {
             if (args.length < 4 || !args[2].equalsIgnoreCase("arena")) {
-                player.sendMessage("§cUsage: /o force start arena <arena>");
+                player.sendMessage(ColorUtils.translate("&cUsage: /o force start arena <arena>"));
                 return;
             }
             String arenaName = args[3];
             if (!ArenaConfigManager.arenaExists(arenaName)) {
-                player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+                player.sendMessage(ColorUtils.translate(getMessage("arena_not_found", "arenaName", arenaName)));
                 return;
             }
             // Check if there are players in the arena
             if (!GameManager.hasPlayersInArena(arenaName)) {
-                player.sendMessage("§cNo players in arena " + arenaName + "!");
+                player.sendMessage(ColorUtils.translate("&cNo players in arena " + arenaName + "!"));
                 return;
             }
 
@@ -1198,58 +1213,58 @@ public class ObsidianCommand implements CommandExecutor {
                 // If in COUNTDOWN state, cancel countdown and immediately start
                 if (state == ArenaStateManager.ArenaState.STARTING) {
                     GameManager.cancelCountdownAndForceStart(arenaName);
-                    player.sendMessage("§aCountdown skipped! Game starting now for arena " + arenaName);
+                    player.sendMessage(ColorUtils.translate("&aCountdown skipped! Game starting now for arena " + arenaName));
                     return;
                 }
                 // If already in PLAYING or PREPARATION state, return error
                 if (state == ArenaStateManager.ArenaState.PLAYING || state == ArenaStateManager.ArenaState.PREPARATION) {
-                    player.sendMessage("§cThis arena is already active!");
+                    player.sendMessage(ColorUtils.translate("&cThis arena is already active!"));
                     return;
                 }
             }
 
             GameManager.forceStartGame(arenaName);
-            player.sendMessage(getMessage("force_started", "arenaName", arenaName));
+            player.sendMessage(ColorUtils.translate(getMessage("force_started", "arenaName", arenaName)));
         } else if (action.equals("end")) {
             if (args.length < 3) {
-                player.sendMessage("§cUsage: /o force end arena <arena> OR /o force end preperation <arena>");
+                player.sendMessage(ColorUtils.translate("&cUsage: /o force end arena <arena> OR /o force end preperation <arena>"));
                 return;
             }
             String subAction = args[2].toLowerCase();
             if (subAction.equals("arena")) {
                 if (args.length < 4) {
-                    player.sendMessage("§cUsage: /o force end arena <arena>");
+                    player.sendMessage(ColorUtils.translate("&cUsage: /o force end arena <arena>"));
                     return;
                 }
                 String arenaName = args[3];
                 if (!ArenaConfigManager.arenaExists(arenaName)) {
-                    player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+                    player.sendMessage(ColorUtils.translate(getMessage("arena_not_found", "arenaName", arenaName)));
                     return;
                 }
                 GameManager.endGame(arenaName, null); // Message is broadcast to arena players by endGame
-                player.sendMessage("§aGame ended for arena " + arenaName);
+                player.sendMessage(ColorUtils.translate("&aGame ended for arena " + arenaName));
             } else if (subAction.equals("preperation")) {
                 if (args.length < 4) {
-                    player.sendMessage("§cUsage: /o force end preperation <arena>");
+                    player.sendMessage(ColorUtils.translate("&cUsage: /o force end preperation <arena>"));
                     return;
                 }
                 String arenaName = args[3];
                 if (!ArenaConfigManager.arenaExists(arenaName)) {
-                    player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+                    player.sendMessage(ColorUtils.translate(getMessage("arena_not_found", "arenaName", arenaName)));
                     return;
                 }
                 GameManager.ArenaGame game = GameManager.getGame(arenaName);
                 if (game == null || game.getGameState() != ArenaStateManager.ArenaState.PREPARATION) {
-                    player.sendMessage("§cThis arena is not in preparation phase!");
+                    player.sendMessage(ColorUtils.translate("&cThis arena is not in preparation phase!"));
                     return;
                 }
                 WallManager.forceSkipPreparation(arenaName);
-                player.sendMessage("§aPreparation phase skipped! Walls are breaking now!");
+                player.sendMessage(ColorUtils.translate("&aPreparation phase skipped! Walls are breaking now!"));
             } else {
-                player.sendMessage("§cUsage: /o force end arena <arena> OR /o force end preperation <arena>");
+                player.sendMessage(ColorUtils.translate("&cUsage: /o force end arena <arena> OR /o force end preperation <arena>"));
             }
         } else {
-            player.sendMessage("§cUsage: /o force <start|end> <arena|preperation> [arena]");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o force <start|end> <arena|preperation> [arena]"));
         }
     }
 
@@ -1259,18 +1274,18 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o disableArena <arenaName>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o disableArena <arenaName>"));
             return;
         }
         String arenaName = args[1];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+            player.sendMessage(ColorUtils.translate(getMessage("arena_not_found", "arenaName", arenaName)));
             return;
         }
 
         ArenaConfigManager.setArenaStatus(arenaName, "DISABLED");
-        player.sendMessage("§aArena " + arenaName + " has been disabled.");
+        player.sendMessage(ColorUtils.translate("&aArena " + arenaName + " has been disabled."));
     }
 
     private void handleEnableArenaCommand(Player player, String[] args) {
@@ -1279,13 +1294,13 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o enableArena <arenaName>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o enableArena <arenaName>"));
             return;
         }
         String arenaName = args[1];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+            player.sendMessage(ColorUtils.translate(getMessage("arena_not_found", "arenaName", arenaName)));
             return;
         }
 
@@ -1339,9 +1354,9 @@ public class ObsidianCommand implements CommandExecutor {
 
         // If requirements are missing, block activation
         if (!missingRequirements.isEmpty()) {
-            player.sendMessage("§cArena cannot be enabled. Missing requirements:");
+            player.sendMessage(ColorUtils.translate("&cArena cannot be enabled. Missing requirements:"));
             for (String req : missingRequirements) {
-                player.sendMessage("§c- " + req);
+                player.sendMessage(ColorUtils.translate("&c- " + req));
             }
             // Play error sound
             Sound errorSound = Obsidianwars.parseSound("ENTITY_VILLAGER_NO");
@@ -1355,7 +1370,7 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         ArenaConfigManager.setArenaStatus(arenaName, "READY");
-        player.sendMessage("§aArena " + arenaName + " has been enabled.");
+        player.sendMessage(ColorUtils.translate("&aArena " + arenaName + " has been enabled."));
     }
 
     private void handleArenaTeleportCommand(Player player, String[] args) {
@@ -1364,35 +1379,35 @@ public class ObsidianCommand implements CommandExecutor {
         }
 
         if (args.length < 3) {
-            player.sendMessage("§cUsage: /o arena teleport <arena>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o arena teleport <arena>"));
             return;
         }
 
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(getMessage("arena_not_found", "arenaName", arenaName));
+            player.sendMessage(ColorUtils.translate(getMessage("arena_not_found", "arenaName", arenaName)));
             return;
         }
 
         Location spectSpawn = ArenaConfigManager.getSpectatorSpawn(arenaName);
         if (spectSpawn == null) {
-            player.sendMessage("§cSpectator spawn not set for arena " + arenaName);
+            player.sendMessage(ColorUtils.translate("&cSpectator spawn not set for arena " + arenaName));
             return;
         }
 
         player.teleport(spectSpawn);
-        player.sendMessage("§aTeleported to arena " + arenaName + " spectator spawn");
+        player.sendMessage(ColorUtils.translate("&aTeleported to arena " + arenaName + " spectator spawn"));
     }
 
     private void handleAdminStatsResetCommand(Player player, String[] args) {
         if (!player.hasPermission("obsidianwars.admin")) {
-            player.sendMessage("§cYou don't have permission to use this command.");
+            player.sendMessage(ColorUtils.translate("&cYou don't have permission to use this command."));
             return;
         }
 
         if (args.length < 4) {
-            player.sendMessage("§cUsage: /o admin stats reset <player>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o admin stats reset <player>"));
             return;
         }
 
@@ -1400,7 +1415,7 @@ public class ObsidianCommand implements CommandExecutor {
         Player target = Bukkit.getPlayer(targetName);
 
         if (target == null) {
-            player.sendMessage("§cPlayer not found: " + targetName);
+            player.sendMessage(ColorUtils.translate("&cPlayer not found: " + targetName));
             return;
         }
 
@@ -1409,16 +1424,16 @@ public class ObsidianCommand implements CommandExecutor {
         if (stats != null) {
             stats.reset();
             StatsManager.savePlayerStats(target.getUniqueId(), target.getName());
-            player.sendMessage("§aStatistics reset for player " + targetName);
-            target.sendMessage("§cYour statistics have been reset by an admin.");
+            player.sendMessage(ColorUtils.translate("&aStatistics reset for player " + targetName));
+            target.sendMessage(ColorUtils.translate("&cYour statistics have been reset by an admin."));
         } else {
-            player.sendMessage("§cCould not find statistics for player " + targetName);
+            player.sendMessage(ColorUtils.translate("&cCould not find statistics for player " + targetName));
         }
     }
 
     private void handleSpectateCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o spectate <arena|player>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o spectate <arena|player>"));
             return;
         }
 
@@ -1432,7 +1447,7 @@ public class ObsidianCommand implements CommandExecutor {
                 // Player is in a game - set spectator mode and teleport to their location
                 SpectatorManager.setSpectatorMode(player, playerArena);
                 player.teleport(targetPlayer.getLocation());
-                player.sendMessage("§aNow spectating " + targetPlayer.getName() + " in arena " + playerArena);
+                player.sendMessage(ColorUtils.translate("&aNow spectating " + targetPlayer.getName() + " in arena " + playerArena));
                 return;
             }
         }
@@ -1443,16 +1458,16 @@ public class ObsidianCommand implements CommandExecutor {
             if (spectSpawn != null) {
                 SpectatorManager.setSpectatorMode(player, target);
                 player.teleport(spectSpawn);
-                player.sendMessage("§aNow spectating arena " + target);
+                player.sendMessage(ColorUtils.translate("&aNow spectating arena " + target));
                 return;
             } else {
-                player.sendMessage("§cSpectator spawn not set for arena " + target);
+                player.sendMessage(ColorUtils.translate("&cSpectator spawn not set for arena " + target));
                 return;
             }
         }
 
         // Neither found
-        player.sendMessage("§cTarget player or arena not found.");
+        player.sendMessage(ColorUtils.translate("&cTarget player or arena not found."));
     }
 
     private void handleQueueCommand(Player player, String[] args) {
@@ -1515,19 +1530,19 @@ public class ObsidianCommand implements CommandExecutor {
         // Skip the check for the step that was just completed to avoid race condition with async saves
         if (completedStep == null || !completedStep.equals("lobby")) {
             if (ArenaConfigManager.getLobbySpawn(arenaName) == null) {
-                sendClickableSuggestion(player, "§eNext step: Set main lobby spawn", "/o arena setlobby " + arenaName);
+                sendClickableSuggestion(player, "&eNext step: Set main lobby spawn", "/o arena setlobby " + arenaName);
                 return;
             }
         }
         if (completedStep == null || !completedStep.equals("waiting")) {
             if (ArenaConfigManager.getWaitingSpawn(arenaName) == null) {
-                sendClickableSuggestion(player, "§eNext step: Set waiting lobby spawn", "/o arena setwaitingspawn " + arenaName);
+                sendClickableSuggestion(player, "&eNext step: Set waiting lobby spawn", "/o arena setwaitingspawn " + arenaName);
                 return;
             }
         }
         if (completedStep == null || !completedStep.equals("waitingregion")) {
             if (ArenaConfigManager.getWaitingRegion(arenaName) == null) {
-                sendClickableSuggestion(player, "§eNext step: Set waiting area boundary", "/o arena setwaitingregion " + arenaName);
+                sendClickableSuggestion(player, "&eNext step: Set waiting area boundary", "/o arena setwaitingregion " + arenaName);
                 return;
             }
         }
@@ -1536,7 +1551,7 @@ public class ObsidianCommand implements CommandExecutor {
         // If red spawn was just set, suggest red obsidian (you're at red base)
         if (completedStep != null && completedStep.equals("redspawn")) {
             if (ArenaConfigManager.getObsidianLocation(arenaName, "red") == null) {
-                sendClickableSuggestion(player, "§eNext step: Set red team obsidian", "/o arena setobsidian " + arenaName + " red");
+                sendClickableSuggestion(player, "&eNext step: Set red team obsidian", "/o arena setobsidian " + arenaName + " red");
                 return;
             }
         }
@@ -1544,7 +1559,7 @@ public class ObsidianCommand implements CommandExecutor {
         // If red obsidian was just set, suggest blue spawn (go to other base)
         if (completedStep != null && completedStep.equals("redobsidian")) {
             if (ArenaConfigManager.getTeamSpawn(arenaName, "blue") == null) {
-                sendClickableSuggestion(player, "§eNext step: Set blue team spawn", "/o arena setspawn " + arenaName + " blue");
+                sendClickableSuggestion(player, "&eNext step: Set blue team spawn", "/o arena setspawn " + arenaName + " blue");
                 return;
             }
         }
@@ -1552,7 +1567,7 @@ public class ObsidianCommand implements CommandExecutor {
         // If blue spawn was just set, suggest blue obsidian (you're at blue base)
         if (completedStep != null && completedStep.equals("bluespawn")) {
             if (ArenaConfigManager.getObsidianLocation(arenaName, "blue") == null) {
-                sendClickableSuggestion(player, "§eNext step: Set blue team obsidian", "/o arena setobsidian " + arenaName + " blue");
+                sendClickableSuggestion(player, "&eNext step: Set blue team obsidian", "/o arena setobsidian " + arenaName + " blue");
                 return;
             }
         }
@@ -1560,7 +1575,7 @@ public class ObsidianCommand implements CommandExecutor {
         // If blue obsidian was just set, suggest resource blocks
         if (completedStep != null && completedStep.equals("blueobsidian")) {
             if (!ArenaConfigManager.hasResourceBlocks(arenaName)) {
-                sendClickableSuggestion(player, "§eNext step: Set up resource blocks", "/o arena setblocks " + arenaName);
+                sendClickableSuggestion(player, "&eNext step: Set up resource blocks", "/o arena setblocks " + arenaName);
                 return;
             }
         }
@@ -1568,55 +1583,55 @@ public class ObsidianCommand implements CommandExecutor {
         // Default checks for when no specific completed step or continuing from general flow
         if (completedStep == null || !completedStep.equals("redspawn")) {
             if (ArenaConfigManager.getTeamSpawn(arenaName, "red") == null) {
-                sendClickableSuggestion(player, "§eNext step: Set red team spawn", "/o arena setspawn " + arenaName + " red");
+                sendClickableSuggestion(player, "&eNext step: Set red team spawn", "/o arena setspawn " + arenaName + " red");
                 return;
             }
         }
         if (completedStep == null || !completedStep.equals("bluespawn")) {
             if (ArenaConfigManager.getTeamSpawn(arenaName, "blue") == null) {
-                sendClickableSuggestion(player, "§eNext step: Set blue team spawn", "/o arena setspawn " + arenaName + " blue");
+                sendClickableSuggestion(player, "&eNext step: Set blue team spawn", "/o arena setspawn " + arenaName + " blue");
                 return;
             }
         }
         if (completedStep == null || !completedStep.equals("redobsidian")) {
             if (ArenaConfigManager.getObsidianLocation(arenaName, "red") == null) {
-                sendClickableSuggestion(player, "§eNext step: Set red team obsidian", "/o arena setobsidian " + arenaName + " red");
+                sendClickableSuggestion(player, "&eNext step: Set red team obsidian", "/o arena setobsidian " + arenaName + " red");
                 return;
             }
         }
         if (completedStep == null || !completedStep.equals("blueobsidian")) {
             if (ArenaConfigManager.getObsidianLocation(arenaName, "blue") == null) {
-                sendClickableSuggestion(player, "§eNext step: Set blue team obsidian", "/o arena setobsidian " + arenaName + " blue");
+                sendClickableSuggestion(player, "&eNext step: Set blue team obsidian", "/o arena setobsidian " + arenaName + " blue");
                 return;
             }
         }
         if (completedStep == null || !completedStep.equals("resourceblocks")) {
             if (!ArenaConfigManager.hasResourceBlocks(arenaName)) {
-                sendClickableSuggestion(player, "§eNext step: Set up resource blocks", "/o arena setblocks " + arenaName);
+                sendClickableSuggestion(player, "&eNext step: Set up resource blocks", "/o arena setblocks " + arenaName);
                 return;
             }
         }
         if (completedStep == null || !completedStep.equals("redwall")) {
             if (!ArenaConfigManager.hasWallConfiguration(arenaName, "red")) {
-                sendClickableSuggestion(player, "§eNext step: Set red team wall", "/o arena setwall " + arenaName + " red");
+                sendClickableSuggestion(player, "&eNext step: Set red team wall", "/o arena setwall " + arenaName + " red");
                 return;
             }
         }
         if (completedStep == null || !completedStep.equals("bluewall")) {
             if (!ArenaConfigManager.hasWallConfiguration(arenaName, "blue")) {
-                sendClickableSuggestion(player, "§eNext step: Set blue team wall", "/o arena setwall " + arenaName + " blue");
+                sendClickableSuggestion(player, "&eNext step: Set blue team wall", "/o arena setwall " + arenaName + " blue");
                 return;
             }
         }
         if (completedStep == null || !completedStep.equals("spectator")) {
             if (ArenaConfigManager.getSpectatorSpawn(arenaName) == null) {
-                sendClickableSuggestion(player, "§eNext step: Set spectator spawn", "/o arena setspectspawn " + arenaName);
+                sendClickableSuggestion(player, "&eNext step: Set spectator spawn", "/o arena setspectspawn " + arenaName);
                 return;
             }
         }
 
         // All steps complete
-        sendClickableSuggestion(player, "§aAll setup steps completed! Finish arena", "/o arena finish " + arenaName);
+        sendClickableSuggestion(player, "&aAll setup steps completed! Finish arena", "/o arena finish " + arenaName);
     }
 
     /**
@@ -1625,12 +1640,10 @@ public class ObsidianCommand implements CommandExecutor {
      * @param command The command to suggest when clicked
      */
     private static void sendClickableSuggestion(Player player, String message, String command) {
-        TextComponent component = new TextComponent(message + " §f" + command);
+        TextComponent component = new TextComponent(TextComponent.fromLegacyText(ColorUtils.translate(message + " &f" + command)));
         component.setClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, command));
-        component.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new net.md_5.bungee.api.chat.BaseComponent[]{
-            new net.md_5.bungee.api.chat.TextComponent("§eClick to insert: "),
-            new net.md_5.bungee.api.chat.TextComponent("§f" + command)
-        }));
+        component.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+            TextComponent.fromLegacyText(ColorUtils.translate("&eClick to insert: &f" + command))));
         player.spigot().sendMessage(component);
     }
 
@@ -1642,8 +1655,8 @@ public class ObsidianCommand implements CommandExecutor {
     }
 
     private void sendHelp(Player player) {
-        player.sendMessage("§eUse /o cmds for a full command list.");
-        player.sendMessage("§eQuick start: /o play - Join an arena");
+        player.sendMessage(ColorUtils.translate("&eUse /o cmds for a full command list."));
+        player.sendMessage(ColorUtils.translate("&eQuick start: /o play - Join an arena"));
     }
 
     private static void resetPlayerState(Player player) {
@@ -1669,7 +1682,7 @@ public class ObsidianCommand implements CommandExecutor {
         ItemStack compass = new ItemStack(Material.COMPASS);
         ItemMeta compassMeta = compass.getItemMeta();
         if (compassMeta != null) {
-            compassMeta.setDisplayName("§eTeam Selection");
+            compassMeta.setDisplayName(ColorUtils.translate("&eTeam Selection"));
             compass.setItemMeta(compassMeta);
         }
         player.getInventory().setItem(0, compass);
@@ -1678,7 +1691,7 @@ public class ObsidianCommand implements CommandExecutor {
         ItemStack door = new ItemStack(Material.OAK_DOOR);
         ItemMeta doorMeta = door.getItemMeta();
         if (doorMeta != null) {
-            doorMeta.setDisplayName("§cExit Game");
+            doorMeta.setDisplayName(ColorUtils.translate("&cExit Game"));
             door.setItemMeta(doorMeta);
         }
         player.getInventory().setItem(8, door);
@@ -1690,14 +1703,16 @@ public class ObsidianCommand implements CommandExecutor {
             if (playerArena != null && playerArena.equals(arenaName)) {
                 Player arenaPlayer = Bukkit.getPlayer(uuid);
                 if (arenaPlayer != null) {
-                    arenaPlayer.sendMessage(message);
+                    arenaPlayer.sendMessage(ColorUtils.translate(message));
                 }
             }
         }
     }
 
     private static void sendWelcomeMessage(Player player) {
-        List<String> welcomeLines = MessagesConfigManager.getMessagesConfig().getStringList("messages.welcome_message");
+        List<String> welcomeLines = LanguageManager.getInstance() != null
+            ? LanguageManager.getInstance().getMessageList(player, "welcome_message")
+            : ColorUtils.translate(MessagesConfigManager.getMessagesConfig().getStringList("messages.welcome_message"));
         for (String line : welcomeLines) {
             player.sendMessage(line);
         }
@@ -1706,12 +1721,12 @@ public class ObsidianCommand implements CommandExecutor {
     private void handleAdminCommand(Player player, String[] args) {
         // Check permission
         if (!player.hasPermission("obsidianwars.admin")) {
-            player.sendMessage("§cYou don't have permission to use admin commands.");
+            player.sendMessage(ColorUtils.translate("&cYou don't have permission to use admin commands."));
             return;
         }
 
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o admin <level|coin|exp|stats|gui> [action] [player] [amount]");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o admin <level|coin|exp|stats|gui> [action] [player] [amount]"));
             return;
         }
 
@@ -1726,7 +1741,7 @@ public class ObsidianCommand implements CommandExecutor {
         // Handle stats reset command
         if (category.equals("stats")) {
             if (args.length < 4 || !args[2].equalsIgnoreCase("reset")) {
-                player.sendMessage("§cUsage: /o admin stats reset <player>");
+                player.sendMessage(ColorUtils.translate("&cUsage: /o admin stats reset <player>"));
                 return;
             }
             handleAdminStatsResetCommand(player, args);
@@ -1736,14 +1751,14 @@ public class ObsidianCommand implements CommandExecutor {
         // Handle currency/level commands: level, coin, exp
         if (category.equals("level") || category.equals("coin") || category.equals("exp")) {
             if (args.length < 3) {
-                player.sendMessage("§cUsage: /o admin " + category + " <set|add|remove> <player> <amount>");
+                player.sendMessage(ColorUtils.translate("&cUsage: /o admin " + category + " <set|add|remove> <player> <amount>"));
                 return;
             }
 
             String action = args[2].toLowerCase();
 
             if (args.length < 5) {
-                player.sendMessage("§cUsage: /o admin " + category + " " + action + " <player> <amount>");
+                player.sendMessage(ColorUtils.translate("&cUsage: /o admin " + category + " " + action + " <player> <amount>"));
                 return;
             }
 
@@ -1751,7 +1766,7 @@ public class ObsidianCommand implements CommandExecutor {
             Player target = Bukkit.getPlayer(targetName);
 
             if (target == null || !target.isOnline()) {
-                player.sendMessage("§cPlayer '" + targetName + "' is not online.");
+                player.sendMessage(ColorUtils.translate("&cPlayer '" + targetName + "' is not online."));
                 return;
             }
 
@@ -1759,7 +1774,7 @@ public class ObsidianCommand implements CommandExecutor {
             try {
                 amount = Double.parseDouble(args[4]);
             } catch (NumberFormatException e) {
-                player.sendMessage("§cInvalid amount: " + args[4]);
+                player.sendMessage(ColorUtils.translate("&cInvalid amount: " + args[4]));
                 return;
             }
 
@@ -1778,8 +1793,8 @@ public class ObsidianCommand implements CommandExecutor {
                 handleCoinCommand(player, target, action, amount);
             }
         } else {
-            player.sendMessage("§cUnknown admin category: " + category);
-            player.sendMessage("§cAvailable categories: level, coin, exp, stats, gui");
+            player.sendMessage(ColorUtils.translate("&cUnknown admin category: " + category));
+            player.sendMessage(ColorUtils.translate("&cAvailable categories: level, coin, exp, stats, gui"));
         }
     }
 
@@ -1789,16 +1804,16 @@ public class ObsidianCommand implements CommandExecutor {
         switch (action) {
             case "set":
                 playerLevel.setLevel(Math.max(1, amount));
-                player.sendMessage("§aSet " + target.getName() + "'s level to " + amount);
-                target.sendMessage("§eYour level has been set to " + amount + " by an admin!");
+                player.sendMessage(ColorUtils.translate("&aSet " + target.getName() + "'s level to " + amount));
+                target.sendMessage(ColorUtils.translate("&eYour level has been set to " + amount + " by an admin!"));
                 StatsDAO.savePlayerLevel(targetUuid);
                 break;
 
             case "add":
                 int newLevel = playerLevel.getLevel() + amount;
                 playerLevel.setLevel(newLevel);
-                player.sendMessage("§aAdded " + amount + " levels to " + target.getName() + " (now level " + newLevel + ")");
-                target.sendMessage("§eYou received " + amount + " levels from an admin! (now level " + newLevel + ")");
+                player.sendMessage(ColorUtils.translate("&aAdded " + amount + " levels to " + target.getName() + " (now level " + newLevel + ")"));
+                target.sendMessage(ColorUtils.translate("&eYou received " + amount + " levels from an admin! (now level " + newLevel + ")"));
                 StatsDAO.savePlayerLevel(targetUuid);
                 break;
 
@@ -1806,14 +1821,14 @@ public class ObsidianCommand implements CommandExecutor {
                 int currentLevel = playerLevel.getLevel();
                 int reducedLevel = Math.max(1, currentLevel - amount);
                 playerLevel.setLevel(reducedLevel);
-                player.sendMessage("§aRemoved " + (currentLevel - reducedLevel) + " levels from " + target.getName() + " (now level " + reducedLevel + ")");
-                target.sendMessage("§e" + (currentLevel - reducedLevel) + " levels were removed by an admin! (now level " + reducedLevel + ")");
+                player.sendMessage(ColorUtils.translate("&aRemoved " + (currentLevel - reducedLevel) + " levels from " + target.getName() + " (now level " + reducedLevel + ")"));
+                target.sendMessage(ColorUtils.translate("&e" + (currentLevel - reducedLevel) + " levels were removed by an admin! (now level " + reducedLevel + ")"));
                 StatsDAO.savePlayerLevel(targetUuid);
                 break;
 
             default:
-                player.sendMessage("§cUnknown action: " + action);
-                player.sendMessage("§cAvailable actions: set, add, remove");
+                player.sendMessage(ColorUtils.translate("&cUnknown action: " + action));
+                player.sendMessage(ColorUtils.translate("&cAvailable actions: set, add, remove"));
                 break;
         }
     }
@@ -1824,36 +1839,36 @@ public class ObsidianCommand implements CommandExecutor {
         switch (action) {
             case "set":
                 xpLevel.setXp(Math.max(0, amount));
-                player.sendMessage("§aSet " + target.getName() + "'s XP to " + amount);
-                target.sendMessage("§eYour XP has been set to " + amount + " by an admin!");
+                player.sendMessage(ColorUtils.translate("&aSet " + target.getName() + "'s XP to " + amount));
+                target.sendMessage(ColorUtils.translate("&eYour XP has been set to " + amount + " by an admin!"));
                 StatsDAO.savePlayerLevel(targetUuid);
                 break;
 
             case "add":
                 LevelManager.addXp(target, amount);
-                player.sendMessage("§aAdded " + amount + " XP to " + target.getName());
-                target.sendMessage("§eYou received " + amount + " XP from an admin!");
+                player.sendMessage(ColorUtils.translate("&aAdded " + amount + " XP to " + target.getName()));
+                target.sendMessage(ColorUtils.translate("&eYou received " + amount + " XP from an admin!"));
                 break;
 
             case "remove":
                 int currentXp = xpLevel.getCurrentXp();
                 int newXP = Math.max(0, currentXp - amount);
                 xpLevel.setXp(newXP);
-                player.sendMessage("§aRemoved " + (currentXp - newXP) + " XP from " + target.getName());
-                target.sendMessage("§e" + (currentXp - newXP) + " XP was removed by an admin!");
+                player.sendMessage(ColorUtils.translate("&aRemoved " + (currentXp - newXP) + " XP from " + target.getName()));
+                target.sendMessage(ColorUtils.translate("&e" + (currentXp - newXP) + " XP was removed by an admin!"));
                 StatsDAO.savePlayerLevel(targetUuid);
                 break;
 
             default:
-                player.sendMessage("§cUnknown action: " + action);
-                player.sendMessage("§cAvailable actions: set, add, remove");
+                player.sendMessage(ColorUtils.translate("&cUnknown action: " + action));
+                player.sendMessage(ColorUtils.translate("&cAvailable actions: set, add, remove"));
                 break;
         }
     }
 
     private void handleCoinCommand(Player player, Player target, String action, double amount) {
         if (!EconomyManager.getInstance().isEnabled()) {
-            player.sendMessage("§cEconomy is not enabled!");
+            player.sendMessage(ColorUtils.translate("&cEconomy is not enabled!"));
             return;
         }
 
@@ -1867,29 +1882,29 @@ public class ObsidianCommand implements CommandExecutor {
                 } else if (difference < 0) {
                     EconomyManager.getInstance().withdrawPlayer(target, -difference);
                 }
-                player.sendMessage("§aSet " + target.getName() + "'s coins to " + String.format("%.2f", amount));
-                target.sendMessage("§eYour coins have been set to " + String.format("%.2f", amount) + " by an admin!");
+                player.sendMessage(ColorUtils.translate("&aSet " + target.getName() + "'s coins to " + String.format("%.2f", amount)));
+                target.sendMessage(ColorUtils.translate("&eYour coins have been set to " + String.format("%.2f", amount) + " by an admin!"));
                 break;
 
             case "add":
                 EconomyManager.getInstance().awardPlayer(target, amount, "admin add");
-                player.sendMessage("§aAdded " + String.format("%.2f", amount) + " coins to " + target.getName());
-                target.sendMessage("§eYou received " + String.format("%.2f", amount) + " coins from an admin!");
+                player.sendMessage(ColorUtils.translate("&aAdded " + String.format("%.2f", amount) + " coins to " + target.getName()));
+                target.sendMessage(ColorUtils.translate("&eYou received " + String.format("%.2f", amount) + " coins from an admin!"));
                 break;
 
             case "remove":
                 boolean success = EconomyManager.getInstance().withdrawPlayer(target, amount);
                 if (success) {
-                    player.sendMessage("§aRemoved " + String.format("%.2f", amount) + " coins from " + target.getName());
-                    target.sendMessage("§e" + String.format("%.2f", amount) + " coins were removed by an admin!");
+                    player.sendMessage(ColorUtils.translate("&aRemoved " + String.format("%.2f", amount) + " coins from " + target.getName()));
+                    target.sendMessage(ColorUtils.translate("&e" + String.format("%.2f", amount) + " coins were removed by an admin!"));
                 } else {
-                    player.sendMessage("§c" + target.getName() + " doesn't have enough coins!");
+                    player.sendMessage(ColorUtils.translate("&c" + target.getName() + " doesn't have enough coins!"));
                 }
                 break;
 
             default:
-                player.sendMessage("§cUnknown action: " + action);
-                player.sendMessage("§cAvailable actions: set, add, remove");
+                player.sendMessage(ColorUtils.translate("&cUnknown action: " + action));
+                player.sendMessage(ColorUtils.translate("&cAvailable actions: set, add, remove"));
                 break;
         }
     }
@@ -1897,35 +1912,35 @@ public class ObsidianCommand implements CommandExecutor {
     private static void sendRulesAnnouncement(Player player) {
         List<String> rulesLines = MessagesConfigManager.getMessagesConfig().getStringList("messages.rules_announcement");
         for (String line : rulesLines) {
-            player.sendMessage(line);
+            player.sendMessage(ColorUtils.translate(line));
         }
     }
 
     public void openTeamSelectionGUI(Player player) {
         // Create 9-slot inventory
-        Inventory teamGUI = plugin.getServer().createInventory(null, 9, "§6Team Selection");
+        Inventory teamGUI = plugin.getServer().createInventory(null, 9, ColorUtils.translate("&6Team Selection"));
 
         // Red Team - Red Wool
         ItemStack redTeam = new ItemStack(org.bukkit.Material.RED_WOOL);
         ItemMeta redMeta = redTeam.getItemMeta();
         if (redMeta != null) {
-            redMeta.setDisplayName("§cRed Team");
+            redMeta.setDisplayName(ColorUtils.translate("&cRed Team"));
 
             // List of players in red team
             List<String> redLore = new ArrayList<>();
-            redLore.add("§7Members:");
+            redLore.add("&7Members:");
 
             List<String> redPlayers = getPlayersInTeam("red");
             if (redPlayers.isEmpty()) {
-                redLore.add("§cNo one (0 players)");
+                redLore.add("&cNo one (0 players)");
             } else {
                 for (String p : redPlayers) {
-                    redLore.add("§7- " + p);
+                    redLore.add("&7- " + p);
                 }
-                redLore.add("§7Total: " + redPlayers.size() + " players");
+                redLore.add("&7Total: " + redPlayers.size() + " players");
             }
 
-            redMeta.setLore(redLore);
+            redMeta.setLore(ColorUtils.translate(redLore));
             redTeam.setItemMeta(redMeta);
         }
         teamGUI.setItem(3, redTeam); // Left side
@@ -1934,23 +1949,23 @@ public class ObsidianCommand implements CommandExecutor {
         ItemStack blueTeam = new ItemStack(org.bukkit.Material.BLUE_WOOL);
         ItemMeta blueMeta = blueTeam.getItemMeta();
         if (blueMeta != null) {
-            blueMeta.setDisplayName("§9Blue Team");
+            blueMeta.setDisplayName(ColorUtils.translate("&9Blue Team"));
 
             // List of players in blue team
             List<String> blueLore = new ArrayList<>();
-            blueLore.add("§7Members:");
+            blueLore.add("&7Members:");
 
             List<String> bluePlayers = getPlayersInTeam("blue");
             if (bluePlayers.isEmpty()) {
-                blueLore.add("§9No one (0 players)");
+                blueLore.add("&9No one (0 players)");
             } else {
                 for (String p : bluePlayers) {
-                    blueLore.add("§7- " + p);
+                    blueLore.add("&7- " + p);
                 }
-                blueLore.add("§7Total: " + bluePlayers.size() + " players");
+                blueLore.add("&7Total: " + bluePlayers.size() + " players");
             }
 
-            blueMeta.setLore(blueLore);
+            blueMeta.setLore(ColorUtils.translate(blueLore));
             blueTeam.setItemMeta(blueMeta);
         }
         teamGUI.setItem(5, blueTeam); // Right side
@@ -1976,7 +1991,7 @@ public class ObsidianCommand implements CommandExecutor {
         List<String> arenaNames = ArenaConfigManager.getArenaNames();
 
         if (arenaNames.isEmpty()) {
-            player.sendMessage("§cNo arenas available.");
+            player.sendMessage(ColorUtils.translate("&cNo arenas available."));
             return;
         }
 
@@ -1997,16 +2012,16 @@ public class ObsidianCommand implements CommandExecutor {
 
         if (filteredArenas.isEmpty()) {
             if (isAdmin) {
-                player.sendMessage("§cNo arenas available.");
+                player.sendMessage(ColorUtils.translate("&cNo arenas available."));
             } else {
-                player.sendMessage("§cNo arenas are currently ready to join.");
+                player.sendMessage(ColorUtils.translate("&cNo arenas are currently ready to join."));
             }
             return;
         }
 
         // Calculate inventory size (9 slots per row, minimum 9)
         int size = Math.max(9, ((filteredArenas.size() + 8) / 9) * 9);
-        String title = isAdmin ? "§c§lAdmin Arena Selector" : "§6§lArena Selector";
+        String title = ColorUtils.translate(isAdmin ? "&c&lAdmin Arena Selector" : "&6&lArena Selector");
         Inventory gui = plugin.getServer().createInventory(null, size, title);
 
         for (int i = 0; i < filteredArenas.size(); i++) {
@@ -2018,34 +2033,34 @@ public class ObsidianCommand implements CommandExecutor {
             ItemStack arenaItem = new ItemStack(Material.COMPASS);
             ItemMeta meta = arenaItem.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName("§e" + arenaName);
+                meta.setDisplayName(ColorUtils.translate("&e" + arenaName));
 
                 String statusColor;
                 if (status.equals("READY") || status.equals("WAITING")) {
-                    statusColor = "§a";
+                    statusColor = "&a";
                 } else if (status.equals("STARTING")) {
-                    statusColor = "§6";
+                    statusColor = "&6";
                 } else if (status.equals("STARTED")) {
-                    statusColor = "§c";
+                    statusColor = "&c";
                 } else if (status.equals("PLAYING")) {
-                    statusColor = "§c";
+                    statusColor = "&c";
                 } else if (status.equals("DISABLED")) {
-                    statusColor = "§8";
+                    statusColor = "&8";
                 } else {
-                    statusColor = "§7";
+                    statusColor = "&7";
                 }
 
                 List<String> lore = new ArrayList<>();
-                lore.add("§7Status: " + statusColor + status);
-                lore.add("§7Players: §f" + currentPlayers + "/" + maxPlayers);
+                lore.add("&7Status: " + statusColor + status);
+                lore.add("&7Players: &f" + currentPlayers + "/" + maxPlayers);
                 lore.add("");
                 if (isAdmin) {
-                    lore.add("§eClick to manage arena!");
+                    lore.add("&eClick to manage arena!");
                 } else {
-                    lore.add("§eClick to join!");
+                    lore.add("&eClick to join!");
                 }
 
-                meta.setLore(lore);
+                meta.setLore(ColorUtils.translate(lore));
                 arenaItem.setItemMeta(meta);
             }
 

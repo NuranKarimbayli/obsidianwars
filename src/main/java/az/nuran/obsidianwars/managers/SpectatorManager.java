@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.managers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.services.PlayerUtils;
@@ -70,7 +72,7 @@ public class SpectatorManager {
         spectators.put(player.getUniqueId(), arenaName);
         spectatorArenas.put(player.getUniqueId(), arenaName);
 
-        player.sendMessage(MessagesConfigManager.getMessage("spectator_mode", "arenaName", arenaName));
+        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("spectator_mode", "arenaName", arenaName)));
     }
 
     /**
@@ -191,11 +193,11 @@ public class SpectatorManager {
         ItemStack item = new ItemStack(Material.COMPASS);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§a§lPlayer Teleporter");
-            meta.setLore(java.util.Arrays.asList(
-                "§7Right-click to teleport to",
-                "§7alive players in the game."
-            ));
+            meta.setDisplayName(ColorUtils.translate("&a&lPlayer Teleporter"));
+            meta.setLore(ColorUtils.translate(java.util.Arrays.asList(
+                "&7Right-click to teleport to",
+                "&7alive players in the game."
+            )));
             item.setItemMeta(meta);
         }
         return item;
@@ -212,11 +214,11 @@ public class SpectatorManager {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             int speed = flySpeeds.getOrDefault(player.getUniqueId(), 1);
-            meta.setDisplayName("§e§lFly Speed §7(Current: " + speed + "x)");
-            meta.setLore(java.util.Arrays.asList(
-                "§7Right-click to cycle speed:",
-                "§7 1x §f→ §7 2x §f→ §7 3x §f→ §7 1x"
-            ));
+            meta.setDisplayName(ColorUtils.translate("&e&lFly Speed &7(Current: " + speed + "x)"));
+            meta.setLore(ColorUtils.translate(java.util.Arrays.asList(
+                "&7Right-click to cycle speed:",
+                "&7 1x &f→ &7 2x &f→ &7 3x &f→ &7 1x"
+            )));
             item.setItemMeta(meta);
         }
         return item;
@@ -233,12 +235,12 @@ public class SpectatorManager {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             boolean hasNightVision = nightVisionStates.getOrDefault(player.getUniqueId(), true);
-            String status = hasNightVision ? "§aON" : "§cOFF";
-            meta.setDisplayName("§b§lToggle Night Vision §7(" + status + ")");
-            meta.setLore(java.util.Arrays.asList(
-                "§7Right-click to toggle",
-                "§7Night Vision effect."
-            ));
+            String status = hasNightVision ? "&aON" : "&cOFF";
+            meta.setDisplayName(ColorUtils.translate("&b&lToggle Night Vision &7(" + status + ")"));
+            meta.setLore(ColorUtils.translate(java.util.Arrays.asList(
+                "&7Right-click to toggle",
+                "&7Night Vision effect."
+            )));
             item.setItemMeta(meta);
         }
         return item;
@@ -253,11 +255,11 @@ public class SpectatorManager {
         ItemStack item = new ItemStack(Material.RED_BED);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName("§c§lLeave Spectator");
-            meta.setLore(java.util.Arrays.asList(
-                "§7Right-click to return to",
-                "§7the main lobby."
-            ));
+            meta.setDisplayName(ColorUtils.translate("&c&lLeave Spectator"));
+            meta.setLore(ColorUtils.translate(java.util.Arrays.asList(
+                "&7Right-click to return to",
+                "&7the main lobby."
+            )));
             item.setItemMeta(meta);
         }
         return item;
@@ -281,7 +283,7 @@ public class SpectatorManager {
         ItemStack feather = createFlySpeedFeather(player);
         player.getInventory().setItem(3, feather);
 
-        player.sendMessage("§aFly speed set to " + newSpeed + "x");
+        player.sendMessage(ColorUtils.translate("&aFly speed set to " + newSpeed + "x"));
     }
 
     /**
@@ -296,10 +298,10 @@ public class SpectatorManager {
 
         if (newState) {
             player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, Integer.MAX_VALUE, 0, false, false));
-            player.sendMessage("§aNight Vision enabled");
+            player.sendMessage(ColorUtils.translate("&aNight Vision enabled"));
         } else {
             player.removePotionEffect(PotionEffectType.NIGHT_VISION);
-            player.sendMessage("§cNight Vision disabled");
+            player.sendMessage(ColorUtils.translate("&cNight Vision disabled"));
         }
 
         // Update item in inventory

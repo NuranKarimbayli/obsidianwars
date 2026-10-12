@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.managers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.handlers.ChatListener;
 import az.nuran.obsidianwars.handlers.TeamListener;
@@ -211,7 +213,7 @@ public class TeamManager {
     private static void applyTeamColor(Player player, String team, boolean equipArmor) {
         if (team.equals("red")) {
             // Name color - Red
-            String coloredName = ChatColor.RED + player.getName();
+            String coloredName = ColorUtils.translate("&c" + player.getName());
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 
@@ -221,7 +223,7 @@ public class TeamManager {
             }
         } else if (team.equals("blue")) {
             // Name color - Blue
-            String coloredName = ChatColor.BLUE + player.getName();
+            String coloredName = ColorUtils.translate("&9" + player.getName());
             player.setDisplayName(coloredName);
             player.setPlayerListName(coloredName);
 

@@ -13,11 +13,11 @@ features:
 # Customize team colors, names, and wool types
 teams:
   red:
-    color: "§c"
+    color: "&c"
     name: "Red"
     wool_type: "RED_WOOL"
   blue:
-    color: "§9"
+    color: "&9"
     name: "Blue"
     wool_type: "BLUE_WOOL"
 

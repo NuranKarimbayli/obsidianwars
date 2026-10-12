@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.managers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.services.DebugManager;
@@ -56,7 +58,7 @@ public class ResourceBlockManager implements Listener {
         playersInSetupMode.put(uuid, arenaName);
         
         // We create BossBar
-        BossBar bossBar = Bukkit.createBossBar("§eSetup Mode: Place resource blocks for " + arenaName + ". Type /o arena setblocks to exit.", BarColor.YELLOW, BarStyle.SOLID);
+        BossBar bossBar = Bukkit.createBossBar(ColorUtils.translate("&eSetup Mode: Place resource blocks for " + arenaName + ". Type /o arena setblocks to exit."), BarColor.YELLOW, BarStyle.SOLID);
         bossBar.addPlayer(player);
         bossBar.setVisible(true);
         setupModeBossBars.put(uuid, bossBar);
@@ -64,12 +66,12 @@ public class ResourceBlockManager implements Listener {
         // We switch player to Creative mode
         player.setGameMode(org.bukkit.GameMode.CREATIVE);
 
-        player.sendMessage("§aYou have entered Resource Block Setup Mode!");
-        player.sendMessage("§eAllowed blocks (loaded from config.yml):");
+        player.sendMessage(ColorUtils.translate("&aYou have entered Resource Block Setup Mode!"));
+        player.sendMessage(ColorUtils.translate("&eAllowed blocks (loaded from config.yml):"));
         for (Material material : ALLOWED_RESOURCE_BLOCKS) {
-            player.sendMessage("§7- " + material.name());
+            player.sendMessage(ColorUtils.translate("&7- " + material.name()));
         }
-        player.sendMessage("§ePlace whichever block you want to place!");
+        player.sendMessage(ColorUtils.translate("&ePlace whichever block you want to place!"));
     }
 
     public static void exitSetupMode(Player player) {
@@ -87,7 +89,7 @@ public class ResourceBlockManager implements Listener {
             // We return player to Creative mode
             player.setGameMode(org.bukkit.GameMode.CREATIVE);
 
-            player.sendMessage("§aYou have exited Resource Block Setup Mode!");
+            player.sendMessage(ColorUtils.translate("&aYou have exited Resource Block Setup Mode!"));
 
             // Suggest next setup step
             ObsidianCommand.suggestNextSetupStep(player, arenaName, "resourceblocks");
@@ -116,24 +118,25 @@ public class ResourceBlockManager implements Listener {
         // We only accept allowed resource blocks
         if (!ALLOWED_RESOURCE_BLOCKS.contains(blockType)) {
             event.setCancelled(true);
-            player.sendMessage("§cThis block cannot be registered as a resource!");
-            player.sendMessage("§eAllowed blocks (from config.yml):");
+            player.sendMessage(ColorUtils.translate("&cThis block cannot be registered as a resource!"));
+            player.sendMessage(ColorUtils.translate("&eAllowed blocks (from config.yml):"));
             for (Material material : ALLOWED_RESOURCE_BLOCKS) {
-                player.sendMessage("§7- " + material.name());
+                player.sendMessage(ColorUtils.translate("&7- " + material.name()));
             }
             return;
         }
 
         // We write block data to resource_blocks.yml file
         Location loc = event.getBlock().getLocation();
-        
+
         // Use ArenaFileManager to add resource block with immediate disk flush
         ArenaFileManager.addResourceBlock(arenaName, blockType.name(), loc);
-        
+
+        // Get count after adding (will be at least 1 for first block)
         int totalBlocks = ArenaFileManager.getResourceBlockCount(arenaName);
 
-        player.sendMessage("§a" + blockType.name() + " block registered as resource! (" + totalBlocks + " blocks)");
-        player.sendActionBar("§aResource block saved! Total: " + totalBlocks);
+        player.sendMessage(ColorUtils.translate("&a" + blockType.name() + " block registered as resource! (" + totalBlocks + " blocks)"));
+        player.sendActionBar(ColorUtils.translate("&aResource block saved! Total: " + totalBlocks));
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -150,8 +153,8 @@ public class ResourceBlockManager implements Listener {
                 // It is a resource block - we remove it from resource_blocks.yml file
                 ArenaFileManager.removeResourceBlock(arenaName, blockLoc);
                 int totalBlocks = ArenaFileManager.getResourceBlockCount(arenaName);
-                player.sendMessage("§cResource block removed! (" + totalBlocks + " blocks remaining)");
-                player.sendActionBar("§cResource block removed! Total: " + totalBlocks);
+                player.sendMessage(ColorUtils.translate("&cResource block removed! (" + totalBlocks + " blocks remaining)"));
+                player.sendActionBar(ColorUtils.translate("&cResource block removed! Total: " + totalBlocks));
             }
             return;
         }

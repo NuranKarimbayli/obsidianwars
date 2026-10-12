@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -40,11 +42,11 @@ public class PerWorldChatListener implements Listener {
                 // Send the message with original format
                 String format = event.getFormat();
                 String message = event.getMessage();
-                recipient.sendMessage(String.format(format, sender.getDisplayName(), message));
+                recipient.sendMessage(ColorUtils.translate(String.format(format, sender.getDisplayName(), message)));
             }
         }
 
         // Log to console
-        Bukkit.getConsoleSender().sendMessage(String.format(event.getFormat(), sender.getName(), event.getMessage()));
+        Bukkit.getConsoleSender().sendMessage(ColorUtils.translate(String.format(event.getFormat(), sender.getName(), event.getMessage())));
     }
 }

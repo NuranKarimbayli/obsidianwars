@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaStateManager;
@@ -57,7 +59,7 @@ public class XPAwardListener implements Listener {
                         Player player = Bukkit.getPlayer(uuid);
                         if (player != null && player.isOnline() && player.getGameMode() == org.bukkit.GameMode.SURVIVAL) {
                             LevelManager.addXp(player, xpPerMinute);
-                            player.sendMessage("§e+§a" + xpPerMinute + " XP §efor playing!");
+                            player.sendMessage(ColorUtils.translate("&e+&a" + xpPerMinute + " XP &efor playing!"));
                         }
                     }
                 }
@@ -82,7 +84,7 @@ public class XPAwardListener implements Listener {
         int xp = getXpReward("win");
         if (xp > 0) {
             LevelManager.addXp(player, xp);
-            player.sendMessage("§6+§a" + xp + " XP §efor winning the game!");
+            player.sendMessage(ColorUtils.translate("&6+&a" + xp + " XP &efor winning the game!"));
         }
     }
 
@@ -93,7 +95,7 @@ public class XPAwardListener implements Listener {
         int xp = getXpReward("obsidian-broken");
         if (xp > 0) {
             LevelManager.addXp(player, xp);
-            player.sendMessage("§d+§a" + xp + " XP §efor breaking obsidian!");
+            player.sendMessage(ColorUtils.translate("&d+&a" + xp + " XP &efor breaking obsidian!"));
         }
     }
 
@@ -104,7 +106,7 @@ public class XPAwardListener implements Listener {
         int xp = getXpReward("kill");
         if (xp > 0) {
             LevelManager.addXp(player, xp);
-            player.sendMessage("§c+§a" + xp + " XP §efor a kill!");
+            player.sendMessage(ColorUtils.translate("&c+&a" + xp + " XP &efor a kill!"));
         }
     }
 
@@ -115,7 +117,7 @@ public class XPAwardListener implements Listener {
         int xp = getXpReward("final-kill");
         if (xp > 0) {
             LevelManager.addXp(player, xp);
-            player.sendMessage("§4+§a" + xp + " XP §efor a final kill!");
+            player.sendMessage(ColorUtils.translate("&4+&a" + xp + " XP &efor a final kill!"));
         }
     }
 

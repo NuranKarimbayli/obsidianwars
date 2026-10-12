@@ -1,6 +1,7 @@
 package az.nuran.obsidianwars.managers;
 
 import az.nuran.obsidianwars.Obsidianwars;
+import az.nuran.obsidianwars.util.ColorUtils;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -114,30 +115,33 @@ public class LanguageManager {
      * Falls back to global language, then to English.
      */
     public String getMessage(String langCode, String key) {
-        // If no language specified, use global
+        return formatMessage(resolveMessage(langCode, key));
+    }
+
+    /**
+     * Resolves a message without applying color translation, so placeholders can
+     * still introduce {@code &} / HEX codes that are translated afterwards.
+     */
+    private String resolveMessage(UUID uuid, String key) {
+        return resolveMessage(PlayerDataManager.getPlayerLanguage(uuid), key);
+    }
+
+    private String resolveMessage(String langCode, String key) {
         if (langCode == null || langCode.isEmpty()) {
             langCode = globalLanguage;
         }
 
-        // Try the requested language
         String message = getMessageFromLanguage(langCode, key);
 
-        // If not found, try global language
         if (message == null && !langCode.equals(globalLanguage)) {
             message = getMessageFromLanguage(globalLanguage, key);
         }
 
-        // If still not found, try English
         if (message == null && !globalLanguage.equals(DEFAULT_LANGUAGE)) {
             message = getMessageFromLanguage(DEFAULT_LANGUAGE, key);
         }
 
-        // If still not found, return the key itself
-        if (message == null) {
-            return key;
-        }
-
-        return message;
+        return message != null ? message : key;
     }
 
     /**
@@ -151,46 +155,48 @@ public class LanguageManager {
         return config.getString("messages." + key, null);
     }
 
+    private String formatMessage(String message) {
+        return ColorUtils.translate(message);
+    }
+
     /**
      * Gets a message with placeholder replacements for a specific player.
      */
     public String getMessage(Player player, String key, Map<String, String> placeholders) {
-        String message = getMessage(player, key);
-        return replacePlaceholders(message, placeholders);
+        return formatMessage(replacePlaceholders(resolveMessage(player.getUniqueId(), key), placeholders));
     }
 
     /**
      * Gets a message with placeholder replacements for a specific language.
      */
     public String getMessage(String langCode, String key, Map<String, String> placeholders) {
-        String message = getMessage(langCode, key);
-        return replacePlaceholders(message, placeholders);
+        return formatMessage(replacePlaceholders(resolveMessage(langCode, key), placeholders));
     }
 
     /**
      * Gets a message with placeholder replacements for a specific language (varargs).
      */
     public String getMessage(String langCode, String key, String... replacements) {
-        String message = getMessage(langCode, key);
+        String message = resolveMessage(langCode, key);
         for (int i = 0; i < replacements.length; i += 2) {
             if (i + 1 < replacements.length) {
                 message = message.replace("{" + replacements[i] + "}", replacements[i + 1]);
             }
         }
-        return message;
+        return formatMessage(message);
     }
 
     /**
      * Gets a message with placeholder replacements (legacy varargs support).
      */
     public String getMessage(Player player, String key, String... replacements) {
-        String message = getMessage(player, key);
+        String message = resolveMessage(player.getUniqueId(), key);
         for (int i = 0; i < replacements.length; i += 2) {
             if (i + 1 < replacements.length) {
                 message = message.replace("{" + replacements[i] + "}", replacements[i + 1]);
             }
         }
-        return message;
+        return formatMessage(message);
     }
 
     /**
@@ -202,6 +208,51 @@ public class LanguageManager {
             message = message.replace("{" + entry.getKey() + "}", entry.getValue());
         }
         return message;
+    }
+
+    /**
+     * Gets a list of messages (e.g. welcome/rules) with color translation applied.
+     */
+    public List<String> getMessageList(Player player, String key) {
+        return ColorUtils.translate(resolveMessageList(player.getUniqueId(), key));
+    }
+
+    /**
+     * Gets a list of messages using the global language.
+     */
+    public List<String> getGlobalMessageList(String key) {
+        return ColorUtils.translate(resolveMessageList(globalLanguage, key));
+    }
+
+    private List<String> resolveMessageList(UUID uuid, String key) {
+        return resolveMessageList(PlayerDataManager.getPlayerLanguage(uuid), key);
+    }
+
+    private List<String> resolveMessageList(String langCode, String key) {
+        if (langCode == null || langCode.isEmpty()) {
+            langCode = globalLanguage;
+        }
+
+        List<String> messages = getMessageListFromLanguage(langCode, key);
+
+        if (messages == null && !langCode.equals(globalLanguage)) {
+            messages = getMessageListFromLanguage(globalLanguage, key);
+        }
+
+        if (messages == null && !globalLanguage.equals(DEFAULT_LANGUAGE)) {
+            messages = getMessageListFromLanguage(DEFAULT_LANGUAGE, key);
+        }
+
+        return messages != null ? messages : java.util.Collections.emptyList();
+    }
+
+    private List<String> getMessageListFromLanguage(String langCode, String key) {
+        FileConfiguration config = languageConfigs.get(langCode);
+        if (config == null) {
+            return null;
+        }
+        List<String> list = config.getStringList("messages." + key);
+        return list == null || list.isEmpty() ? null : list;
     }
 
     /**
@@ -285,12 +336,6 @@ public class LanguageManager {
      * Gets a message using the global language with placeholder replacements (varargs).
      */
     public String getGlobalMessage(String key, String... replacements) {
-        String message = getMessage(globalLanguage, key);
-        for (int i = 0; i < replacements.length; i += 2) {
-            if (i + 1 < replacements.length) {
-                message = message.replace("{" + replacements[i] + "}", replacements[i + 1]);
-            }
-        }
-        return message;
+        return getMessage(globalLanguage, key, replacements);
     }
 }

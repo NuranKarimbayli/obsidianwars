@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.managers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.handlers.TeamListener;
@@ -233,7 +235,7 @@ public class ParticleManager {
 
         // Send initial message
         String message = MessagesConfigManager.getMessage("spawn_protection", "seconds", String.valueOf(seconds));
-        player.sendMessage(message);
+        player.sendMessage(ColorUtils.translate(message));
 
         // Start protection task using TaskManager
         BukkitTask task = TaskManager.getInstance().runTimer(taskId, new Runnable() {
@@ -246,11 +248,11 @@ public class ParticleManager {
                 if (remaining > 0) {
                     // Show action bar with remaining time
                     String actionBar = MessagesConfigManager.getMessage("spawn_protection", "seconds", String.valueOf(remaining));
-                    player.sendActionBar(actionBar);
+                    player.sendActionBar(ColorUtils.translate(actionBar));
                 } else {
                     // Protection expired
                     String expiredMsg = MessagesConfigManager.getMessage("protection_expired");
-                    player.sendMessage(expiredMsg);
+                    player.sendMessage(ColorUtils.translate(expiredMsg));
 
                     // Remove glowing effect
                     player.setGlowing(false);

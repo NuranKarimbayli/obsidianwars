@@ -117,6 +117,7 @@ public final class Obsidianwars extends JavaPlugin {
 
         // Initialize configuration managers
         ArenaConfigManager.initialize();
+        ArenaStateManager.initializeExistingArenas(); // Initialize arena states after config is loaded
         MessagesConfigManager.initialize();
         ScoreboardsConfigManager.initialize();
         KillStreaksConfigManager.initialize();

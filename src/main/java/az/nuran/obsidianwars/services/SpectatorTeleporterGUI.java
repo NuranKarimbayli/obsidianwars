@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.services;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.handlers.TeamListener;
 import az.nuran.obsidianwars.managers.SpectatorManager;
@@ -19,7 +21,7 @@ import java.util.List;
  */
 public class SpectatorTeleporterGUI {
 
-    private static final String GUI_TITLE = "§6§lTeleport to Player";
+    private static final String GUI_TITLE = "&6&lTeleport to Player";
 
     /**
      * Opens the teleporter GUI for a spectator.
@@ -32,13 +34,13 @@ public class SpectatorTeleporterGUI {
         List<Player> alivePlayers = getAlivePlayersInArena(arenaName);
 
         if (alivePlayers.isEmpty()) {
-            spectator.sendMessage("§cNo alive players in the arena!");
+            spectator.sendMessage(ColorUtils.translate("&cNo alive players in the arena!"));
             return;
         }
 
         // Calculate inventory size (9 slots per row, minimum 9)
         int size = Math.max(9, ((alivePlayers.size() + 8) / 9) * 9);
-        Inventory gui = Bukkit.createInventory(null, size, GUI_TITLE);
+        Inventory gui = Bukkit.createInventory(null, size, ColorUtils.translate(GUI_TITLE));
 
         // Add player heads to GUI
         for (int i = 0; i < alivePlayers.size(); i++) {
@@ -81,17 +83,17 @@ public class SpectatorTeleporterGUI {
         SkullMeta meta = (SkullMeta) head.getItemMeta();
         if (meta != null) {
             meta.setOwningPlayer(player);
-            meta.setDisplayName("§e" + player.getName());
+            meta.setDisplayName(ColorUtils.translate("&e" + player.getName()));
 
             // Get player team for lore
             String team = TeamListener.playerTeams.get(player.getUniqueId());
-            String teamColor = team != null ? TeamConfig.getTeamColor(team) : "§f";
+            String teamColor = team != null ? TeamConfig.getTeamColor(team) : "&f";
             String teamName = team != null ? TeamConfig.getTeamName(team) + " Team" : "No Team";
 
-            meta.setLore(java.util.Arrays.asList(
+            meta.setLore(ColorUtils.translate(java.util.Arrays.asList(
                 teamColor + teamName,
-                "§7Click to teleport to " + player.getName()
-            ));
+                "&7Click to teleport to " + player.getName()
+            )));
             head.setItemMeta(meta);
         }
         return head;

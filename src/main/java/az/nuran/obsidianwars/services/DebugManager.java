@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.services;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -108,7 +110,7 @@ public class DebugManager {
                 if (mode == DebugMode.CHAT || mode == DebugMode.BOTH) {
                     Player player = Bukkit.getPlayer(entry.getKey());
                     if (player != null && player.isOnline()) {
-                        player.sendMessage("§7[DEBUG] §f" + formattedMessage);
+                        player.sendMessage(ColorUtils.translate("&7[DEBUG] &f" + formattedMessage));
                     }
                 }
             }

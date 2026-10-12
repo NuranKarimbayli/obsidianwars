@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 
 import org.bukkit.entity.Player;
@@ -29,7 +31,7 @@ public class LobbyItemClickListener implements Listener {
         String itemName = item.getItemMeta().getDisplayName();
 
         // Team Selection Compass
-        if (itemName.equals("§eTeam Selection")) {
+        if (ColorUtils.matches(itemName, "&eTeam Selection")) {
             if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK ||
                 event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
                 event.setCancelled(true);
@@ -38,13 +40,13 @@ public class LobbyItemClickListener implements Listener {
                     // Open team selection menu
                     obsidianCommand.openTeamSelectionGUI(player);
                 } else {
-                    player.sendMessage("§cYou are not in an arena!");
+                    player.sendMessage(ColorUtils.translate("&cYou are not in an arena!"));
                 }
             }
         }
 
         // Leave Game Door
-        if (itemName.equals("§cLeave Game")) {
+        if (ColorUtils.matches(itemName, "&cExit Game") || ColorUtils.matches(itemName, "&cLeave Game")) {
             if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK ||
                 event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
                 event.setCancelled(true);

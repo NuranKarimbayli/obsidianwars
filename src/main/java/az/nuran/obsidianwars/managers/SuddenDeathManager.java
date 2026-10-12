@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.managers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 
@@ -259,8 +261,8 @@ public class SuddenDeathManager {
                 if (playerArena != null && playerArena.equals(arenaName)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null && player.isOnline()) {
-                    player.sendTitle(title, subtitle, 10, 60, 20);
-                    player.sendMessage(message);
+                    player.sendTitle(ColorUtils.translate(title), ColorUtils.translate(subtitle), 10, 60, 20);
+                    player.sendMessage(ColorUtils.translate(message));
 
                     // Play sound
                     String soundName = MessagesConfigManager.getMessage("sudden_death_sound");
@@ -370,7 +372,7 @@ public class SuddenDeathManager {
         public SuddenDeathData(String arenaName) {
             this.arenaName = arenaName;
             this.bossBar = Bukkit.createBossBar(
-                "§c§lSUDDEN DEATH",
+                ColorUtils.translate("&c&lSUDDEN DEATH"),
                 BarColor.RED,
                 BarStyle.SEGMENTED_10
             );

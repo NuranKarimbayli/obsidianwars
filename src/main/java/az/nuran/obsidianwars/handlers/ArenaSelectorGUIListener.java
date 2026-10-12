@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
@@ -19,7 +21,7 @@ public class ArenaSelectorGUIListener implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         // Handle both regular and admin arena selector GUIs
         String title = event.getView().getTitle();
-        if (!title.equals("§6§lArena Selector") && !title.equals("§c§lAdmin Arena Selector")) {
+        if (!ColorUtils.matches(title, "&6&lArena Selector") && !ColorUtils.matches(title, "&c&lAdmin Arena Selector")) {
             return;
         }
 
@@ -37,11 +39,11 @@ public class ArenaSelectorGUIListener implements Listener {
         }
 
         String displayName = clickedItem.getItemMeta().getDisplayName();
-        if (displayName == null || !displayName.startsWith("§e")) {
+        if (displayName == null || !ColorUtils.startsWithFormatted(displayName, "&e")) {
             return;
         }
 
-        String arenaName = displayName.replace("§e", "");
+        String arenaName = ColorUtils.stripColors(displayName);
 
         if (arenaName.isEmpty()) {
             return;
@@ -49,19 +51,19 @@ public class ArenaSelectorGUIListener implements Listener {
 
         // Check if arena is available
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage("§cArena not found: " + arenaName);
+            player.sendMessage(ColorUtils.translate("&cArena not found: " + arenaName));
             player.closeInventory();
             return;
         }
 
         // Admin GUI - show arena info but don't join
-        if (title.equals("§c§lAdmin Arena Selector")) {
+        if (ColorUtils.matches(title, "&c&lAdmin Arena Selector")) {
             String status = ArenaConfigManager.getArenaStatus(arenaName);
             int currentPlayers = ObsidianCommand.getArenaPlayerCount(arenaName);
             int maxPlayers = ArenaConfigManager.getMaxPlayers(arenaName);
-            player.sendMessage("§eArena: §f" + arenaName);
-            player.sendMessage("§eStatus: §f" + status);
-            player.sendMessage("§ePlayers: §f" + currentPlayers + "/" + maxPlayers);
+            player.sendMessage(ColorUtils.translate("&eArena: &f" + arenaName));
+            player.sendMessage(ColorUtils.translate("&eStatus: &f" + status));
+            player.sendMessage(ColorUtils.translate("&ePlayers: &f" + currentPlayers + "/" + maxPlayers));
             player.closeInventory();
             return;
         }
@@ -69,7 +71,7 @@ public class ArenaSelectorGUIListener implements Listener {
         // Regular GUI - only allow joining READY or WAITING arenas (not STARTING or PLAYING)
         String status = ArenaConfigManager.getArenaStatus(arenaName);
         if (!"READY".equals(status) && !"WAITING".equals(status)) {
-            player.sendMessage("§cThis arena is not available (status: " + status + ")");
+            player.sendMessage(ColorUtils.translate("&cThis arena is not available (status: " + status + ")"));
             player.closeInventory();
             return;
         }

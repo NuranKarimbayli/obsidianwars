@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.commands.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
@@ -21,7 +23,7 @@ public class SpectateCommandHandler implements CommandHandler {
 
         if (subCommand.equals("spectate")) {
             if (!player.hasPermission("obsidianwars.command.spectate")) {
-                player.sendMessage("§cYou don't have permission to use this command.");
+                player.sendMessage(ColorUtils.translate("&cYou don't have permission to use this command."));
                 return true;
             }
             handleSpectateCommand(player, args);
@@ -30,7 +32,7 @@ public class SpectateCommandHandler implements CommandHandler {
 
         if (subCommand.equals("queue")) {
             if (!player.hasPermission("obsidianwars.command.queue")) {
-                player.sendMessage("§cYou don't have permission to use this command.");
+                player.sendMessage(ColorUtils.translate("&cYou don't have permission to use this command."));
                 return true;
             }
             handleQueueCommand(player, args);
@@ -42,7 +44,7 @@ public class SpectateCommandHandler implements CommandHandler {
 
     private void handleSpectateCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage("§cUsage: /o spectate <arena|player>");
+            player.sendMessage(ColorUtils.translate("&cUsage: /o spectate <arena|player>"));
             return;
         }
 
@@ -56,7 +58,7 @@ public class SpectateCommandHandler implements CommandHandler {
                 // Player is in a game - set spectator mode and teleport to their location
                 SpectatorManager.setSpectatorMode(player, playerArena);
                 player.teleport(targetPlayer.getLocation());
-                player.sendMessage("§aNow spectating " + targetPlayer.getName() + " in arena " + playerArena);
+                player.sendMessage(ColorUtils.translate("&aNow spectating " + targetPlayer.getName() + " in arena " + playerArena));
                 return;
             }
         }
@@ -67,16 +69,16 @@ public class SpectateCommandHandler implements CommandHandler {
             if (spectSpawn != null) {
                 SpectatorManager.setSpectatorMode(player, target);
                 player.teleport(spectSpawn);
-                player.sendMessage("§aNow spectating arena " + target);
+                player.sendMessage(ColorUtils.translate("&aNow spectating arena " + target));
                 return;
             } else {
-                player.sendMessage("§cSpectator spawn not set for arena " + target);
+                player.sendMessage(ColorUtils.translate("&cSpectator spawn not set for arena " + target));
                 return;
             }
         }
 
         // Neither found
-        player.sendMessage("§cTarget player or arena not found.");
+        player.sendMessage(ColorUtils.translate("&cTarget player or arena not found."));
     }
 
     private void handleQueueCommand(Player player, String[] args) {

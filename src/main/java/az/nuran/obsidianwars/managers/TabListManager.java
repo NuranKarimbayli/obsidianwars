@@ -1,11 +1,12 @@
 package az.nuran.obsidianwars.managers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -57,8 +58,8 @@ public class TabListManager {
             }
 
             // Apply color codes
-            header = ChatColor.translateAlternateColorCodes('&', header);
-            footer = ChatColor.translateAlternateColorCodes('&', footer);
+            header = ColorUtils.translate(header);
+            footer = ColorUtils.translate(footer);
 
             // Update tab list
             player.setPlayerListHeader(header);
@@ -75,13 +76,13 @@ public class TabListManager {
         if (!ObsidianCommand.playersInArena.containsKey(uuid)) {
             // Not in arena, remove health display but keep level
             String levelFormatted = LevelManager.getFormattedLevel(uuid);
-            player.setPlayerListName(levelFormatted + " " + player.getName());
+            player.setPlayerListName(ColorUtils.translate(levelFormatted + " " + player.getName()));
             return;
         }
 
         String healthDisplay = getHealthDisplay(player);
         String levelFormatted = LevelManager.getFormattedLevel(uuid);
-        player.setPlayerListName(levelFormatted + " " + player.getName() + " " + healthDisplay);
+        player.setPlayerListName(ColorUtils.translate(levelFormatted + " " + player.getName() + " " + healthDisplay));
     }
 
     private static String getHealthDisplay(Player player) {
@@ -91,17 +92,17 @@ public class TabListManager {
             double health = player.getHealth();
             int hearts = (int) Math.ceil(health / 2);
             StringBuilder sb = new StringBuilder();
-            sb.append("§c");
+            sb.append("&c");
             for (int i = 0; i < hearts; i++) {
                 sb.append("❤");
             }
             if (health % 2 > 0) {
-                sb.append("§e❤"); // Half heart
+                sb.append("&e❤"); // Half heart
             }
             return sb.toString();
         } else {
             // Number format
-            return "§c" + String.format("%.1f", player.getHealth());
+            return "&c" + String.format("%.1f", player.getHealth());
         }
     }
 

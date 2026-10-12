@@ -1,7 +1,8 @@
 package az.nuran.obsidianwars.models;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
@@ -66,36 +67,26 @@ public class PlayerLevel {
      * Updates the level display name with colors and stars based on level bracket.
      */
     private void updateLevelName() {
-        ChatColor color;
         String prefix;
 
         if (level >= 1000) {
-            color = ChatColor.GOLD;
-            prefix = "§6§l";
+            prefix = "&6&l";
         } else if (level >= 500) {
-            color = ChatColor.AQUA;
-            prefix = "§b§l";
+            prefix = "&b&l";
         } else if (level >= 200) {
-            color = ChatColor.GREEN;
-            prefix = "§a§l";
+            prefix = "&a&l";
         } else if (level >= 100) {
-            color = ChatColor.YELLOW;
-            prefix = "§e§l";
+            prefix = "&e&l";
         } else if (level >= 50) {
-            color = ChatColor.LIGHT_PURPLE;
-            prefix = "§d§l";
+            prefix = "&d&l";
         } else if (level >= 20) {
-            color = ChatColor.RED;
-            prefix = "§c§l";
+            prefix = "&c&l";
         } else if (level >= 10) {
-            color = ChatColor.BLUE;
-            prefix = "§9§l";
+            prefix = "&9&l";
         } else if (level >= 5) {
-            color = ChatColor.GRAY;
-            prefix = "§7§l";
+            prefix = "&7&l";
         } else {
-            color = ChatColor.GRAY;
-            prefix = "§7";
+            prefix = "&7";
         }
 
         this.levelName = prefix + "[" + level + "★]";
@@ -113,10 +104,10 @@ public class PlayerLevel {
         if (unlocked > 10) unlocked = 10;
         if (locked < 0) locked = 0;
 
-        String unlockedSection = ChatColor.AQUA + String.valueOf(new char[unlocked]).replace("\0", "■");
-        String lockedSection = ChatColor.DARK_GRAY + String.valueOf(new char[locked]).replace("\0", "■");
+        String unlockedSection = "&b" + String.valueOf(new char[unlocked]).replace("\0", "■");
+        String lockedSection = "&8" + String.valueOf(new char[locked]).replace("\0", "■");
 
-        this.progressBar = ChatColor.DARK_GRAY + "[" + unlockedSection + lockedSection + ChatColor.DARK_GRAY + "]";
+        this.progressBar = "&8[" + unlockedSection + lockedSection + "&8]";
         this.formattedCurrentXp = formatNumber(currentXp);
         this.formattedRequiredXp = formatNumber(nextLevelCost);
     }
@@ -184,10 +175,10 @@ public class PlayerLevel {
             broadcastMessage = broadcastMessage.replace("{level}", String.valueOf(level)).replace("{player}", player.getName());
 
             // Translate color codes
-            title = ChatColor.translateAlternateColorCodes('&', title);
-            subtitle = ChatColor.translateAlternateColorCodes('&', subtitle);
-            message = ChatColor.translateAlternateColorCodes('&', message);
-            broadcastMessage = ChatColor.translateAlternateColorCodes('&', broadcastMessage);
+            title = ColorUtils.translate(title);
+            subtitle = ColorUtils.translate(subtitle);
+            message = ColorUtils.translate(message);
+            broadcastMessage = ColorUtils.translate(broadcastMessage);
 
             // Send title and subtitle
             player.sendTitle(title, subtitle, 10, 70, 20);

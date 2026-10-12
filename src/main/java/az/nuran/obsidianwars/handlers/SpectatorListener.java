@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
 import az.nuran.obsidianwars.managers.SpectatorManager;
 import az.nuran.obsidianwars.services.SpectatorTeleporterGUI;
@@ -46,7 +48,7 @@ public class SpectatorListener implements Listener {
             event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
 
             // Spectator teleporter compass - open GUI to teleport to alive players
-            if (itemName != null && itemName.equals("§a§lPlayer Teleporter")) {
+            if (itemName != null && ColorUtils.matches(itemName, "&a&lPlayer Teleporter")) {
                 String arenaName = SpectatorManager.getSpectatorArena(player);
                 if (arenaName != null) {
                     SpectatorTeleporterGUI.openTeleporterGUI(player, arenaName);
@@ -56,32 +58,32 @@ public class SpectatorListener implements Listener {
             }
 
             // Fly speed feather - cycle speed
-            if (itemName != null && itemName.startsWith("§e§lFly Speed")) {
+            if (itemName != null && ColorUtils.startsWithFormatted(itemName, "&e&lFly Speed")) {
                 SpectatorManager.cycleFlySpeed(player);
                 event.setCancelled(true);
                 return;
             }
 
             // Night vision toggle
-            if (itemName != null && itemName.startsWith("§b§lToggle Night Vision")) {
+            if (itemName != null && ColorUtils.startsWithFormatted(itemName, "&b&lToggle Night Vision")) {
                 SpectatorManager.toggleNightVision(player);
                 event.setCancelled(true);
                 return;
             }
 
             // Leave item - return to lobby
-            if (itemName != null && itemName.equals("§c§lLeave Spectator")) {
+            if (itemName != null && ColorUtils.matches(itemName, "&c&lLeave Spectator")) {
                 String arenaName = SpectatorManager.getSpectatorArena(player);
                 if (arenaName != null) {
                     Location lobbySpawn = ArenaConfigManager.getLobbySpawn(arenaName);
                     if (lobbySpawn != null) {
                         SpectatorManager.removeSpectatorMode(player);
                         player.teleport(lobbySpawn);
-                        player.sendMessage("§aReturned to lobby!");
+                        player.sendMessage(ColorUtils.translate("&aReturned to lobby!"));
                     } else {
                         SpectatorManager.removeSpectatorMode(player);
                         player.teleport(player.getWorld().getSpawnLocation());
-                        player.sendMessage("§aReturned to spawn!");
+                        player.sendMessage(ColorUtils.translate("&aReturned to spawn!"));
                     }
                 }
                 event.setCancelled(true);
@@ -135,7 +137,7 @@ public class SpectatorListener implements Listener {
         // (except the teleporter GUI which is handled separately)
         if (SpectatorManager.isSpectator(player)) {
             String title = event.getView().getTitle();
-            if (!title.equals("§6§lTeleport to Player")) {
+            if (!ColorUtils.matches(title, "&6&lTeleport to Player")) {
                 event.setCancelled(true);
             }
         }

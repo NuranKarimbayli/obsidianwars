@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
@@ -60,12 +62,12 @@ public class GameListener implements Listener {
         // Check if victim has spawn protection (global check, not just in arena)
         if (ParticleManager.hasSpawnProtection(victim)) {
             event.setCancelled(true);
-            victim.sendMessage(MessagesConfigManager.getMessage("spawn_protection_warning"));
+            victim.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("spawn_protection_warning")));
 
             // Optional: Send a message to the attacker if it's a player
             if (event.getDamager() instanceof Player) {
                 Player attacker = (Player) event.getDamager();
-                attacker.sendMessage(MessagesConfigManager.getMessage("spawn_protection_attacker", "player", victim.getName()));
+                attacker.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("spawn_protection_attacker", "player", victim.getName())));
             }
             return;
         }
@@ -100,7 +102,7 @@ public class GameListener implements Listener {
         // Same team members cannot damage each other
         if (victimTeam != null && damagerTeam != null && victimTeam.equals(damagerTeam)) {
             event.setCancelled(true);
-            damager.sendMessage(MessagesConfigManager.getMessage("team_damage_prevented"));
+            damager.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("team_damage_prevented")));
         }
     }
 
@@ -160,7 +162,7 @@ public class GameListener implements Listener {
 
             // Obsidian can only be destroyed during PLAYING state (not PREPARATION)
             if (game.getGameState() != ArenaStateManager.ArenaState.PLAYING) {
-                player.sendMessage(MessagesConfigManager.getMessage("obsidian_only_after_prep"));
+                player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("obsidian_only_after_prep")));
                 return;
             }
 
@@ -169,14 +171,14 @@ public class GameListener implements Listener {
             if (team != null) {
                 // If obsidian is already destroyed
                 if (game.isObsidianDestroyed(team)) {
-                    player.sendMessage(MessagesConfigManager.getMessage("already_destroyed"));
+                    player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("already_destroyed")));
                     return;
                 }
 
                 // Player cannot break their own team's obsidian
                 String playerTeam = TeamListener.playerTeams.get(player.getUniqueId());
                 if (playerTeam != null && playerTeam.equals(team)) {
-                    player.sendMessage(MessagesConfigManager.getMessage("cant_destroy_own"));
+                    player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("cant_destroy_own")));
                     return;
                 }
 
@@ -191,7 +193,7 @@ public class GameListener implements Listener {
             } catch (Exception e) {
                 // If ArenaFileManager has issues, simply block it
                 event.setCancelled(true);
-                player.sendMessage(Obsidianwars.getInstance().getConfig().getString("messages.cant_break_block"));
+                player.sendMessage(ColorUtils.translate(Obsidianwars.getInstance().getConfig().getString("messages.cant_break_block")));
                 return;
             }
 
@@ -329,13 +331,13 @@ public class GameListener implements Listener {
                         int fadeIn = Obsidianwars.getInstance().getConfig().getInt("titles.obsidian_destroyed.fade-in", 10);
                         int stay = Obsidianwars.getInstance().getConfig().getInt("titles.obsidian_destroyed.stay", 70);
                         int fadeOut = Obsidianwars.getInstance().getConfig().getInt("titles.obsidian_destroyed.fade-out", 20);
-                        arenaPlayer.sendTitle("§a§lOBSIDIAN DESTROYED!", "§e" + teamName + " obsidian destroyed!", fadeIn, stay, fadeOut);
+                        arenaPlayer.sendTitle(ColorUtils.translate("&a&lOBSIDIAN DESTROYED!"), ColorUtils.translate("&e" + teamName + " obsidian destroyed!"), fadeIn, stay, fadeOut);
                     } else {
                         // Victim team gets RED title
                         int fadeIn = Obsidianwars.getInstance().getConfig().getInt("titles.obsidian_destroyed.fade-in", 10);
                         int stay = Obsidianwars.getInstance().getConfig().getInt("titles.obsidian_destroyed.stay", 70);
                         int fadeOut = Obsidianwars.getInstance().getConfig().getInt("titles.obsidian_destroyed.fade-out", 20);
-                        arenaPlayer.sendTitle("§c§lOBSIDIAN DESTROYED!", "§4" + teamName + " obsidian destroyed!", fadeIn, stay, fadeOut);
+                        arenaPlayer.sendTitle(ColorUtils.translate("&c&lOBSIDIAN DESTROYED!"), ColorUtils.translate("&4" + teamName + " obsidian destroyed!"), fadeIn, stay, fadeOut);
                     }
                 }
             }
@@ -435,11 +437,13 @@ public class GameListener implements Listener {
 
                 // Update longest streak in stats
                 int currentStreak = game.getKillStreak(killer.getUniqueId());
-                if (currentStreak > killerStats.getLongestKillStreak()) {
+                int previousBest = killerStats.getLongestKillStreak();
+                if (currentStreak > previousBest) {
                     killerStats.setLongestKillStreak(currentStreak);
+                    DebugManager.logDebug("Updated longest streak: " + previousBest + " -> " + currentStreak + " for " + killer.getName(), arenaName);
                 }
 
-                DebugManager.logDebug("Kill: " + killer.getName() + " killed " + player.getName() + " (streak: " + currentStreak + ")", arenaName);
+                DebugManager.logDebug("Kill: " + killer.getName() + " killed " + player.getName() + " (streak: " + currentStreak + ", best: " + killerStats.getLongestKillStreak() + ")", arenaName);
 
                 // Send custom death message
                 sendDeathMessage(arenaName, killer, player, event);
@@ -462,7 +466,7 @@ public class GameListener implements Listener {
                         player.setHealth(20);
                         player.setFoodLevel(20);
                         player.teleport(teamSpawn);
-                        player.sendMessage(MessagesConfigManager.getMessage("preparation_respawn"));
+                        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("preparation_respawn")));
                     }
                 }, 1L, arenaName);
             }
@@ -495,8 +499,8 @@ public class GameListener implements Listener {
                     int fadeIn = Obsidianwars.getInstance().getConfig().getInt("titles.death.fade-in", 10);
                     int stay = Obsidianwars.getInstance().getConfig().getInt("titles.death.stay", 40);
                     int fadeOut = Obsidianwars.getInstance().getConfig().getInt("titles.death.fade-out", 20);
-                    player.sendTitle(diedTitle, finalElim, fadeIn, stay, fadeOut);
-                    player.sendMessage("§cYou were finally eliminated!");
+                    player.sendTitle(ColorUtils.translate(diedTitle), ColorUtils.translate(finalElim), fadeIn, stay, fadeOut);
+                    player.sendMessage(ColorUtils.translate("&cYou were finally eliminated!"));
 
                     // Update scoreboard
                     ScoreboardManager.updateScoreboard(player);
@@ -576,9 +580,9 @@ public class GameListener implements Listener {
         // Send initial chat message with the actual wait time
         String respawnMessage = MessagesConfigManager.getMessage("respawning", "seconds", String.valueOf(respawnWaitTime));
         if (respawnMessage == null) {
-            respawnMessage = "§eRespawning in " + respawnWaitTime + " seconds...";
+            respawnMessage = "&eRespawning in " + respawnWaitTime + " seconds...";
         }
-        player.sendMessage(respawnMessage);
+        player.sendMessage(ColorUtils.translate(respawnMessage));
 
         // Start countdown with the configured wait time
         respawnCountdown(player, arenaName, team, teamSpawn, respawnWaitTime);
@@ -592,7 +596,7 @@ public class GameListener implements Listener {
         }
 
         // Show countdown title
-        player.sendTitle("§c" + count, "", 0, 20, 0);
+        player.sendTitle(ColorUtils.translate("&c" + count), "", 0, 20, 0);
 
         // Schedule next countdown
         TaskManager.getInstance().runLater("respawn-tick-" + player.getUniqueId() + "-" + count, () -> {
@@ -649,7 +653,7 @@ public class GameListener implements Listener {
                 String victimTeam = TeamListener.playerTeams.get(victim.getUniqueId());
                 if (victimTeam != null && game.isObsidianDestroyed(victimTeam)) {
                     String finalKillMsg = DeathMessagesConfigManager.getDeathMessagesConfig().getString("death-messages.final-kill",
-                        "§4§lFINAL KILL! §c%killer% §7eliminated §c%victim%!");
+                        "&4&lFINAL KILL! &c%killer% &7eliminated &c%victim%!");
                     if (killer != null) {
                         finalKillMsg = finalKillMsg.replace("%killer%", killer.getName());
                     } else {
@@ -731,9 +735,9 @@ public class GameListener implements Listener {
         if (message == null || message.isEmpty()) {
             // Fallback default message
             if (killer != null) {
-                return "§c" + killer.getName() + " §7killed §c" + victim.getName();
+                return "&c" + killer.getName() + " &7killed &c" + victim.getName();
             } else {
-                return "§c" + victim.getName() + " §7died";
+                return "&c" + victim.getName() + " &7died";
             }
         }
 
@@ -823,8 +827,8 @@ public class GameListener implements Listener {
 
         // Broadcast disconnect message with grace period info
         String teamName = playerTeam.equals("red") ? "Red" : "Blue";
-        String teamColor = playerTeam.equals("red") ? "§c" : "§9";
-        String disconnectMessage = teamColor + player.getName() + " §edisconnected! They have 30 seconds to rejoin.";
+        String teamColor = playerTeam.equals("red") ? "&c" : "&9";
+        String disconnectMessage = teamColor + player.getName() + " &edisconnected! They have 30 seconds to rejoin.";
         ObsidianCommand.broadcastToArena(arenaName, disconnectMessage);
     }
 
@@ -840,11 +844,11 @@ public class GameListener implements Listener {
             if (restored) {
                 // Successfully restored
                 String arenaName = GameManager.getDisconnectedPlayerArena(player.getUniqueId());
-                String rejoinMessage = "§aYou have reconnected to the arena!";
-                player.sendMessage(rejoinMessage);
+                String rejoinMessage = "&aYou have reconnected to the arena!";
+                player.sendMessage(ColorUtils.translate(rejoinMessage));
 
                 // Broadcast to arena
-                String broadcastMessage = "§a" + player.getName() + " has reconnected!";
+                String broadcastMessage = "&a" + player.getName() + " has reconnected!";
                 ObsidianCommand.broadcastToArena(arenaName, broadcastMessage);
 
                 // Play rejoin sound
@@ -876,7 +880,7 @@ public class GameListener implements Listener {
                 Location mainSpawn = player.getWorld().getSpawnLocation();
                 PlayerUtils.resetPlayerFull(player, mainSpawn);
 
-                player.sendMessage("§eThe game has ended. You have been returned to spawn.");
+                player.sendMessage(ColorUtils.translate("&eThe game has ended. You have been returned to spawn."));
 
                 // Update lobby scoreboard
                 LobbyScoreboardManager.updateLobbyScoreboard(player);

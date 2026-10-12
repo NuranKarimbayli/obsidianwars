@@ -1,6 +1,6 @@
 package az.nuran.obsidianwars.handlers;
 
-import org.bukkit.entity.Player;
+import az.nuran.obsidianwars.util.ColorUtils;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -14,7 +14,8 @@ public class StatsGUIListener implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         // Only handle stats GUI (check if title contains player name or is stats-related)
         String title = event.getView().getTitle();
-        if (!title.contains("'s Stats") && !title.equals("§6§lStats")) {
+        String stripped = ColorUtils.stripColors(title);
+        if ((stripped == null || !stripped.contains("'s Stats")) && !ColorUtils.matches(title, "&6&lStats")) {
             return;
         }
 

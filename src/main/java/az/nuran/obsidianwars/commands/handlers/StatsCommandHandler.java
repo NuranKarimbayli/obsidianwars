@@ -1,5 +1,7 @@
 package az.nuran.obsidianwars.commands.handlers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.StatsManager;
@@ -19,7 +21,7 @@ public class StatsCommandHandler implements CommandHandler {
 
         if (subCommand.equals("stats")) {
             if (!player.hasPermission("obsidianwars.command.stats")) {
-                player.sendMessage("§cYou don't have permission to use this command.");
+                player.sendMessage(ColorUtils.translate("&cYou don't have permission to use this command."));
                 return true;
             }
             handleStatsCommand(player, args);
@@ -35,7 +37,7 @@ public class StatsCommandHandler implements CommandHandler {
         if (args.length > 0) {
             target = Bukkit.getPlayer(args[0]);
             if (target == null) {
-                player.sendMessage("§cPlayer not found: " + args[0]);
+                player.sendMessage(ColorUtils.translate("&cPlayer not found: " + args[0]));
                 return;
             }
         }

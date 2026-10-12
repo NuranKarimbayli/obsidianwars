@@ -1,12 +1,13 @@
 package az.nuran.obsidianwars.managers;
 
+
+import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.handlers.TeamListener;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
@@ -91,7 +92,7 @@ public class ScoreboardManager {
         // Get title from scoreboards config
         String title = ScoreboardsConfigManager.getScoreboardsConfig().getString("scoreboard.title", "&d&lOBSIDIAN WARS");
         title = replacePlaceholders(title, player, arenaName, game);
-        objective.setDisplayName(ChatColor.translateAlternateColorCodes('&', title));
+        objective.setDisplayName(ColorUtils.translate(title));
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         // Clear existing scores
@@ -112,13 +113,13 @@ public class ScoreboardManager {
                 processedLine = PlaceholderAPI.setPlaceholders(player, processedLine);
             }
 
-            processedLine = ChatColor.translateAlternateColorCodes('&', processedLine);
+            processedLine = ColorUtils.translate(processedLine);
 
             // Handle empty lines by using unique invisible characters
             if (processedLine.trim().isEmpty()) {
                 // Use unique color codes for each empty line to avoid duplicates
                 String emptyLine = getUniqueEmptyLine(lineScore);
-                emptyLine = ChatColor.translateAlternateColorCodes('&', emptyLine);
+                emptyLine = ColorUtils.translate(emptyLine);
                 Score scoreLine = objective.getScore(emptyLine);
                 scoreLine.setScore(lineScore--);
             } else {

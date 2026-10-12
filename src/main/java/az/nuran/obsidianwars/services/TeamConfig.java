@@ -12,10 +12,10 @@ public class TeamConfig {
      * Gets the team color code from config.
      *
      * @param team The team name ("red" or "blue")
-     * @return The color code (e.g., "§c" for red, "§9" for blue)
+     * @return The color code (e.g., "&c" for red, "&9" for blue)
      */
     public static String getTeamColor(String team) {
-        return Obsidianwars.getInstance().getConfig().getString("teams." + team + ".color", "§f");
+        return Obsidianwars.getInstance().getConfig().getString("teams." + team + ".color", "&f");
     }
 
     /**

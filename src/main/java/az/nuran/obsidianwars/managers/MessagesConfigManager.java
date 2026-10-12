@@ -1,6 +1,7 @@
 package az.nuran.obsidianwars.managers;
 
 import az.nuran.obsidianwars.Obsidianwars;
+import az.nuran.obsidianwars.util.ColorUtils;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -55,7 +56,8 @@ public class MessagesConfigManager {
         if (LanguageManager.getInstance() != null) {
             return LanguageManager.getInstance().getGlobalMessage(key);
         }
-        return getMessagesConfig().getString("messages." + key, key);
+        String message = getMessagesConfig().getString("messages." + key, key);
+        return ColorUtils.translate(message);
     }
 
     /**
@@ -63,13 +65,16 @@ public class MessagesConfigManager {
      * Delegates to LanguageManager.
      */
     public static String getMessage(String key, String... replacements) {
-        String message = getMessage(key);
+        if (LanguageManager.getInstance() != null) {
+            return LanguageManager.getInstance().getGlobalMessage(key, replacements);
+        }
+        String message = getMessagesConfig().getString("messages." + key, key);
         for (int i = 0; i < replacements.length; i += 2) {
             if (i + 1 < replacements.length) {
                 message = message.replace("{" + replacements[i] + "}", replacements[i + 1]);
             }
         }
-        return message;
+        return ColorUtils.translate(message);
     }
 
     /**
@@ -91,11 +96,11 @@ public class MessagesConfigManager {
         if (LanguageManager.getInstance() != null) {
             return LanguageManager.getInstance().getMessage(player, key, placeholders);
         }
-        String message = getMessage(key);
+        String message = getMessagesConfig().getString("messages." + key, key);
         for (Map.Entry<String, String> entry : placeholders.entrySet()) {
             message = message.replace("{" + entry.getKey() + "}", entry.getValue());
         }
-        return message;
+        return ColorUtils.translate(message);
     }
 
     /**
@@ -106,13 +111,13 @@ public class MessagesConfigManager {
         if (LanguageManager.getInstance() != null) {
             return LanguageManager.getInstance().getMessage(player, key, replacements);
         }
-        String message = getMessage(key);
+        String message = getMessagesConfig().getString("messages." + key, key);
         for (int i = 0; i < replacements.length; i += 2) {
             if (i + 1 < replacements.length) {
                 message = message.replace("{" + replacements[i] + "}", replacements[i + 1]);
             }
         }
-        return message;
+        return ColorUtils.translate(message);
     }
 
     public static String getSound(String key) {
