@@ -216,3 +216,126 @@ per-world:
   chat: false
   # Separate tablist per world (players only see others in their world)
   tablist: true
+
+# GUI Slot Configuration
+gui:
+  slots:
+    compass: 0
+    door: 8
+    red-team: 3
+    blue-team: 5
+    spectator-teleporter: 0
+    spectator-feather: 3
+    spectator-night-vision: 4
+    spectator-leave: 8
+  stats-inventory-size: 54
+  stats-info: 13
+  stats-kills: 20
+  stats-deaths: 21
+  stats-kd: 22
+  stats-final-kills: 23
+  stats-final-deaths: 24
+  stats-final-kd: 25
+  stats-wins: 30
+  stats-losses: 31
+  stats-win-rate: 32
+  stats-games: 33
+  stats-obsidians: 38
+  stats-obsidians-lost: 39
+  stats-winstreak: 40
+  stats-streak: 41
+  stats-level: 47
+  stats-xp: 48
+
+# Resource Block Respawn Times (in ticks)
+resource-blocks:
+  respawn-time:
+    log-ticks: 2
+    stone-ticks: 10
+    coal-ticks: 20
+    iron-ticks: 30
+    gold-ticks: 40
+    lapis-ticks: 50
+    diamond-ticks: 60
+    emerald-ticks: 80
+    redstone-ticks: 30
+    default-ticks: 20
+
+# Database Timeouts (in milliseconds)
+database:
+  mysql:
+    connection-timeout-ms: 10000
+    idle-timeout-ms: 300000
+    max-lifetime-ms: 900000
+    leak-detection-threshold-ms: 5000
+  sqlite:
+    connection-timeout-ms: 10000
+    idle-timeout-ms: 30000
+    max-lifetime-ms: 60000
+    leak-detection-threshold-ms: 5000
+
+# Gameplay Settings
+gameplay:
+  respawn-health: 20
+  respawn-food-level: 20
+  reset-health: 20
+  reset-food-level: 20
+  team-switch-prohibit-seconds: 5
+  glow-duration-ticks: 200
+  team-elimination-check-ticks: 200
+
+# Sound Defaults
+sounds:
+  default-volume: 1.0
+  default-pitch: 1.0
+
+# Particle Settings (additional)
+particles:
+  obsidian_target:
+    interval-ticks: 10
+    count: 8
+  resource_break:
+    count: 15
+    color-count: 20
+  sudden_death:
+    interval-ticks: 10
+    particle-count: 10
+    offset: 0.5
+    speed: 0.1
+
+# Mob Area Settings (additional)
+mob-area:
+  spawn-interval-seconds: 120
+  spawn-radius: 10
+  max-spawn-attempts: 20
+  ground-search-depth: 5
+
+# Arena Defaults
+arena:
+  default-min-players: 2
+  default-max-players: 8
+  min-players-limit: 2
+  obsidian-target-distance: 5
+
+# Cleanup Settings
+cleanup:
+  interval-seconds: 60
+
+# Stats Reset
+stats-reset:
+  interval-seconds: 3600
+
+# Auto-Death (additional)
+auto-death:
+  death-cooldown-ms: 2000
+
+# Countdown (additional)
+countdown:
+  sound-threshold: 5
+  tick-sound-pitch: 2.0
+
+# Scoreboard/Tablist Updates
+scoreboard:
+  update-interval-ticks: 20
+tablist:
+  update-interval-ticks: 20

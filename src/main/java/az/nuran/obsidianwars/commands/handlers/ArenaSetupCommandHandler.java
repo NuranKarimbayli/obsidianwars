@@ -47,12 +47,11 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
         if (subCommand.equals("arena")) {
             if (!player.hasPermission("obsidianwars.command.arena")) {
-                String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-                player.sendMessage(ColorUtils.translate(noPermMessage));
+                LanguageManager.getInstance().sendMessage(player, "no_permission");
                 return true;
             }
             if (args.length < 2) {
-                player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("usage_arena")));
+                LanguageManager.getInstance().sendMessage(player, "usage_arena");
                 return true;
             }
             handleArenaCommand(player, args);
@@ -61,8 +60,7 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
         if (subCommand.equals("create")) {
             if (!player.hasPermission("obsidianwars.command.create")) {
-                String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-                player.sendMessage(ColorUtils.translate(noPermMessage));
+                LanguageManager.getInstance().sendMessage(player, "no_permission");
                 return true;
             }
             handleCreateCommand(player, args);
@@ -71,8 +69,7 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
         if (subCommand.equals("delete")) {
             if (!player.hasPermission("obsidianwars.command.delete")) {
-                String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-                player.sendMessage(ColorUtils.translate(noPermMessage));
+                LanguageManager.getInstance().sendMessage(player, "no_permission");
                 return true;
             }
             handleDeleteCommand(player, args);
@@ -81,8 +78,7 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
         if (subCommand.equals("wand")) {
             if (!player.hasPermission("obsidianwars.command.wand")) {
-                String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-                player.sendMessage(ColorUtils.translate(noPermMessage));
+                LanguageManager.getInstance().sendMessage(player, "no_permission");
                 return true;
             }
             handleWandCommand(player);
@@ -101,7 +97,7 @@ public class ArenaSetupCommandHandler implements CommandHandler {
             wand.setItemMeta(meta);
         }
         player.getInventory().addItem(wand);
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("wand_received")));
+        LanguageManager.getInstance().sendMessage(player, "wand_received");
     }
 
     private void handleArenaCommand(Player player, String[] args) {
@@ -151,19 +147,19 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         } else if (action.equals("setspectspawn")) {
             handleSetSpectSpawn(player, args);
         } else {
-            player.sendMessage(ColorUtils.translate("&cUnknown arena subcommand. Use /o cmds for help."));
+            LanguageManager.getInstance().sendMessage(player, "unknown_arena_subcommand");
         }
     }
 
     private void handleSetLobby(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena setlobby <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_setlobby");
             return;
         }
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
@@ -173,41 +169,41 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         // Rebuild arena world cache for MovementListener
         MovementListener.rebuildArenaWorldCache();
 
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("lobby_spawn_set", "arenaName", arenaName)));
+        LanguageManager.getInstance().sendMessage(player, "lobby_spawn_set", "arenaName", arenaName);
         GameFeedbackService.playSuccessSound(player);
         ObsidianCommand.suggestNextSetupStep(player, arenaName, "lobby");
     }
 
     private void handleSetWaitingSpawn(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena setwaitingspawn <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_setwaitingspawn");
             return;
         }
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
         Location loc = player.getLocation();
         ArenaConfigManager.setWaitingSpawn(arenaName, loc);
 
-        player.sendMessage(ColorUtils.translate("&aWaiting lobby spawn set for arena " + arenaName + "!"));
+        LanguageManager.getInstance().sendMessage(player, "waiting_spawn_set", "arenaName", arenaName);
         GameFeedbackService.playSuccessSound(player);
         ObsidianCommand.suggestNextSetupStep(player, arenaName, "waiting");
     }
 
     private void handleSetWaitingRegion(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena setwaitingregion <arenaName>"));
-            player.sendMessage(ColorUtils.translate("&eSelect the waiting area bounds with your wand (Pos1 and Pos2) first!"));
+            LanguageManager.getInstance().sendMessage(player, "usage_setwaitingregion");
+            LanguageManager.getInstance().sendMessage(player, "wand_select_bounds");
             return;
         }
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
@@ -215,29 +211,29 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         Location pos2 = WandListener.pos2Map.get(player.getUniqueId());
 
         if (pos1 == null || pos2 == null) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("wand_need_positions")));
-            player.sendMessage(ColorUtils.translate("&eUse the wand to select Corner 1 (left-click) and Corner 2 (right-click) of the waiting area."));
+            LanguageManager.getInstance().sendMessage(player, "wand_need_positions");
+            LanguageManager.getInstance().sendMessage(player, "wand_usage_corners");
             GameFeedbackService.playErrorSound(player);
             return;
         }
 
         ArenaConfigManager.setWaitingRegion(arenaName, pos1, pos2);
 
-        player.sendMessage(ColorUtils.translate("&aWaiting region set for arena " + arenaName + "!"));
-        player.sendMessage(ColorUtils.translate("&ePlayers will be teleported back if they leave this area during the waiting phase."));
+        LanguageManager.getInstance().sendMessage(player, "waiting_region_set", "arenaName", arenaName);
+        LanguageManager.getInstance().sendMessage(player, "waiting_region_info");
         GameFeedbackService.playSuccessSound(player);
         ObsidianCommand.suggestNextSetupStep(player, arenaName, "waitingregion");
     }
 
     private void handleSetPlayers(Player player, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena setplayers <arenaName> <min> <max>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_setplayers");
             return;
         }
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
@@ -246,43 +242,43 @@ public class ArenaSetupCommandHandler implements CommandHandler {
             min = Integer.parseInt(args[3]);
             max = Integer.parseInt(args[4]);
         } catch (NumberFormatException e) {
-            player.sendMessage(ColorUtils.translate("&cInvalid number format! Usage: /o arena setplayers <arena> <min> <max>"));
+            LanguageManager.getInstance().sendMessage(player, "invalid_number_format");
             GameFeedbackService.playErrorSound(player);
             return;
         }
 
         if (min < 2) {
-            player.sendMessage(ColorUtils.translate("&cMinimum players must be at least 2!"));
+            LanguageManager.getInstance().sendMessage(player, "min_players_at_least_2");
             GameFeedbackService.playErrorSound(player);
             return;
         }
 
         if (max < min) {
-            player.sendMessage(ColorUtils.translate("&cMaximum players must be greater than or equal to minimum players!"));
+            LanguageManager.getInstance().sendMessage(player, "max_players_greater_than_min");
             GameFeedbackService.playErrorSound(player);
             return;
         }
 
         ArenaConfigManager.setPlayerLimits(arenaName, min, max);
 
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("player_limits_set", "arenaName", arenaName, "min", String.valueOf(min), "max", String.valueOf(max))));
+        LanguageManager.getInstance().sendMessage(player, "player_limits_set", "arenaName", arenaName, "min", String.valueOf(min), "max", String.valueOf(max));
     }
 
     private void handleSetSpawn(Player player, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena setspawn <arenaName> <red|blue>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_setspawn");
             return;
         }
         String arenaName = args[2];
         String teamColor = args[3].toLowerCase();
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
         if (!teamColor.equals("red") && !teamColor.equals("blue")) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("invalid_team_color")));
+            LanguageManager.getInstance().sendMessage(player, "invalid_team_color");
             GameFeedbackService.playErrorSound(player);
             return;
         }
@@ -295,33 +291,33 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
         String teamName = teamColor.equals("red") ? "Red" : "Blue";
         String teamColorCode = teamColor.equals("red") ? "&c" : "&9";
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("team_spawn_set", "arenaName", arenaName, "teamColor", teamColorCode, "teamName", teamName)));
+        LanguageManager.getInstance().sendMessage(player, "team_spawn_set", "arenaName", arenaName, "teamColor", teamColorCode, "teamName", teamName);
         GameFeedbackService.playSuccessSound(player);
         ObsidianCommand.suggestNextSetupStep(player, arenaName, teamColor + "spawn");
     }
 
     private void handleSetObsidian(Player player, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena setobsidian <arenaName> <red|blue>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_setobsidian");
             return;
         }
         String arenaName = args[2];
         String teamColor = args[3].toLowerCase();
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
         if (!teamColor.equals("red") && !teamColor.equals("blue")) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("invalid_team_color")));
+            LanguageManager.getInstance().sendMessage(player, "invalid_team_color");
             GameFeedbackService.playErrorSound(player);
             return;
         }
 
         org.bukkit.block.Block targetBlock = player.rayTraceBlocks(5) != null ? player.rayTraceBlocks(5).getHitBlock() : null;
         if (targetBlock == null || targetBlock.getType() != Material.OBSIDIAN) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("invalid_obsidian_target")));
+            LanguageManager.getInstance().sendMessage(player, "invalid_obsidian_target");
             GameFeedbackService.playErrorSound(player);
             return;
         }
@@ -331,20 +327,20 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
         String teamName = teamColor.equals("red") ? "Red" : "Blue";
         String teamColorCode = teamColor.equals("red") ? "&c" : "&9";
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("obsidian_set", "arenaName", arenaName, "teamColor", teamColorCode, "teamName", teamName)));
+        LanguageManager.getInstance().sendMessage(player, "obsidian_set", "arenaName", arenaName, "teamColor", teamColorCode, "teamName", teamName);
         GameFeedbackService.playSuccessSound(player);
         ObsidianCommand.suggestNextSetupStep(player, arenaName, teamColor + "obsidian");
     }
 
     private void handleSetBlocks(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena setblocks <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_setblocks");
             return;
         }
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
@@ -360,19 +356,19 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
     private void handleSetWall(Player player, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena setwall <arenaName> <red|blue>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_setwall");
             return;
         }
         String arenaName = args[2];
         String teamColor = args[3].toLowerCase();
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
         if (!teamColor.equals("red") && !teamColor.equals("blue")) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("invalid_team_color")));
+            LanguageManager.getInstance().sendMessage(player, "invalid_team_color");
             GameFeedbackService.playErrorSound(player);
             return;
         }
@@ -381,7 +377,7 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         Location pos2 = WandListener.pos2Map.get(player.getUniqueId());
 
         if (pos1 == null || pos2 == null) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("wand_need_positions")));
+            LanguageManager.getInstance().sendMessage(player, "wand_need_positions");
             GameFeedbackService.playErrorSound(player);
             return;
         }
@@ -390,20 +386,20 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
         String teamName = teamColor.equals("red") ? "Red" : "Blue";
         String teamColorCode = teamColor.equals("red") ? "&c" : "&9";
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("wall_set", "teamColor", teamColorCode, "teamName", teamName)));
+        LanguageManager.getInstance().sendMessage(player, "wall_set", "teamColor", teamColorCode, "teamName", teamName);
         GameFeedbackService.playSuccessSound(player);
         ObsidianCommand.suggestNextSetupStep(player, arenaName, teamColor + "wall");
     }
 
     private void handleSetTimer(Player player, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena settimer <arenaName> <preparation_time> [sudden_death_time]"));
+            LanguageManager.getInstance().sendMessage(player, "usage_settimer");
             return;
         }
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
@@ -411,19 +407,19 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         try {
             prepMinutes = Integer.parseInt(args[3]);
         } catch (NumberFormatException e) {
-            player.sendMessage(ColorUtils.translate("&cError: Preparation time must be a number!"));
+            LanguageManager.getInstance().sendMessage(player, "preparation_time_must_be_number");
             GameFeedbackService.playErrorSound(player);
             return;
         }
 
         if (prepMinutes < 1) {
-            player.sendMessage(ColorUtils.translate("&cPreparation time must be at least 1 minute!"));
+            LanguageManager.getInstance().sendMessage(player, "preparation_time_at_least_1");
             GameFeedbackService.playErrorSound(player);
             return;
         }
 
         WallManager.setTimer(arenaName, prepMinutes);
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("timer_set", "arenaName", arenaName, "minutes", String.valueOf(prepMinutes))));
+        LanguageManager.getInstance().sendMessage(player, "timer_set", "arenaName", arenaName, "minutes", String.valueOf(prepMinutes));
 
         // Optional sudden death timer
         if (args.length >= 5) {
@@ -431,99 +427,98 @@ public class ArenaSetupCommandHandler implements CommandHandler {
             try {
                 suddenDeathMinutes = Integer.parseInt(args[4]);
             } catch (NumberFormatException e) {
-                player.sendMessage(ColorUtils.translate("&cError: Sudden death time must be a number!"));
+                LanguageManager.getInstance().sendMessage(player, "sudden_death_time_must_be_number");
                 GameFeedbackService.playErrorSound(player);
                 return;
             }
 
             if (suddenDeathMinutes < 1) {
-                player.sendMessage(ColorUtils.translate("&cSudden death time must be at least 1 minute!"));
+                LanguageManager.getInstance().sendMessage(player, "sudden_death_time_at_least_1");
                 GameFeedbackService.playErrorSound(player);
                 return;
             }
 
             ArenaConfigManager.setSuddenDeathTimer(arenaName, suddenDeathMinutes);
-            player.sendMessage(ColorUtils.translate("&aSudden death time set to " + suddenDeathMinutes + " minutes!"));
+            LanguageManager.getInstance().sendMessage(player, "sudden_death_time_set", "minutes", String.valueOf(suddenDeathMinutes));
         }
     }
 
     private void handleSetMobArea(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena setmobarea <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_setmobarea");
             return;
         }
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
         Location loc = player.getLocation();
         MobSpawnerManager.setMobArea(arenaName, loc);
 
-        player.sendMessage(ColorUtils.translate("&aMob spawn area set for arena " + arenaName + " at your current location!"));
-        player.sendMessage(ColorUtils.translate("&eWither Skeletons will spawn every 2 minutes during combat phase."));
+        LanguageManager.getInstance().sendMessage(player, "mob_area_set", "arenaName", arenaName);
+        LanguageManager.getInstance().sendMessage(player, "mob_area_info");
     }
 
     private void handleSetSpectSpawn(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena setspectspawn <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_setspectspawn");
             return;
         }
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
         Location loc = player.getLocation();
         ArenaConfigManager.setSpectatorSpawn(arenaName, loc);
 
-        player.sendMessage(ColorUtils.translate("&aSpectator spawn location set for arena " + arenaName + "!"));
+        LanguageManager.getInstance().sendMessage(player, "spectator_spawn_set", "arenaName", arenaName);
         GameFeedbackService.playSuccessSound(player);
         ObsidianCommand.suggestNextSetupStep(player, arenaName, "spectator");
     }
 
     private void handleArenaTeleportCommand(Player player, String[] args) {
         if (!player.hasPermission("obsidianwars.command.arena")) {
-            String noPermMessage = plugin.getConfig().getString("no-permission-message", "&cYou don't have permission to use this command.");
-            player.sendMessage(ColorUtils.translate(noPermMessage));
+            LanguageManager.getInstance().sendMessage(player, "no_permission");
             return;
         }
 
         if (args.length < 3) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena teleport <arena>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_arena_teleport");
             return;
         }
 
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
         Location spectSpawn = ArenaConfigManager.getSpectatorSpawn(arenaName);
         if (spectSpawn == null) {
-            player.sendMessage(ColorUtils.translate("&cSpectator spawn not set for arena " + arenaName));
+            LanguageManager.getInstance().sendMessage(player, "spectator_spawn_not_set", "arenaName", arenaName);
             return;
         }
 
         player.teleport(spectSpawn);
-        player.sendMessage(ColorUtils.translate("&aTeleported to arena " + arenaName + " spectator spawn"));
+        LanguageManager.getInstance().sendMessage(player, "teleported_to_arena", "arenaName", arenaName);
     }
 
     private void handleArenaFinishCommand(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o arena finish <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_arena_finish");
             return;
         }
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
@@ -582,7 +577,7 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
         // If requirements are missing, show error
         if (!missingRequirements.isEmpty()) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_incomplete")));
+            LanguageManager.getInstance().sendMessage(player, "arena_incomplete");
             for (String req : missingRequirements) {
                 player.sendMessage(ColorUtils.translate("&c- " + req));
             }
@@ -606,12 +601,12 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         // All checks passed, set status to READY
         ArenaConfigManager.setArenaStatus(arenaName, "READY");
 
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_finished", "arenaName", arenaName)));
-        player.sendMessage(ColorUtils.translate("&aArena is now ready for players to use."));
-        player.sendMessage(ColorUtils.translate("&eResource block count: " + ArenaConfigManager.getResourceBlockCount(arenaName)));
+        LanguageManager.getInstance().sendMessage(player, "arena_finished", "arenaName", arenaName);
+        LanguageManager.getInstance().sendMessage(player, "arena_ready");
+        LanguageManager.getInstance().sendMessage(player, "resource_block_count", "count", String.valueOf(ArenaConfigManager.getResourceBlockCount(arenaName)));
 
         if (!optionalFeatures.isEmpty()) {
-            player.sendMessage(ColorUtils.translate("&eOptional features:"));
+            LanguageManager.getInstance().sendMessage(player, "optional_features");
             for (String feature : optionalFeatures) {
                 player.sendMessage(ColorUtils.translate("&7- " + feature));
             }
@@ -629,7 +624,7 @@ public class ArenaSetupCommandHandler implements CommandHandler {
 
     private void handleCreateCommand(Player player, String[] args) {
         if (args.length < 5) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o create arena <arena_name> <min_players> <max_players>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_create_arena");
             return;
         }
 
@@ -640,24 +635,25 @@ public class ArenaSetupCommandHandler implements CommandHandler {
             minPlayers = Integer.parseInt(args[3]);
             maxPlayers = Integer.parseInt(args[4]);
         } catch (NumberFormatException e) {
-            player.sendMessage(ColorUtils.translate("&cInvalid numbers! Min and max must be integers."));
+            LanguageManager.getInstance().sendMessage(player, "invalid_numbers");
+            GameFeedbackService.playErrorSound(player);
             return;
         }
 
         if (minPlayers < 2) {
-            player.sendMessage(ColorUtils.translate("&cMinimum players must be at least 2!"));
+            LanguageManager.getInstance().sendMessage(player, "min_players_at_least_2");
             GameFeedbackService.playErrorSound(player);
             return;
         }
 
         if (maxPlayers < minPlayers) {
-            player.sendMessage(ColorUtils.translate("&cMaximum players must be >= minimum players!"));
+            LanguageManager.getInstance().sendMessage(player, "max_players_greater_than_min");
             GameFeedbackService.playErrorSound(player);
             return;
         }
 
         if (ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_already_exists")));
+            LanguageManager.getInstance().sendMessage(player, "arena_already_exists");
             GameFeedbackService.playErrorSound(player);
             return;
         }
@@ -668,33 +664,32 @@ public class ArenaSetupCommandHandler implements CommandHandler {
         // Rebuild arena world cache for MovementListener
         MovementListener.rebuildArenaWorldCache();
 
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_created", "arenaName", arenaName)));
-        player.sendMessage(ColorUtils.translate("&ePlayer limits set: Min " + minPlayers + ", Max " + maxPlayers));
-        player.sendMessage(ColorUtils.translate("&eDefault timers set: Preparation 10min, Game Time 30min, Sudden Death 15min"));
-        player.sendMessage(ColorUtils.translate("&e&l=== Arena Setup Guide ==="));
-        player.sendMessage(ColorUtils.translate("&eFollow the steps below to complete arena setup:"));
-        player.sendMessage(ColorUtils.translate("&7Step 1: Set main lobby spawn"));
-        player.sendMessage(ColorUtils.translate("&7Step 2: Set waiting lobby spawn"));
-        player.sendMessage(ColorUtils.translate("&7Step 3: Set waiting region boundary (optional but recommended)"));
-        player.sendMessage(ColorUtils.translate("&7Step 4: Set team spawns (red & blue)"));
-        player.sendMessage(ColorUtils.translate("&7Step 5: Set obsidian targets (red & blue)"));
-        player.sendMessage(ColorUtils.translate("&7Step 6: Setup resource blocks"));
-        player.sendMessage(ColorUtils.translate("&7Step 7: Set wall regions (red & blue)"));
-        player.sendMessage(ColorUtils.translate("&7Step 8: Set spectator spawn"));
-        player.sendMessage(ColorUtils.translate("&7Step 9: Finish arena setup"));
+        LanguageManager.getInstance().sendMessage(player, "arena_created", "arenaName", arenaName);
+        LanguageManager.getInstance().sendMessage(player, "player_limits_info", "min", String.valueOf(minPlayers), "max", String.valueOf(maxPlayers));
+        LanguageManager.getInstance().sendMessage(player, "default_timers_info");
+        LanguageManager.getInstance().sendMessage(player, "arena_setup_guide_header");
+        LanguageManager.getInstance().sendMessage(player, "arena_setup_step_1");
+        LanguageManager.getInstance().sendMessage(player, "arena_setup_step_2");
+        LanguageManager.getInstance().sendMessage(player, "arena_setup_step_3");
+        LanguageManager.getInstance().sendMessage(player, "arena_setup_step_4");
+        LanguageManager.getInstance().sendMessage(player, "arena_setup_step_5");
+        LanguageManager.getInstance().sendMessage(player, "arena_setup_step_6");
+        LanguageManager.getInstance().sendMessage(player, "arena_setup_step_7");
+        LanguageManager.getInstance().sendMessage(player, "arena_setup_step_8");
+        LanguageManager.getInstance().sendMessage(player, "arena_setup_step_9");
         GameFeedbackService.playSuccessSound(player);
         ObsidianCommand.suggestNextSetupStep(player, arenaName);
     }
 
     private void handleDeleteCommand(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o delete arena <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_delete_arena");
             return;
         }
         String arenaName = args[2];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
@@ -721,7 +716,7 @@ public class ArenaSetupCommandHandler implements CommandHandler {
                     Location mainSpawn = arenaPlayer.getWorld().getSpawnLocation();
                     PlayerUtils.resetPlayerFull(arenaPlayer, mainSpawn);
 
-                    arenaPlayer.sendMessage(ColorUtils.translate("&cArena deleted, you have been removed from the arena!"));
+                    LanguageManager.getInstance().sendMessage(arenaPlayer, "arena_deleted_removed");
 
                     // Update lobby scoreboard
                     az.nuran.obsidianwars.managers.LobbyScoreboardManager.updateLobbyScoreboard(arenaPlayer);
@@ -729,6 +724,6 @@ public class ArenaSetupCommandHandler implements CommandHandler {
             }
         }
 
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_deleted", "arenaName", arenaName)));
+        LanguageManager.getInstance().sendMessage(player, "arena_deleted", "arenaName", arenaName);
     }
 }

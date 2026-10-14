@@ -5,6 +5,7 @@ import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.handlers.TeamListener;
+import az.nuran.obsidianwars.managers.LanguageManager;
 
 import org.bukkit.*;
 import org.bukkit.entity.Player;
@@ -234,8 +235,7 @@ public class ParticleManager {
         player.setGlowing(true);
 
         // Send initial message
-        String message = MessagesConfigManager.getMessage("spawn_protection", "seconds", String.valueOf(seconds));
-        player.sendMessage(ColorUtils.translate(message));
+        LanguageManager.getInstance().sendMessage(player, "spawn_protection", "seconds", String.valueOf(seconds));
 
         // Start protection task using TaskManager
         BukkitTask task = TaskManager.getInstance().runTimer(taskId, new Runnable() {
@@ -247,12 +247,11 @@ public class ParticleManager {
 
                 if (remaining > 0) {
                     // Show action bar with remaining time
-                    String actionBar = MessagesConfigManager.getMessage("spawn_protection", "seconds", String.valueOf(remaining));
+                    String actionBar = LanguageManager.getInstance().getMessage(player, "spawn_protection", "seconds", String.valueOf(remaining));
                     player.sendActionBar(ColorUtils.translate(actionBar));
                 } else {
                     // Protection expired
-                    String expiredMsg = MessagesConfigManager.getMessage("protection_expired");
-                    player.sendMessage(ColorUtils.translate(expiredMsg));
+                    LanguageManager.getInstance().sendMessage(player, "protection_expired");
 
                     // Remove glowing effect
                     player.setGlowing(false);

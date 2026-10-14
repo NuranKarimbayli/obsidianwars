@@ -3,6 +3,7 @@ package az.nuran.obsidianwars.handlers;
 
 import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 import az.nuran.obsidianwars.managers.SpectatorManager;
 import az.nuran.obsidianwars.services.SpectatorTeleporterGUI;
 
@@ -42,13 +43,18 @@ public class SpectatorListener implements Listener {
         }
 
         String itemName = item.getItemMeta().getDisplayName();
+        String teleporterName = LanguageManager.getInstance().getMessage(player, "item_teleporter_name");
+        String flySpeedPrefix = "&e&lFly Speed"; // Keep prefix for matching
+        String nightVisionPrefix = "&b&lToggle Night Vision"; // Keep prefix for matching
+        String leaveName = LanguageManager.getInstance().getMessage(player, "item_leave_spectator_name");
+        String guiTitle = LanguageManager.getInstance().getMessage(player, "gui_teleport_title");
 
         // Handle right-click actions (both air and block)
         if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_AIR ||
             event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
 
             // Spectator teleporter compass - open GUI to teleport to alive players
-            if (itemName != null && ColorUtils.matches(itemName, "&a&lPlayer Teleporter")) {
+            if (itemName != null && ColorUtils.matches(itemName, teleporterName)) {
                 String arenaName = SpectatorManager.getSpectatorArena(player);
                 if (arenaName != null) {
                     SpectatorTeleporterGUI.openTeleporterGUI(player, arenaName);
@@ -58,32 +64,32 @@ public class SpectatorListener implements Listener {
             }
 
             // Fly speed feather - cycle speed
-            if (itemName != null && ColorUtils.startsWithFormatted(itemName, "&e&lFly Speed")) {
+            if (itemName != null && ColorUtils.startsWithFormatted(itemName, flySpeedPrefix)) {
                 SpectatorManager.cycleFlySpeed(player);
                 event.setCancelled(true);
                 return;
             }
 
             // Night vision toggle
-            if (itemName != null && ColorUtils.startsWithFormatted(itemName, "&b&lToggle Night Vision")) {
+            if (itemName != null && ColorUtils.startsWithFormatted(itemName, nightVisionPrefix)) {
                 SpectatorManager.toggleNightVision(player);
                 event.setCancelled(true);
                 return;
             }
 
             // Leave item - return to lobby
-            if (itemName != null && ColorUtils.matches(itemName, "&c&lLeave Spectator")) {
+            if (itemName != null && ColorUtils.matches(itemName, leaveName)) {
                 String arenaName = SpectatorManager.getSpectatorArena(player);
                 if (arenaName != null) {
                     Location lobbySpawn = ArenaConfigManager.getLobbySpawn(arenaName);
                     if (lobbySpawn != null) {
                         SpectatorManager.removeSpectatorMode(player);
                         player.teleport(lobbySpawn);
-                        player.sendMessage(ColorUtils.translate("&aReturned to lobby!"));
+                        LanguageManager.getInstance().sendMessage(player, "returned_to_lobby");
                     } else {
                         SpectatorManager.removeSpectatorMode(player);
                         player.teleport(player.getWorld().getSpawnLocation());
-                        player.sendMessage(ColorUtils.translate("&aReturned to spawn!"));
+                        LanguageManager.getInstance().sendMessage(player, "returned_to_spawn");
                     }
                 }
                 event.setCancelled(true);
@@ -137,7 +143,8 @@ public class SpectatorListener implements Listener {
         // (except the teleporter GUI which is handled separately)
         if (SpectatorManager.isSpectator(player)) {
             String title = event.getView().getTitle();
-            if (!ColorUtils.matches(title, "&6&lTeleport to Player")) {
+            String guiTitle = LanguageManager.getInstance().getMessage(player, "gui_teleport_title");
+            if (!ColorUtils.matches(title, guiTitle)) {
                 event.setCancelled(true);
             }
         }

@@ -3,6 +3,7 @@ package az.nuran.obsidianwars.handlers;
 
 import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
+import az.nuran.obsidianwars.managers.LanguageManager;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -29,9 +30,12 @@ public class LobbyItemClickListener implements Listener {
         }
 
         String itemName = item.getItemMeta().getDisplayName();
+        String teamSelectionName = LanguageManager.getInstance().getGlobalMessage("item_team_selection");
+        String exitGameName = LanguageManager.getInstance().getGlobalMessage("item_exit_game");
+        String leaveGameName = LanguageManager.getInstance().getGlobalMessage("item_leave_game");
 
         // Team Selection Compass
-        if (ColorUtils.matches(itemName, "&eTeam Selection")) {
+        if (ColorUtils.matches(itemName, teamSelectionName)) {
             if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK ||
                 event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
                 event.setCancelled(true);
@@ -40,13 +44,13 @@ public class LobbyItemClickListener implements Listener {
                     // Open team selection menu
                     obsidianCommand.openTeamSelectionGUI(player);
                 } else {
-                    player.sendMessage(ColorUtils.translate("&cYou are not in an arena!"));
+                    LanguageManager.getInstance().sendMessage(player, "not_in_arena");
                 }
             }
         }
 
         // Leave Game Door
-        if (ColorUtils.matches(itemName, "&cExit Game") || ColorUtils.matches(itemName, "&cLeave Game")) {
+        if (ColorUtils.matches(itemName, exitGameName) || ColorUtils.matches(itemName, leaveGameName)) {
             if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK ||
                 event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
                 event.setCancelled(true);

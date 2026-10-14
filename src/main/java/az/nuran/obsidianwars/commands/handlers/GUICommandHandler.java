@@ -7,6 +7,7 @@ import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
 import az.nuran.obsidianwars.managers.GameManager;
 import az.nuran.obsidianwars.managers.MessagesConfigManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 
 import org.bukkit.entity.Player;
 
@@ -71,7 +72,7 @@ public class GUICommandHandler implements CommandHandler {
     }
 
     private void handleCmdsCommand(Player player) {
-        player.sendMessage(ColorUtils.translate("&6&l=== ObsidianWars Commands ==="));
+        LanguageManager.getInstance().sendMessage(player, "help_header");
         player.sendMessage(ColorUtils.translate("&ePlayer Commands:"));
         player.sendMessage(ColorUtils.translate("  &a/o play [arena] &7- Join an arena (or random)"));
         player.sendMessage(ColorUtils.translate("  &a/o join [arena] &7- Alias for play"));
@@ -120,7 +121,7 @@ public class GUICommandHandler implements CommandHandler {
         List<String> arenaNames = ArenaConfigManager.getArenaNames();
 
         if (arenaNames.isEmpty()) {
-            player.sendMessage(ColorUtils.translate("&cNo arenas created yet."));
+            LanguageManager.getInstance().sendMessage(player, "arena_no_arenas");
             return;
         }
 
@@ -150,14 +151,14 @@ public class GUICommandHandler implements CommandHandler {
 
     private void handleTeamCommand(Player player) {
         if (!ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("join_first")));
+            LanguageManager.getInstance().sendMessage(player, "join_first");
             return;
         }
 
         // Check if countdown is 5 seconds or fewer - prevent team changes
         String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
         if (arenaName == null) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("not_in_arena")));
+            LanguageManager.getInstance().sendMessage(player, "not_in_arena");
             return;
         }
         int countdown = GameManager.getCountdown(arenaName);

@@ -3,6 +3,7 @@ package az.nuran.obsidianwars.managers;
 
 import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
+import az.nuran.obsidianwars.managers.LanguageManager;
 
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
@@ -211,7 +212,7 @@ public class EconomyManager {
 
             // Send message to player
             String currencyName = vaultEconomy.currencyNamePlural();
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("economy_reward", "amount", String.format("%.2f", amount), "currency", currencyName, "reason", reason)));
+            LanguageManager.getInstance().sendMessage(player, "economy_reward", "amount", String.format("%.2f", amount), "currency", currencyName, "reason", reason);
         } else if (builtInEnabled) {
             // Use built-in economy
             UUID uuid = player.getUniqueId();
@@ -219,7 +220,7 @@ public class EconomyManager {
             logger.fine("Awarded " + amount + " (Built-in) to " + player.getName() + " for " + reason);
 
             // Send message to player
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("economy_reward", "amount", String.format("%.2f", amount), "currency", "coins", "reason", reason)));
+            LanguageManager.getInstance().sendMessage(player, "economy_reward", "amount", String.format("%.2f", amount), "currency", "coins", "reason", reason);
 
             // Save to database asynchronously
             saveBuiltInBalance(uuid);

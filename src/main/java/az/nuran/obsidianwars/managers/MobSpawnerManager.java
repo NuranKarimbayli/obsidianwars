@@ -70,10 +70,18 @@ public class MobSpawnerManager {
         
         // Give the skeleton a stone sword
         skeleton.getEquipment().setItemInMainHand(new org.bukkit.inventory.ItemStack(Material.STONE_SWORD));
-        
-        // Broadcast message to arena players
-        String mobSpawnMsg = MessagesConfigManager.getMessage("mob_spawned");
-        ObsidianCommand.broadcastToArena(arenaName, mobSpawnMsg);
+
+        // Broadcast message to arena players - send to each player in their language
+        for (java.util.UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
+                org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(uuid);
+                if (player != null) {
+                    String mobSpawnMsg = LanguageManager.getInstance().getMessage(player, "mob_spawned");
+                    player.sendMessage(az.nuran.obsidianwars.util.ColorUtils.translate(mobSpawnMsg));
+                }
+            }
+        }
     }
 
     private static Location findValidSpawnLocation(Location center) {

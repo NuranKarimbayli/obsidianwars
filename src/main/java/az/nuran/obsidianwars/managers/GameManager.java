@@ -7,6 +7,7 @@ import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.handlers.TeamListener;
 import az.nuran.obsidianwars.handlers.WandListener;
 import az.nuran.obsidianwars.handlers.XPAwardListener;
+import az.nuran.obsidianwars.managers.LanguageManager;
 import az.nuran.obsidianwars.models.DisconnectedPlayerData;
 import az.nuran.obsidianwars.models.PlayerStats;
 import az.nuran.obsidianwars.services.DebugManager;
@@ -364,8 +365,7 @@ public class GameManager {
 
                 String teamName = TeamConfig.getTeamName(team);
                 String teamColor = TeamConfig.getTeamColor(team);
-                String message = MessagesConfigManager.getMessage("auto_team", "teamColor", teamColor, "teamName", teamName);
-                player.sendMessage(ColorUtils.translate(message));
+                LanguageManager.getInstance().sendMessage(player, "auto_team", "teamColor", teamColor, "teamName", teamName);
             }
         }
     }
@@ -481,8 +481,8 @@ public class GameManager {
 
             // Notify all players
             String message = hasWalls ?
-                MessagesConfigManager.getMessage("preparation_phase_start") :
-                MessagesConfigManager.getMessage("game_started");
+                LanguageManager.getInstance().getGlobalMessage("preparation_phase_start") :
+                LanguageManager.getInstance().getGlobalMessage("game_started");
             broadcastToArena(arenaName, message);
 
             // Play match start sound
@@ -506,7 +506,7 @@ public class GameManager {
                 if (playerArena != null && playerArena.equals(arenaName)) {
                     Player player = Bukkit.getPlayer(uuid);
                     if (player != null) {
-                        List<String> rulesLines = MessagesConfigManager.getMessagesConfig().getStringList("messages.rules_announcement");
+                        List<String> rulesLines = LanguageManager.getInstance().getMessageList(player, "rules_announcement");
                         for (String line : rulesLines) {
                             player.sendMessage(ColorUtils.translate(line));
                         }
@@ -541,8 +541,8 @@ public class GameManager {
                 String teamName = TeamConfig.getTeamName(winningTeam);
                 String teamColor = TeamConfig.getTeamColor(winningTeam);
 
-                String victoryMessage = MessagesConfigManager.getMessage("victory_message", "teamColor", teamColor, "teamName", teamName);
-                broadcastToArena(arenaName, MessagesConfigManager.getMessage("victory") + " " + victoryMessage);
+                String victoryMessage = LanguageManager.getInstance().getGlobalMessage("victory_message", "teamColor", teamColor, "teamName", teamName);
+                broadcastToArena(arenaName, LanguageManager.getInstance().getGlobalMessage("victory") + " " + victoryMessage);
 
                 // Track stats - wins for winning team, losses for losing team
                 forEachArenaPlayer(arenaName, player -> {
@@ -587,7 +587,7 @@ public class GameManager {
                 // Start victory fireworks for winning team
                 ParticleManager.spawnVictoryFireworks(arenaName, winningTeam);
             } else {
-                String message = MessagesConfigManager.getMessage("game_admin_ended");
+                String message = LanguageManager.getInstance().getGlobalMessage("game_admin_ended");
                 broadcastToArena(arenaName, message);
             }
 
@@ -680,7 +680,7 @@ public class GameManager {
                 Location mainSpawn = player.getWorld().getSpawnLocation();
                 PlayerUtils.resetPlayerFull(player, mainSpawn);
 
-                player.sendMessage(ColorUtils.translate("&aArena ended, returned to main spawn!"));
+                LanguageManager.getInstance().sendMessage(player, "game_ended");
 
                 // Update lobby scoreboard after game ends
                 LobbyScoreboardManager.updateLobbyScoreboard(player);
@@ -1102,7 +1102,7 @@ public class GameManager {
 
             Obsidianwars.getInstance().getLogger().info("Starting countdown for arena " + arenaName + " with " + COUNTDOWN_SECONDS + " seconds");
 
-            String startMessage = MessagesConfigManager.getMessage("game_starting", "seconds", String.valueOf(COUNTDOWN_SECONDS));
+            String startMessage = LanguageManager.getInstance().getGlobalMessage("game_starting", "seconds", String.valueOf(COUNTDOWN_SECONDS));
             if (startMessage == null) startMessage = "&eGame starting in " + COUNTDOWN_SECONDS + " seconds!";
             broadcastToArena(arenaName, startMessage);
 
@@ -1142,7 +1142,7 @@ public class GameManager {
                         // Broadcast countdown messages
                         if (countdown <= 5) {
                             // Enhanced countdown broadcast at 5 seconds and below
-                            String countdownMessage = MessagesConfigManager.getMessage("game_countdown", "seconds", String.valueOf(countdown));
+                            String countdownMessage = LanguageManager.getInstance().getGlobalMessage("game_countdown", "seconds", String.valueOf(countdown));
                             if (countdownMessage == null) countdownMessage = "&eGame starting in " + countdown + " seconds!";
                             broadcastToArena(arenaName, countdownMessage);
 
@@ -1162,7 +1162,7 @@ public class GameManager {
                             }
                         } else if (countdown % 5 == 0) {
                             // Regular countdown for 10, 15, etc.
-                            String countdownMessage = MessagesConfigManager.getMessage("game_countdown", "seconds", String.valueOf(countdown));
+                            String countdownMessage = LanguageManager.getInstance().getGlobalMessage("game_countdown", "seconds", String.valueOf(countdown));
                             if (countdownMessage == null) countdownMessage = "&eGame starting in " + countdown + " seconds!";
                             broadcastToArena(arenaName, countdownMessage);
                         }
@@ -1375,7 +1375,7 @@ public class GameManager {
             int points = KillStreaksConfigManager.getKillStreaksConfig().getInt(path + ".points", 0);
             if (points > 0) {
                 // Assuming points will be used when shop is implemented
-                player.sendMessage(ColorUtils.translate("&a+" + points + " points for " + streak + " kill streak!"));
+                LanguageManager.getInstance().sendMessage(player, "kill_streak_points", "points", String.valueOf(points), "streak", String.valueOf(streak));
             }
 
             // Message to player
@@ -1406,7 +1406,7 @@ public class GameManager {
                         Obsidianwars.getInstance().getLogger().warning("Invalid potion effect type: " + effectType);
                     } else {
                         player.addPotionEffect(new org.bukkit.potion.PotionEffect(type, duration * 20, amplifier));
-                        player.sendMessage(ColorUtils.translate("&eYou received " + effectType + " for " + duration + " seconds!"));
+                        LanguageManager.getInstance().sendMessage(player, "potion_effect_received", "effect", effectType, "duration", String.valueOf(duration));
                     }
                 } catch (Exception e) {
                     Obsidianwars.getInstance().getLogger().warning("Invalid potion effect type: " + effectType);

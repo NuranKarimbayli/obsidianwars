@@ -4,7 +4,9 @@ package az.nuran.obsidianwars.services;
 import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.handlers.TeamListener;
+import az.nuran.obsidianwars.managers.LanguageManager;
 import az.nuran.obsidianwars.managers.SpectatorManager;
+import az.nuran.obsidianwars.services.TeamConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -21,8 +23,6 @@ import java.util.List;
  */
 public class SpectatorTeleporterGUI {
 
-    private static final String GUI_TITLE = "&6&lTeleport to Player";
-
     /**
      * Opens the teleporter GUI for a spectator.
      *
@@ -34,13 +34,14 @@ public class SpectatorTeleporterGUI {
         List<Player> alivePlayers = getAlivePlayersInArena(arenaName);
 
         if (alivePlayers.isEmpty()) {
-            spectator.sendMessage(ColorUtils.translate("&cNo alive players in the arena!"));
+            LanguageManager.getInstance().sendMessage(spectator, "no_alive_players");
             return;
         }
 
         // Calculate inventory size (9 slots per row, minimum 9)
         int size = Math.max(9, ((alivePlayers.size() + 8) / 9) * 9);
-        Inventory gui = Bukkit.createInventory(null, size, ColorUtils.translate(GUI_TITLE));
+        String guiTitle = LanguageManager.getInstance().getMessage(spectator, "gui_teleport_title");
+        Inventory gui = Bukkit.createInventory(null, size, ColorUtils.translate(guiTitle));
 
         // Add player heads to GUI
         for (int i = 0; i < alivePlayers.size(); i++) {
@@ -83,16 +84,20 @@ public class SpectatorTeleporterGUI {
         SkullMeta meta = (SkullMeta) head.getItemMeta();
         if (meta != null) {
             meta.setOwningPlayer(player);
-            meta.setDisplayName(ColorUtils.translate("&e" + player.getName()));
+            String displayName = LanguageManager.getInstance().getGlobalMessage("player_head_name", "player", player.getName());
+            meta.setDisplayName(ColorUtils.translate(displayName));
 
             // Get player team for lore
             String team = TeamListener.playerTeams.get(player.getUniqueId());
             String teamColor = team != null ? TeamConfig.getTeamColor(team) : "&f";
-            String teamName = team != null ? TeamConfig.getTeamName(team) + " Team" : "No Team";
+            String teamName = team != null ? TeamConfig.getTeamName(team) : LanguageManager.getInstance().getGlobalMessage("no_team_label");
+
+            String teamLine = LanguageManager.getInstance().getGlobalMessage("team_name_line", "teamColor", teamColor, "teamName", teamName);
+            String teleportLine = LanguageManager.getInstance().getGlobalMessage("click_to_teleport_lore", "player", player.getName());
 
             meta.setLore(ColorUtils.translate(java.util.Arrays.asList(
-                teamColor + teamName,
-                "&7Click to teleport to " + player.getName()
+                teamLine,
+                teleportLine
             )));
             head.setItemMeta(meta);
         }

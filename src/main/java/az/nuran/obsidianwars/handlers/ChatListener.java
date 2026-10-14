@@ -4,7 +4,7 @@ package az.nuran.obsidianwars.handlers;
 import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
-import az.nuran.obsidianwars.managers.MessagesConfigManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 import az.nuran.obsidianwars.managers.SpectatorManager;
 
 import org.bukkit.Bukkit;
@@ -161,7 +161,7 @@ public class ChatListener implements Listener {
             // Strip the leading '!'
             String globalMessage = message.substring(1).trim();
             if (globalMessage.isEmpty()) {
-                player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("chat_empty_global")));
+                LanguageManager.getInstance().sendMessage(player, "chat.empty_global");
                 return;
             }
 

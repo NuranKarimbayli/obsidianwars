@@ -5,6 +5,7 @@ import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 import az.nuran.obsidianwars.managers.MessagesConfigManager;
 import az.nuran.obsidianwars.services.TeamConfig;
 
@@ -58,13 +59,16 @@ public class GameFeedbackService {
 
     /**
      * Sends a title to all players in an arena.
+     * Title and subtitle are retrieved from LanguageManager for each player based on their language.
      */
-    public static void sendTitleToArena(String arenaName, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
+    public static void sendTitleToArena(String arenaName, String titleKey, String subtitleKey, int fadeIn, int stay, int fadeOut) {
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
             String playerArena = ObsidianCommand.playersInArena.get(uuid);
             if (playerArena != null && playerArena.equals(arenaName)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
+                    String title = LanguageManager.getInstance().getMessage(player, titleKey);
+                    String subtitle = LanguageManager.getInstance().getMessage(player, subtitleKey);
                     player.sendTitle(ColorUtils.translate(title), ColorUtils.translate(subtitle), fadeIn, stay, fadeOut);
                 }
             }
@@ -113,9 +117,18 @@ public class GameFeedbackService {
         String teamName = TeamConfig.getTeamName(winningTeam);
         String teamColor = TeamConfig.getTeamColor(winningTeam);
 
-        // Victory message
-        String victoryMessage = MessagesConfigManager.getMessage("victory_message", "teamColor", teamColor, "teamName", teamName);
-        broadcastToArena(arenaName, MessagesConfigManager.getMessage("victory") + " " + victoryMessage);
+        // Victory message - send to each player in their language
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null) {
+                    String victoryMessage = LanguageManager.getInstance().getMessage(player, "victory_message", "teamColor", teamColor, "teamName", teamName);
+                    String victoryPrefix = LanguageManager.getInstance().getMessage(player, "victory");
+                    player.sendMessage(ColorUtils.translate(victoryPrefix + " " + victoryMessage));
+                }
+            }
+        }
 
         // UI_TOAST_CHALLENGE_COMPLETE sound for all players
         Sound victorySound = Obsidianwars.parseSound("UI_TOAST_CHALLENGE_COMPLETE");
@@ -130,19 +143,15 @@ public class GameFeedbackService {
             int stay = Obsidianwars.getInstance().getConfig().getInt("titles.victory.stay", 60);
             int fadeOut = Obsidianwars.getInstance().getConfig().getInt("titles.victory.fade-out", 20);
 
-            // Get victory title from messages config
-            String victoryTitle = MessagesConfigManager.getMessage("victory_title", "teamColor", teamColor, "teamName", teamName);
-            if (victoryTitle == null) {
-                victoryTitle = "&a&lVICTORY!";
-            }
-
             for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
                 String playerArena = ObsidianCommand.playersInArena.get(uuid);
                 if (playerArena != null && playerArena.equals(arenaName)) {
                     Player player = Bukkit.getPlayer(uuid);
                     if (player != null) {
                         player.playSound(player.getLocation(), victorySound, 1.0f, 1.0f);
-                        player.sendTitle(ColorUtils.translate(victoryTitle), ColorUtils.translate(teamColor + teamName + " Team won!"), fadeIn, stay, fadeOut);
+                        String victoryTitle = LanguageManager.getInstance().getMessage(player, "victory_title", "teamColor", teamColor, "teamName", teamName);
+                        String subtitle = LanguageManager.getInstance().getMessage(player, "victory_subtitle", "teamColor", teamColor, "teamName", teamName);
+                        player.sendTitle(ColorUtils.translate(victoryTitle), ColorUtils.translate(subtitle), fadeIn, stay, fadeOut);
                     }
                 }
             }
@@ -173,19 +182,31 @@ public class GameFeedbackService {
 
                     if (playerTeam != null && playerTeam.equals(attackerTeam)) {
                         // Attacker team gets GREEN title
-                        arenaPlayer.sendTitle(ColorUtils.translate("&a&lOBSIDIAN DESTROYED!"), ColorUtils.translate("&e" + teamName + " obsidian destroyed!"), fadeIn, stay, fadeOut);
+                        String title = LanguageManager.getInstance().getMessage(arenaPlayer, "obsidian_destroyed_title_attacker");
+                        String subtitle = LanguageManager.getInstance().getMessage(arenaPlayer, "obsidian_destroyed_subtitle_attacker", "teamName", teamName);
+                        arenaPlayer.sendTitle(ColorUtils.translate(title), ColorUtils.translate(subtitle), fadeIn, stay, fadeOut);
                     } else {
                         // Victim team gets RED title
-                        arenaPlayer.sendTitle(ColorUtils.translate("&c&lOBSIDIAN DESTROYED!"), ColorUtils.translate("&4" + teamName + " obsidian destroyed!"), fadeIn, stay, fadeOut);
+                        String title = LanguageManager.getInstance().getMessage(arenaPlayer, "obsidian_destroyed_title_victim");
+                        String subtitle = LanguageManager.getInstance().getMessage(arenaPlayer, "obsidian_destroyed_subtitle_victim", "teamName", teamName);
+                        arenaPlayer.sendTitle(ColorUtils.translate(title), ColorUtils.translate(subtitle), fadeIn, stay, fadeOut);
                     }
                 }
             }
         }
 
-        // Broadcast message
-        String broadcastMessage = MessagesConfigManager.getMessage("obsidian_team_destroyed",
-            "teamColor", teamColor, "teamName", teamName, "player", destroyer.getName());
-        broadcastToArena(arenaName, broadcastMessage);
+        // Broadcast message - send to each player in their language
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
+                Player arenaPlayer = Bukkit.getPlayer(uuid);
+                if (arenaPlayer != null) {
+                    String broadcastMessage = LanguageManager.getInstance().getMessage(arenaPlayer, "obsidian_team_destroyed",
+                        "teamColor", teamColor, "teamName", teamName, "player", destroyer.getName());
+                    arenaPlayer.sendMessage(ColorUtils.translate(broadcastMessage));
+                }
+            }
+        }
 
         // Play sound
         String sound = MessagesConfigManager.getSound("obsidian_destroyed");
@@ -222,7 +243,7 @@ public class GameFeedbackService {
      * Sends a welcome message to a player.
      */
     public static void sendWelcomeMessage(Player player) {
-        List<String> welcomeLines = MessagesConfigManager.getMessagesConfig().getStringList("messages.welcome_message");
+        List<String> welcomeLines = LanguageManager.getInstance().getMessageList(player, "welcome_message");
         for (String line : welcomeLines) {
             player.sendMessage(ColorUtils.translate(line));
         }
@@ -232,7 +253,7 @@ public class GameFeedbackService {
      * Sends a rules announcement to a player.
      */
     public static void sendRulesAnnouncement(Player player) {
-        List<String> rulesLines = MessagesConfigManager.getMessagesConfig().getStringList("messages.rules_announcement");
+        List<String> rulesLines = LanguageManager.getInstance().getMessageList(player, "rules_announcement");
         for (String line : rulesLines) {
             player.sendMessage(ColorUtils.translate(line));
         }
@@ -243,36 +264,65 @@ public class GameFeedbackService {
      * Includes winner, MVP, and individual player stats.
      */
     public static void sendPostGameSummary(String arenaName, String winningTeam, int mvpKills, UUID mvpUuid) {
-        // Broadcast winner
         String teamName = TeamConfig.getTeamName(winningTeam);
         String teamColor = TeamConfig.getTeamColor(winningTeam);
-        broadcastToArena(arenaName, "&6&l=== MATCH SUMMARY ===");
-        broadcastToArena(arenaName, teamColor + "&lWinner: " + teamName + " Team");
 
-        // Broadcast MVP
-        if (mvpUuid != null) {
-            Player mvpPlayer = Bukkit.getPlayer(mvpUuid);
-            if (mvpPlayer != null) {
-                broadcastToArena(arenaName, "&e&lMVP: &f" + mvpPlayer.getName() + " &ewith &e" + mvpKills + " &eKills");
-            }
-        }
-
-        // Broadcast individual stats
-        broadcastToArena(arenaName, "&7--------------------");
+        // Broadcast winner - send to each player in their language
         for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
             String playerArena = ObsidianCommand.playersInArena.get(uuid);
             if (playerArena != null && playerArena.equals(arenaName)) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
+                    player.sendMessage(ColorUtils.translate("&6&l=== MATCH SUMMARY ==="));
+                    String winnerMessage = LanguageManager.getInstance().getMessage(player, "victory_message", "teamColor", teamColor, "teamName", teamName);
+                    player.sendMessage(ColorUtils.translate(winnerMessage));
+                }
+            }
+        }
+
+        // Broadcast MVP - send to each player in their language
+        if (mvpUuid != null) {
+            Player mvpPlayer = Bukkit.getPlayer(mvpUuid);
+            if (mvpPlayer != null) {
+                for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+                    String playerArena = ObsidianCommand.playersInArena.get(uuid);
+                    if (playerArena != null && playerArena.equals(arenaName)) {
+                        Player player = Bukkit.getPlayer(uuid);
+                        if (player != null) {
+                            String mvpMessage = LanguageManager.getInstance().getMessage(player, "match_summary_mvp", "player", mvpPlayer.getName(), "kills", String.valueOf(mvpKills));
+                            player.sendMessage(ColorUtils.translate(mvpMessage));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Broadcast individual stats
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null) {
+                    player.sendMessage(ColorUtils.translate("&7--------------------"));
                     int kills = az.nuran.obsidianwars.managers.StatsManager.getKills(uuid);
                     int deaths = az.nuran.obsidianwars.managers.StatsManager.getDeaths(uuid);
                     String playerTeam = az.nuran.obsidianwars.handlers.TeamListener.playerTeams.get(uuid);
                     // Safe null-check for playerTeam (spectators or players with cleared team)
                     String teamPrefix = (playerTeam != null && playerTeam.equals("red")) ? "&c" : "&9";
-                    player.sendMessage(ColorUtils.translate(teamPrefix + player.getName() + " &7- &eKills: " + kills + " &7| &cDeaths: " + deaths));
+                    String statsMessage = LanguageManager.getInstance().getMessage(player, "player_stats_summary", "teamPrefix", teamPrefix, "player", player.getName(), "kills", String.valueOf(kills), "deaths", String.valueOf(deaths));
+                    player.sendMessage(ColorUtils.translate(statsMessage));
                 }
             }
         }
-        broadcastToArena(arenaName, "&7--------------------");
+
+        for (UUID uuid : ObsidianCommand.playersInArena.keySet()) {
+            String playerArena = ObsidianCommand.playersInArena.get(uuid);
+            if (playerArena != null && playerArena.equals(arenaName)) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null) {
+                    player.sendMessage(ColorUtils.translate("&7--------------------"));
+                }
+            }
+        }
     }
 }

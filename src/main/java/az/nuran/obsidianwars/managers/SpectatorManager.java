@@ -5,6 +5,7 @@ import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.services.PlayerUtils;
+import az.nuran.obsidianwars.managers.LanguageManager;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -72,7 +73,7 @@ public class SpectatorManager {
         spectators.put(player.getUniqueId(), arenaName);
         spectatorArenas.put(player.getUniqueId(), arenaName);
 
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("spectator_mode", "arenaName", arenaName)));
+        LanguageManager.getInstance().sendMessage(player, "spectator_mode", "arenaName", arenaName);
     }
 
     /**
@@ -168,7 +169,7 @@ public class SpectatorManager {
      */
     private static void giveSpectatorItems(Player player) {
         // Slot 0: Teleporter Compass
-        ItemStack teleporter = createTeleporterCompass();
+        ItemStack teleporter = createTeleporterCompass(player);
         player.getInventory().setItem(0, teleporter);
 
         // Slot 3: Fly Speed Feather
@@ -180,23 +181,27 @@ public class SpectatorManager {
         player.getInventory().setItem(4, enderEye);
 
         // Slot 8: Leave Item
-        ItemStack leaveItem = createLeaveItem();
+        ItemStack leaveItem = createLeaveItem(player);
         player.getInventory().setItem(8, leaveItem);
     }
 
     /**
      * Creates the teleporter compass item.
      *
+     * @param player The player
      * @return The teleporter compass ItemStack
      */
-    public static ItemStack createTeleporterCompass() {
+    public static ItemStack createTeleporterCompass(Player player) {
         ItemStack item = new ItemStack(Material.COMPASS);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ColorUtils.translate("&a&lPlayer Teleporter"));
+            String itemName = LanguageManager.getInstance().getMessage(player, "item_teleporter_name");
+            String lore1 = LanguageManager.getInstance().getMessage(player, "item_teleporter_lore_1");
+            String lore2 = LanguageManager.getInstance().getMessage(player, "item_teleporter_lore_2");
+            meta.setDisplayName(ColorUtils.translate(itemName));
             meta.setLore(ColorUtils.translate(java.util.Arrays.asList(
-                "&7Right-click to teleport to",
-                "&7alive players in the game."
+                lore1,
+                lore2
             )));
             item.setItemMeta(meta);
         }
@@ -214,10 +219,13 @@ public class SpectatorManager {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             int speed = flySpeeds.getOrDefault(player.getUniqueId(), 1);
-            meta.setDisplayName(ColorUtils.translate("&e&lFly Speed &7(Current: " + speed + "x)"));
+            String itemName = LanguageManager.getInstance().getMessage(player, "item_fly_speed_name", "speed", String.valueOf(speed));
+            String lore1 = LanguageManager.getInstance().getMessage(player, "item_fly_speed_lore_1");
+            String lore2 = LanguageManager.getInstance().getMessage(player, "item_fly_speed_lore_2");
+            meta.setDisplayName(ColorUtils.translate(itemName));
             meta.setLore(ColorUtils.translate(java.util.Arrays.asList(
-                "&7Right-click to cycle speed:",
-                "&7 1x &f→ &7 2x &f→ &7 3x &f→ &7 1x"
+                lore1,
+                lore2
             )));
             item.setItemMeta(meta);
         }
@@ -236,10 +244,13 @@ public class SpectatorManager {
         if (meta != null) {
             boolean hasNightVision = nightVisionStates.getOrDefault(player.getUniqueId(), true);
             String status = hasNightVision ? "&aON" : "&cOFF";
-            meta.setDisplayName(ColorUtils.translate("&b&lToggle Night Vision &7(" + status + ")"));
+            String itemName = LanguageManager.getInstance().getMessage(player, "item_night_vision_name", "status", status);
+            String lore1 = LanguageManager.getInstance().getMessage(player, "item_night_vision_lore_1");
+            String lore2 = LanguageManager.getInstance().getMessage(player, "item_night_vision_lore_2");
+            meta.setDisplayName(ColorUtils.translate(itemName));
             meta.setLore(ColorUtils.translate(java.util.Arrays.asList(
-                "&7Right-click to toggle",
-                "&7Night Vision effect."
+                lore1,
+                lore2
             )));
             item.setItemMeta(meta);
         }
@@ -249,16 +260,20 @@ public class SpectatorManager {
     /**
      * Creates the leave item.
      *
+     * @param player The player
      * @return The leave item ItemStack
      */
-    public static ItemStack createLeaveItem() {
+    public static ItemStack createLeaveItem(Player player) {
         ItemStack item = new ItemStack(Material.RED_BED);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ColorUtils.translate("&c&lLeave Spectator"));
+            String itemName = LanguageManager.getInstance().getMessage(player, "item_leave_spectator_name");
+            String lore1 = LanguageManager.getInstance().getMessage(player, "item_leave_spectator_lore_1");
+            String lore2 = LanguageManager.getInstance().getMessage(player, "item_leave_spectator_lore_2");
+            meta.setDisplayName(ColorUtils.translate(itemName));
             meta.setLore(ColorUtils.translate(java.util.Arrays.asList(
-                "&7Right-click to return to",
-                "&7the main lobby."
+                lore1,
+                lore2
             )));
             item.setItemMeta(meta);
         }
@@ -283,7 +298,7 @@ public class SpectatorManager {
         ItemStack feather = createFlySpeedFeather(player);
         player.getInventory().setItem(3, feather);
 
-        player.sendMessage(ColorUtils.translate("&aFly speed set to " + newSpeed + "x"));
+        LanguageManager.getInstance().sendMessage(player, "fly_speed_set", "speed", String.valueOf(newSpeed));
     }
 
     /**
@@ -298,10 +313,10 @@ public class SpectatorManager {
 
         if (newState) {
             player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, Integer.MAX_VALUE, 0, false, false));
-            player.sendMessage(ColorUtils.translate("&aNight Vision enabled"));
+            LanguageManager.getInstance().sendMessage(player, "night_vision_enabled");
         } else {
             player.removePotionEffect(PotionEffectType.NIGHT_VISION);
-            player.sendMessage(ColorUtils.translate("&cNight Vision disabled"));
+            LanguageManager.getInstance().sendMessage(player, "night_vision_disabled");
         }
 
         // Update item in inventory

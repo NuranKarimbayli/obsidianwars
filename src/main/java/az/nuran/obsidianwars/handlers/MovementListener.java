@@ -7,7 +7,7 @@ import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
 import az.nuran.obsidianwars.managers.ArenaStateManager;
 import az.nuran.obsidianwars.managers.GameManager;
-import az.nuran.obsidianwars.managers.MessagesConfigManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 import az.nuran.obsidianwars.managers.ScoreboardManager;
 import az.nuran.obsidianwars.managers.SpectatorManager;
 import az.nuran.obsidianwars.managers.TaskManager;
@@ -41,7 +41,7 @@ public class MovementListener implements Listener {
     public MovementListener(Obsidianwars plugin) {
         this.autoDeathEnabled = plugin.getConfig().getBoolean("auto-death.enabled", true);
         this.autoDeathYLevel = plugin.getConfig().getInt("auto-death.y-level", -64);
-        this.autoDeathMessage = plugin.getConfig().getString("auto-death.death-message", "&cYou fell into the void!");
+        this.autoDeathMessage = plugin.getConfig().getString("auto-death.death-message", "death.auto_death");
 
         initializeArenaWorldCache();
         plugin.getLogger().info("MovementListener initialized: Auto-Death " + (autoDeathEnabled ? "ENABLED" : "DISABLED") + " (Y-level: " + autoDeathYLevel + ")");
@@ -162,7 +162,7 @@ public class MovementListener implements Listener {
         player.setHealth(0);
 
         // Send death message
-        player.sendMessage(ColorUtils.translate(autoDeathMessage));
+        LanguageManager.getInstance().sendMessage(player, "death.auto_death");
 
         Obsidianwars.getInstance().getLogger().info("Player " + player.getName() + " died from auto-death at Y=" + player.getLocation().getY());
     }
@@ -200,7 +200,7 @@ public class MovementListener implements Listener {
 
             if (waitingSpawn != null) {
                 player.teleport(waitingSpawn);
-                player.sendMessage(ColorUtils.translate("&cYou cannot leave the lobby area!"));
+                LanguageManager.getInstance().sendMessage(player, "movement.cannot_leave_lobby");
             }
         }
     }
@@ -222,7 +222,7 @@ public class MovementListener implements Listener {
                 player.teleport(teamSpawn);
                 player.setHealth(20);
                 player.setFoodLevel(20);
-                player.sendMessage(ColorUtils.translate("&eYou fell during preparation - respawned at team spawn!"));
+                LanguageManager.getInstance().sendMessage(player, "death.preparation_respawn");
             }
             return;
         }
@@ -248,13 +248,13 @@ public class MovementListener implements Listener {
                 if (player.isOnline()) {
                     SpectatorManager.setSpectatorMode(player, arenaName);
 
-                    String diedTitle = MessagesConfigManager.getMessage("you_died");
-                    String finalElim = MessagesConfigManager.getMessage("final_elimination");
+                    String diedTitle = LanguageManager.getInstance().getMessage(player, "titles.death.died_title");
+                    String finalElim = LanguageManager.getInstance().getMessage(player, "titles.death.final_elimination_subtitle");
                     int fadeIn = Obsidianwars.getInstance().getConfig().getInt("titles.death.fade-in", 10);
                     int stay = Obsidianwars.getInstance().getConfig().getInt("titles.death.stay", 40);
                     int fadeOut = Obsidianwars.getInstance().getConfig().getInt("titles.death.fade-out", 20);
-                    player.sendTitle(ColorUtils.translate(diedTitle), ColorUtils.translate(finalElim), fadeIn, stay, fadeOut);
-                    player.sendMessage(ColorUtils.translate("&cYou fell into the void and were finally eliminated!"));
+                    player.sendTitle(diedTitle, finalElim, fadeIn, stay, fadeOut);
+                    LanguageManager.getInstance().sendMessage(player, "death.void_final_elimination");
 
                     // Update scoreboard
                     ScoreboardManager.updateScoreboard(player);
@@ -286,7 +286,7 @@ public class MovementListener implements Listener {
         player.teleport(teamSpawn);
         player.setHealth(20);
         player.setFoodLevel(20);
-        player.sendMessage(ColorUtils.translate("&eYou fell into the void - respawned at team spawn!"));
+        LanguageManager.getInstance().sendMessage(player, "death.void_respawn");
     }
 
     private Location getTeamSpawn(String arenaName, String team) {

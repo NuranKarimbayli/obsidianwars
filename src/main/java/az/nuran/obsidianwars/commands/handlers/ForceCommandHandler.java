@@ -10,6 +10,7 @@ import az.nuran.obsidianwars.managers.ArenaStateManager;
 import az.nuran.obsidianwars.managers.GameManager;
 import az.nuran.obsidianwars.managers.MessagesConfigManager;
 import az.nuran.obsidianwars.managers.WallManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -31,7 +32,7 @@ public class ForceCommandHandler implements CommandHandler {
 
         if (subCommand.equals("force")) {
             if (!player.hasPermission("obsidianwars.command.force")) {
-                player.sendMessage(ColorUtils.translate("&cYou don't have permission to use this command."));
+                LanguageManager.getInstance().sendMessage(player, "no_permission");
                 return true;
             }
             handleForceCommand(player, args);
@@ -40,7 +41,7 @@ public class ForceCommandHandler implements CommandHandler {
 
         if (subCommand.equals("forceend")) {
             if (!player.hasPermission("obsidianwars.command.forceend")) {
-                player.sendMessage(ColorUtils.translate("&cYou don't have permission to use this command."));
+                LanguageManager.getInstance().sendMessage(player, "no_permission");
                 return true;
             }
             handleForceendCommand(player, args);
@@ -49,7 +50,7 @@ public class ForceCommandHandler implements CommandHandler {
 
         if (subCommand.equals("forcestart")) {
             if (!player.hasPermission("obsidianwars.command.forcestart")) {
-                player.sendMessage(ColorUtils.translate("&cYou don't have permission to use this command."));
+                LanguageManager.getInstance().sendMessage(player, "no_permission");
                 return true;
             }
             handleForcestartCommand(player, args);
@@ -58,7 +59,7 @@ public class ForceCommandHandler implements CommandHandler {
 
         if (subCommand.equals("forceprep")) {
             if (!player.hasPermission("obsidianwars.command.forceprep")) {
-                player.sendMessage(ColorUtils.translate("&cYou don't have permission to use this command."));
+                LanguageManager.getInstance().sendMessage(player, "no_permission");
                 return true;
             }
             handleForceprepCommand(player, args);
@@ -70,7 +71,7 @@ public class ForceCommandHandler implements CommandHandler {
 
     private void handleForceCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o force <start|end> <arena|preperation> [arena]"));
+            LanguageManager.getInstance().sendMessage(player, "usage_force");
             return;
         }
 
@@ -78,17 +79,17 @@ public class ForceCommandHandler implements CommandHandler {
 
         if (action.equals("start")) {
             if (args.length < 4 || !args[2].equalsIgnoreCase("arena")) {
-                player.sendMessage(ColorUtils.translate("&cUsage: /o force start arena <arena>"));
+                LanguageManager.getInstance().sendMessage(player, "usage_force_start");
                 return;
             }
             String arenaName = args[3];
             if (!ArenaConfigManager.arenaExists(arenaName)) {
-                player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+                LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
                 return;
             }
             // Check if there are players in the arena
             if (!GameManager.hasPlayersInArena(arenaName)) {
-                player.sendMessage(ColorUtils.translate("&cNo players in arena " + arenaName + "!"));
+                LanguageManager.getInstance().sendMessage(player, "no_players_in_arena", "arenaName", arenaName);
                 return;
             }
 
@@ -99,70 +100,70 @@ public class ForceCommandHandler implements CommandHandler {
                 // If in COUNTDOWN state, cancel countdown and immediately start
                 if (state == ArenaStateManager.ArenaState.STARTING) {
                     GameManager.cancelCountdownAndForceStart(arenaName);
-                    player.sendMessage(ColorUtils.translate("&aCountdown skipped! Game starting now for arena " + arenaName));
+                    LanguageManager.getInstance().sendMessage(player, "countdown_skipped", "arenaName", arenaName);
                     return;
                 }
                 // If already in PLAYING or PREPARATION state, return error
                 if (state == ArenaStateManager.ArenaState.PLAYING || state == ArenaStateManager.ArenaState.PREPARATION) {
-                    player.sendMessage(ColorUtils.translate("&cThis arena is already active!"));
+                    LanguageManager.getInstance().sendMessage(player, "arena_already_active");
                     return;
                 }
             }
 
             GameManager.forceStartGame(arenaName);
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("force_started", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "force_started", "arenaName", arenaName);
         } else if (action.equals("end")) {
             if (args.length < 3) {
-                player.sendMessage(ColorUtils.translate("&cUsage: /o force end arena <arena> OR /o force end preperation <arena>"));
+                LanguageManager.getInstance().sendMessage(player, "usage_force_end");
                 return;
             }
             String subAction = args[2].toLowerCase();
             if (subAction.equals("arena")) {
                 if (args.length < 4) {
-                    player.sendMessage(ColorUtils.translate("&cUsage: /o force end arena <arena>"));
+                    LanguageManager.getInstance().sendMessage(player, "usage_force_end_arena");
                     return;
                 }
                 String arenaName = args[3];
                 if (!ArenaConfigManager.arenaExists(arenaName)) {
-                    player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+                    LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
                     return;
                 }
                 GameManager.endGame(arenaName, null); // Message is broadcast to arena players by endGame
-                player.sendMessage(ColorUtils.translate("&aGame ended for arena " + arenaName));
+                LanguageManager.getInstance().sendMessage(player, "game_ended", "arenaName", arenaName);
             } else if (subAction.equals("preperation")) {
                 if (args.length < 4) {
-                    player.sendMessage(ColorUtils.translate("&cUsage: /o force end preperation <arena>"));
+                    LanguageManager.getInstance().sendMessage(player, "usage_force_end_preparation");
                     return;
                 }
                 String arenaName = args[3];
                 if (!ArenaConfigManager.arenaExists(arenaName)) {
-                    player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+                    LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
                     return;
                 }
                 GameManager.ArenaGame game = GameManager.getGame(arenaName);
                 if (game == null || game.getGameState() != ArenaStateManager.ArenaState.PREPARATION) {
-                    player.sendMessage(ColorUtils.translate("&cThis arena is not in preparation phase!"));
+                    LanguageManager.getInstance().sendMessage(player, "arena_not_in_preparation");
                     return;
                 }
                 WallManager.forceSkipPreparation(arenaName);
-                player.sendMessage(ColorUtils.translate("&aPreparation phase skipped! Walls are breaking now!"));
+                LanguageManager.getInstance().sendMessage(player, "preparation_skipped");
             } else {
-                player.sendMessage(ColorUtils.translate("&cUsage: /o force end arena <arena> OR /o force end preperation <arena>"));
+                LanguageManager.getInstance().sendMessage(player, "usage_force_end");
             }
         } else {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o force <start|end> <arena|preperation> [arena]"));
+            LanguageManager.getInstance().sendMessage(player, "usage_force");
         }
     }
 
     private void handleForceendCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o forceend <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_forceend");
             return;
         }
         String arenaName = args[1];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
@@ -173,7 +174,7 @@ public class ForceCommandHandler implements CommandHandler {
         // This handles the edge case where arena is stuck in PLAYING without an active game instance
         String currentStatus = ArenaConfigManager.getArenaStatus(arenaName);
         if (!currentStatus.equals("READY") && !currentStatus.equals("WAITING")) {
-            player.sendMessage(ColorUtils.translate("&eForcefully resetting arena status from " + currentStatus + " to READY..."));
+            LanguageManager.getInstance().sendMessage(player, "force_resetting_status", "oldStatus", currentStatus);
             ArenaConfigManager.setArenaStatus(arenaName, "READY");
         }
 
@@ -196,9 +197,9 @@ public class ForceCommandHandler implements CommandHandler {
         // Restore arena snapshot if available
         boolean restoreSuccess = az.nuran.obsidianwars.managers.ArenaSnapshotManager.restoreSnapshot(arenaName);
         if (restoreSuccess) {
-            player.sendMessage(ColorUtils.translate("&aArena snapshot restored."));
+            LanguageManager.getInstance().sendMessage(player, "arena_snapshot_restored");
         } else {
-            player.sendMessage(ColorUtils.translate("&7No arena snapshot found or restoration failed."));
+            LanguageManager.getInstance().sendMessage(player, "arena_snapshot_failed");
         }
 
         // Clear any players still tracked in this arena
@@ -221,7 +222,7 @@ public class ForceCommandHandler implements CommandHandler {
                 // Reset player state and teleport to spawn
                 org.bukkit.Location mainSpawn = p.getWorld().getSpawnLocation();
                 az.nuran.obsidianwars.services.PlayerUtils.resetPlayerFull(p, mainSpawn);
-                p.sendMessage(ColorUtils.translate("&aArena force-ended by admin. Teleported to spawn."));
+                LanguageManager.getInstance().sendMessage(p, "arena_force_ended");
 
                 // Update lobby scoreboard
                 az.nuran.obsidianwars.managers.LobbyScoreboardManager.updateLobbyScoreboard(p);
@@ -242,24 +243,24 @@ public class ForceCommandHandler implements CommandHandler {
             WandListener.pos2Map.remove(uuid);
         }
 
-        player.sendMessage(ColorUtils.translate("&aGame force-ended for arena " + arenaName + ". Status reset to READY."));
+        LanguageManager.getInstance().sendMessage(player, "game_force_ended", "arenaName", arenaName);
     }
 
     private void handleForcestartCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o forcestart <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_forcestart");
             return;
         }
         String arenaName = args[1];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
         // Check if there are players in the arena
         if (!GameManager.hasPlayersInArena(arenaName)) {
-            player.sendMessage(ColorUtils.translate("&cNo players in arena " + arenaName + "!"));
+            LanguageManager.getInstance().sendMessage(player, "no_players_in_arena", "arenaName", arenaName);
             return;
         }
 
@@ -270,42 +271,42 @@ public class ForceCommandHandler implements CommandHandler {
             // If in COUNTDOWN state, cancel countdown and immediately start
             if (state == ArenaStateManager.ArenaState.STARTING) {
                 GameManager.cancelCountdownAndForceStart(arenaName);
-                player.sendMessage(ColorUtils.translate("&aCountdown skipped! Game starting now for arena " + arenaName));
+                LanguageManager.getInstance().sendMessage(player, "countdown_skipped", "arenaName", arenaName);
                 return;
             }
             // If already in PLAYING or PREPARATION state, return error
             if (state == ArenaStateManager.ArenaState.PLAYING || state == ArenaStateManager.ArenaState.PREPARATION) {
-                player.sendMessage(ColorUtils.translate("&cThis arena is already active!"));
+                LanguageManager.getInstance().sendMessage(player, "arena_already_active");
                 return;
             }
         }
 
         // Force start (no game exists or in WAITING state)
         GameManager.forceStartGame(arenaName);
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("force_started", "arenaName", arenaName)));
+        LanguageManager.getInstance().sendMessage(player, "force_started", "arenaName", arenaName);
     }
 
     private void handleForceprepCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o forceprep <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_forceprep");
             return;
         }
         String arenaName = args[1];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
         // Check if game is in PREPARATION state
         GameManager.ArenaGame game = GameManager.getGame(arenaName);
         if (game == null || game.getGameState() != ArenaStateManager.ArenaState.PREPARATION) {
-            player.sendMessage(ColorUtils.translate("&cThis arena is not in preparation phase!"));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_preparation");
             return;
         }
 
         // Force skip preparation - trigger wall removal immediately
         WallManager.forceSkipPreparation(arenaName);
-        player.sendMessage(ColorUtils.translate("&aPreparation phase skipped! Walls are breaking now!"));
+        LanguageManager.getInstance().sendMessage(player, "preparation_skipped");
     }
 }

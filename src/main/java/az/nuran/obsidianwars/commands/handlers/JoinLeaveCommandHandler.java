@@ -13,6 +13,7 @@ import az.nuran.obsidianwars.managers.ParticleManager;
 import az.nuran.obsidianwars.managers.ScoreboardManager;
 import az.nuran.obsidianwars.managers.SpectatorManager;
 import az.nuran.obsidianwars.managers.TeamManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 import az.nuran.obsidianwars.services.GameFeedbackService;
 import az.nuran.obsidianwars.services.PlayerUtils;
 import az.nuran.obsidianwars.services.RejoinManager;
@@ -37,7 +38,7 @@ public class JoinLeaveCommandHandler implements CommandHandler {
 
         if (subCommand.equals("play") || subCommand.equals("join")) {
             if (!player.hasPermission("obsidianwars.command.join")) {
-                player.sendMessage(ColorUtils.translate("&cYou don't have permission to use this command."));
+                LanguageManager.getInstance().sendMessage(player, "no_permission");
                 return true;
             }
             handleJoinCommand(player, args);
@@ -46,7 +47,7 @@ public class JoinLeaveCommandHandler implements CommandHandler {
 
         if (subCommand.equals("leave")) {
             if (!player.hasPermission("obsidianwars.command.leave")) {
-                player.sendMessage(ColorUtils.translate("&cYou don't have permission to use this command."));
+                LanguageManager.getInstance().sendMessage(player, "no_permission");
                 return true;
             }
             handleLeaveCommand(player);
@@ -55,7 +56,7 @@ public class JoinLeaveCommandHandler implements CommandHandler {
 
         if (subCommand.equals("rejoin")) {
             if (!player.hasPermission("obsidianwars.command.rejoin")) {
-                player.sendMessage(ColorUtils.translate("&cYou don't have permission to use this command."));
+                LanguageManager.getInstance().sendMessage(player, "no_permission");
                 return true;
             }
             handleRejoinCommand(player);
@@ -69,7 +70,7 @@ public class JoinLeaveCommandHandler implements CommandHandler {
         List<String> arenaNames = ArenaConfigManager.getArenaNames();
 
         if (arenaNames.isEmpty()) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_no_arenas")));
+            LanguageManager.getInstance().sendMessage(player, "arena_no_arenas");
             return;
         }
 
@@ -79,20 +80,20 @@ public class JoinLeaveCommandHandler implements CommandHandler {
         if (args.length > 1) {
             arenaName = args[1];
             if (!ArenaConfigManager.arenaExists(arenaName)) {
-                player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName)));
+                LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
                 return;
             }
             String status = ArenaConfigManager.getArenaStatus(arenaName);
             if ("DISABLED".equals(status)) {
-                player.sendMessage(ColorUtils.translate("&cThis arena is currently disabled."));
+                LanguageManager.getInstance().sendMessage(player, "arena_disabled");
                 return;
             }
             if (!"READY".equals(status) && !"WAITING".equals(status)) {
-                player.sendMessage(ColorUtils.translate("&cThis arena is not available (status: " + status + ")"));
+                LanguageManager.getInstance().sendMessage(player, "arena_not_available", "status", status);
                 return;
             }
             if ("STARTING".equals(status)) {
-                player.sendMessage(ColorUtils.translate("&cThis arena is currently starting. Please wait for it to finish."));
+                LanguageManager.getInstance().sendMessage(player, "arena_starting");
                 return;
             }
         } else {
@@ -107,7 +108,7 @@ public class JoinLeaveCommandHandler implements CommandHandler {
         }
 
         if (arenaName == null) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("arena_not_ready")));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_ready");
             return;
         }
 
@@ -117,13 +118,13 @@ public class JoinLeaveCommandHandler implements CommandHandler {
 
     private void handleLeaveCommand(Player player) {
         if (!ObsidianCommand.playersInArena.containsKey(player.getUniqueId())) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("not_in_arena")));
+            LanguageManager.getInstance().sendMessage(player, "not_in_arena");
             return;
         }
 
         String arenaName = ObsidianCommand.playersInArena.get(player.getUniqueId());
         if (arenaName == null) {
-            player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("not_in_arena")));
+            LanguageManager.getInstance().sendMessage(player, "not_in_arena");
             return;
         }
 
@@ -152,9 +153,9 @@ public class JoinLeaveCommandHandler implements CommandHandler {
         PlayerUtils.resetPlayerFull(player, mainSpawn);
 
         // Broadcast message
-        ObsidianCommand.broadcastToArena(arenaName, MessagesConfigManager.getMessage("player_left", "player", player.getName()));
+        ObsidianCommand.broadcastToArena(arenaName, LanguageManager.getInstance().getGlobalMessage("player_left", "player", player.getName()));
 
-        player.sendMessage(ColorUtils.translate(MessagesConfigManager.getMessage("game_ended")));
+        LanguageManager.getInstance().sendMessage(player, "game_ended");
 
         // Update lobby scoreboard after leaving arena
         LobbyScoreboardManager.updateLobbyScoreboard(player);
@@ -184,12 +185,10 @@ public class JoinLeaveCommandHandler implements CommandHandler {
 
             if (restored) {
                 String arenaName = RejoinManager.getDisconnectedPlayerArena(player.getUniqueId());
-                String rejoinMessage = "&aYou have reconnected to the arena!";
-                player.sendMessage(ColorUtils.translate(rejoinMessage));
+                LanguageManager.getInstance().sendMessage(player, "rejoin_success");
 
                 // Broadcast to arena
-                String broadcastMessage = "&a" + player.getName() + " has reconnected!";
-                ObsidianCommand.broadcastToArena(arenaName, broadcastMessage);
+                ObsidianCommand.broadcastToArena(arenaName, LanguageManager.getInstance().getGlobalMessage("player_reconnected", "player", player.getName()));
 
                 // Play rejoin sound
                 String sound = MessagesConfigManager.getSound("join_lobby");
@@ -198,10 +197,10 @@ public class JoinLeaveCommandHandler implements CommandHandler {
                     player.playSound(player.getLocation(), rejoinSound, 1.0f, 1.0f);
                 }
             } else {
-                player.sendMessage(ColorUtils.translate("&cCould not restore your game session. It may have expired."));
+                LanguageManager.getInstance().sendMessage(player, "rejoin_failed");
             }
         } else {
-            player.sendMessage(ColorUtils.translate("&cNo active game session found to rejoin."));
+            LanguageManager.getInstance().sendMessage(player, "rejoin_no_session");
         }
     }
 }

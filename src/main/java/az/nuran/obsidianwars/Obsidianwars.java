@@ -158,6 +158,11 @@ public final class Obsidianwars extends JavaPlugin {
         }
         if (getCommand("lang") != null) {
             getCommand("lang").setExecutor(obsidianCommand);
+            getCommand("lang").setTabCompleter(new ObsidianTabCompleter(this));
+        }
+        if (getCommand("language") != null) {
+            getCommand("language").setExecutor(obsidianCommand);
+            getCommand("language").setTabCompleter(new ObsidianTabCompleter(this));
         }
 
         // Event-i regisrasion etmek

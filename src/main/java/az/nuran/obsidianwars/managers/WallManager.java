@@ -6,6 +6,7 @@ import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.commands.ObsidianCommand;
 import az.nuran.obsidianwars.handlers.XPAwardListener;
 import az.nuran.obsidianwars.services.DebugManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -189,7 +190,7 @@ public class WallManager {
         Obsidianwars.getInstance().getLogger().info("Starting preparation timer for arena " + arenaName + " with " + durationSeconds + " seconds");
 
         // Broadcast preparation phase start
-        String prepStartMsg = MessagesConfigManager.getMessage("preparation_phase_start");
+        String prepStartMsg = LanguageManager.getInstance().getGlobalMessage("preparation_phase_start");
         if (prepStartMsg == null) prepStartMsg = "&ePreparation phase started! Gather resources!";
         ObsidianCommand.broadcastToArena(arenaName, prepStartMsg);
 
@@ -276,8 +277,8 @@ public class WallManager {
                                     if (player != null && player.isOnline()) {
                                         try {
                                             player.playSound(player.getLocation(), wallSound, 1.0f, 1.0f);
-                                            String title = MessagesConfigManager.getMessage("wall_fallen_title");
-                                            String subtitle = MessagesConfigManager.getMessage("wall_fallen_subtitle");
+                                            String title = LanguageManager.getInstance().getGlobalMessage("wall_fallen_title");
+                                            String subtitle = LanguageManager.getInstance().getGlobalMessage("wall_fallen_subtitle");
                                             int fadeIn = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.fade-in", 10);
                                             int stay = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.stay", 60);
                                             int fadeOut = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.fade-out", 20);
@@ -290,7 +291,7 @@ public class WallManager {
                             }
                         }
                         
-                        String message = MessagesConfigManager.getMessage("preparation_over");
+                        String message = LanguageManager.getInstance().getGlobalMessage("preparation_over");
                         if (message == null) message = "&aPreparation phase over! Combat begins!";
                         ObsidianCommand.broadcastToArena(arenaName, message);
                         
@@ -441,8 +442,8 @@ public class WallManager {
                     if (player != null && player.isOnline()) {
                         try {
                             player.playSound(player.getLocation(), wallSound, 1.0f, 1.0f);
-                            String title = MessagesConfigManager.getMessage("wall_fallen_title");
-                            String subtitle = MessagesConfigManager.getMessage("wall_fallen_subtitle");
+                            String title = LanguageManager.getInstance().getGlobalMessage("wall_fallen_title");
+                            String subtitle = LanguageManager.getInstance().getGlobalMessage("wall_fallen_subtitle");
                             int fadeIn = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.fade-in", 10);
                             int stay = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.stay", 60);
                             int fadeOut = Obsidianwars.getInstance().getConfig().getInt("titles.wall_fallen.fade-out", 20);
@@ -455,7 +456,7 @@ public class WallManager {
             }
         }
 
-        String message = MessagesConfigManager.getMessage("preparation_over");
+        String message = LanguageManager.getInstance().getGlobalMessage("preparation_over");
         if (message == null) message = "&aPreparation phase over! Combat begins!";
         ObsidianCommand.broadcastToArena(arenaName, message);
 

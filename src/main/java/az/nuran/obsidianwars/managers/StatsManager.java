@@ -5,6 +5,7 @@ import az.nuran.obsidianwars.util.ColorUtils;
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.models.PlayerStats;
 import az.nuran.obsidianwars.services.StatsDAO;
+import az.nuran.obsidianwars.managers.LanguageManager;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -146,84 +147,103 @@ public class StatsManager {
      */
     public static void openStatsGUI(Player viewer, Player target) {
         PlayerStats stats = getPlayerStats(target);
-        Inventory gui = Bukkit.createInventory(null, 54, ColorUtils.translate("&6&l" + target.getName() + "'s Stats"));
+        String titleSuffix = LanguageManager.getInstance().getMessage(viewer, "gui_stats_title_suffix");
+        String title = LanguageManager.getInstance().getMessage(viewer, "gui_stats_title");
+        Inventory gui = Bukkit.createInventory(null, 54, ColorUtils.translate(title + " " + target.getName() + titleSuffix));
 
         // Info item
-        ItemStack info = createInfoItem(target, stats);
+        ItemStack info = createInfoItem(viewer, target, stats);
         gui.setItem(13, info);
 
         // Kills item
-        ItemStack kills = createStatItem("&cKills", String.valueOf(stats.getKills()), org.bukkit.Material.DIAMOND_SWORD);
+        String killsName = LanguageManager.getInstance().getMessage(viewer, "stat_kills_name");
+        ItemStack kills = createStatItem(killsName, String.valueOf(stats.getKills()), org.bukkit.Material.DIAMOND_SWORD);
         gui.setItem(20, kills);
 
         // Deaths item
-        ItemStack deaths = createStatItem("&7Deaths", String.valueOf(stats.getDeaths()), org.bukkit.Material.PLAYER_HEAD);
+        String deathsName = LanguageManager.getInstance().getMessage(viewer, "stat_deaths_name");
+        ItemStack deaths = createStatItem(deathsName, String.valueOf(stats.getDeaths()), org.bukkit.Material.PLAYER_HEAD);
         gui.setItem(21, deaths);
 
         // K/D Ratio item
-        ItemStack kd = createStatItem("&eK/D Ratio", String.format("%.2f", stats.getKDRatio()), org.bukkit.Material.BOOK);
+        String kdName = LanguageManager.getInstance().getMessage(viewer, "stat_kd_name");
+        ItemStack kd = createStatItem(kdName, String.format("%.2f", stats.getKDRatio()), org.bukkit.Material.BOOK);
         gui.setItem(22, kd);
 
         // Final Kills item
-        ItemStack finalKills = createStatItem("&4Final Kills", String.valueOf(stats.getFinalKills()), org.bukkit.Material.IRON_SWORD);
+        String finalKillsName = LanguageManager.getInstance().getMessage(viewer, "stat_final_kills_name");
+        ItemStack finalKills = createStatItem(finalKillsName, String.valueOf(stats.getFinalKills()), org.bukkit.Material.IRON_SWORD);
         gui.setItem(23, finalKills);
 
         // Final Deaths item
-        ItemStack finalDeaths = createStatItem("&8Final Deaths", String.valueOf(stats.getFinalDeaths()), org.bukkit.Material.SKELETON_SKULL);
+        String finalDeathsName = LanguageManager.getInstance().getMessage(viewer, "stat_final_deaths_name");
+        ItemStack finalDeaths = createStatItem(finalDeathsName, String.valueOf(stats.getFinalDeaths()), org.bukkit.Material.SKELETON_SKULL);
         gui.setItem(24, finalDeaths);
 
         // Final K/D Ratio item
-        ItemStack finalKd = createStatItem("&cFinal K/D", String.format("%.2f", stats.getFinalKDRatio()), org.bukkit.Material.ENCHANTED_BOOK);
+        String finalKdName = LanguageManager.getInstance().getMessage(viewer, "stat_final_kd_name");
+        ItemStack finalKd = createStatItem(finalKdName, String.format("%.2f", stats.getFinalKDRatio()), org.bukkit.Material.ENCHANTED_BOOK);
         gui.setItem(25, finalKd);
 
         // Wins item
-        ItemStack wins = createStatItem("&aWins", String.valueOf(stats.getWins()), org.bukkit.Material.GOLD_INGOT);
+        String winsName = LanguageManager.getInstance().getMessage(viewer, "stat_wins_name");
+        ItemStack wins = createStatItem(winsName, String.valueOf(stats.getWins()), org.bukkit.Material.GOLD_INGOT);
         gui.setItem(30, wins);
 
         // Losses item
-        ItemStack losses = createStatItem("&cLosses", String.valueOf(stats.getLosses()), org.bukkit.Material.REDSTONE);
+        String lossesName = LanguageManager.getInstance().getMessage(viewer, "stat_losses_name");
+        ItemStack losses = createStatItem(lossesName, String.valueOf(stats.getLosses()), org.bukkit.Material.REDSTONE);
         gui.setItem(31, losses);
 
         // Win Rate item
-        ItemStack winRate = createStatItem("&bWin Rate", String.format("%.1f%%", stats.getWinRate()), org.bukkit.Material.EMERALD);
+        String winRateName = LanguageManager.getInstance().getMessage(viewer, "stat_win_rate_name");
+        ItemStack winRate = createStatItem(winRateName, String.format("%.1f%%", stats.getWinRate()), org.bukkit.Material.EMERALD);
         gui.setItem(32, winRate);
 
         // Games Played item
-        ItemStack games = createStatItem("&6Games Played", String.valueOf(stats.getGamesPlayed()), org.bukkit.Material.COMPASS);
+        String gamesName = LanguageManager.getInstance().getMessage(viewer, "stat_games_played_name");
+        ItemStack games = createStatItem(gamesName, String.valueOf(stats.getGamesPlayed()), org.bukkit.Material.COMPASS);
         gui.setItem(33, games);
 
         // Obsidians Destroyed item
-        ItemStack obsidians = createStatItem("&dObsidians", String.valueOf(stats.getObsidianBroken()), org.bukkit.Material.OBSIDIAN);
+        String obsidiansName = LanguageManager.getInstance().getMessage(viewer, "stat_obsidians_name");
+        ItemStack obsidians = createStatItem(obsidiansName, String.valueOf(stats.getObsidianBroken()), org.bukkit.Material.OBSIDIAN);
         gui.setItem(38, obsidians);
 
         // Obsidians Lost item
-        ItemStack obsidiansLost = createStatItem("&8Obsidians Lost", String.valueOf(stats.getObsidianLost()), org.bukkit.Material.OBSIDIAN);
+        String obsidiansLostName = LanguageManager.getInstance().getMessage(viewer, "stat_obsidians_lost_name");
+        ItemStack obsidiansLost = createStatItem(obsidiansLostName, String.valueOf(stats.getObsidianLost()), org.bukkit.Material.OBSIDIAN);
         gui.setItem(39, obsidiansLost);
 
         // Winstreak item
-        ItemStack winstreak = createStatItem("&6Winstreak", String.valueOf(stats.getWinstreak()), org.bukkit.Material.BEACON);
+        String winstreakName = LanguageManager.getInstance().getMessage(viewer, "stat_winstreak_name");
+        ItemStack winstreak = createStatItem(winstreakName, String.valueOf(stats.getWinstreak()), org.bukkit.Material.BEACON);
         gui.setItem(40, winstreak);
 
         // Longest Kill Streak item
-        ItemStack streak = createStatItem("&eBest Streak", String.valueOf(stats.getLongestKillStreak()), org.bukkit.Material.BLAZE_POWDER);
+        String streakName = LanguageManager.getInstance().getMessage(viewer, "stat_best_streak_name");
+        ItemStack streak = createStatItem(streakName, String.valueOf(stats.getLongestKillStreak()), org.bukkit.Material.BLAZE_POWDER);
         gui.setItem(41, streak);
 
         // Level item
-        ItemStack level = createStatItem("&6Level", String.valueOf(stats.getLevel()) + " \u2605", org.bukkit.Material.NETHER_STAR);
+        String levelName = LanguageManager.getInstance().getMessage(viewer, "stat_level_name");
+        ItemStack level = createStatItem(levelName, String.valueOf(stats.getLevel()) + " \u2605", org.bukkit.Material.NETHER_STAR);
         gui.setItem(47, level);
 
         // XP item
-        ItemStack xp = createStatItem("&bXP", String.valueOf(stats.getXp()), org.bukkit.Material.EXPERIENCE_BOTTLE);
+        String xpName = LanguageManager.getInstance().getMessage(viewer, "stat_xp_name");
+        ItemStack xp = createStatItem(xpName, String.valueOf(stats.getXp()), org.bukkit.Material.EXPERIENCE_BOTTLE);
         gui.setItem(48, xp);
 
         viewer.openInventory(gui);
     }
 
-    private static ItemStack createInfoItem(Player player, PlayerStats stats) {
+    private static ItemStack createInfoItem(Player viewer, Player player, PlayerStats stats) {
         ItemStack item = new ItemStack(org.bukkit.Material.PLAYER_HEAD);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(ColorUtils.translate("&6&l" + player.getName()));
+            String headName = LanguageManager.getInstance().getMessage(viewer, "player_head_name", "player", player.getName());
+            meta.setDisplayName(ColorUtils.translate("&6&l" + headName));
             meta.setLore(ColorUtils.translate(java.util.Arrays.asList(
                 "&7Level: &f" + stats.getLevel() + " \u2605",
                 "&7XP: &f" + stats.getXp(),

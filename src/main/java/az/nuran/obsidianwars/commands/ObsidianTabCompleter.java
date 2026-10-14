@@ -2,6 +2,7 @@ package az.nuran.obsidianwars.commands;
 
 import az.nuran.obsidianwars.Obsidianwars;
 import az.nuran.obsidianwars.managers.ArenaConfigManager;
+import az.nuran.obsidianwars.managers.LanguageManager;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
@@ -47,6 +48,14 @@ public class ObsidianTabCompleter implements TabCompleter {
                 suggestions.addAll(getActivePlayingPlayerNames());
                 suggestions.addAll(getArenaNames());
                 return filterCompletions(suggestions, args[0]);
+            }
+            return completions;
+        }
+
+        if (command.getName().equalsIgnoreCase("lang") || command.getName().equalsIgnoreCase("language")) {
+            if (args.length == 1) {
+                // Return available language codes
+                return filterCompletions(getAvailableLanguages(), args[0]);
             }
             return completions;
         }
@@ -306,5 +315,9 @@ public class ObsidianTabCompleter implements TabCompleter {
             }
         }
         return playerNames;
+    }
+
+    private List<String> getAvailableLanguages() {
+        return new ArrayList<>(LanguageManager.getInstance().getAvailableLanguages());
     }
 }

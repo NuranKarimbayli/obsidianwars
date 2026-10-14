@@ -474,29 +474,29 @@ public class AdminCommandHandler implements CommandHandler {
 
     private void handleDisableArenaCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o disableArena <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_disable_arena");
             return;
         }
         String arenaName = args[1];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
         ArenaConfigManager.setArenaStatus(arenaName, "DISABLED");
-        player.sendMessage(ColorUtils.translate("&aArena " + arenaName + " has been disabled."));
+        LanguageManager.getInstance().sendMessage(player, "arena_disabled_msg", "arenaName", arenaName);
     }
 
     private void handleEnableArenaCommand(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(ColorUtils.translate("&cUsage: /o enableArena <arenaName>"));
+            LanguageManager.getInstance().sendMessage(player, "usage_enable_arena");
             return;
         }
         String arenaName = args[1];
 
         if (!ArenaConfigManager.arenaExists(arenaName)) {
-            player.sendMessage(MessagesConfigManager.getMessage("arena_not_found", "arenaName", arenaName));
+            LanguageManager.getInstance().sendMessage(player, "arena_not_found", "arenaName", arenaName);
             return;
         }
 
@@ -550,7 +550,7 @@ public class AdminCommandHandler implements CommandHandler {
 
         // If requirements are missing, block activation
         if (!missingRequirements.isEmpty()) {
-            player.sendMessage(ColorUtils.translate("&cArena cannot be enabled. Missing requirements:"));
+            LanguageManager.getInstance().sendMessage(player, "arena_cannot_enable_missing");
             for (String req : missingRequirements) {
                 player.sendMessage(ColorUtils.translate("&c- " + req));
             }
@@ -566,7 +566,7 @@ public class AdminCommandHandler implements CommandHandler {
         }
 
         ArenaConfigManager.setArenaStatus(arenaName, "READY");
-        player.sendMessage(ColorUtils.translate("&aArena " + arenaName + " has been enabled."));
+        LanguageManager.getInstance().sendMessage(player, "arena_enabled_msg", "arenaName", arenaName);
     }
 
     private void handleAdminLanguageCommand(Player player, String[] args) {

@@ -58,6 +58,20 @@ public class LanguageManager {
             Obsidianwars.getInstance().getLogger().info("Created default en.yml");
         }
 
+        // Load default az.yml if it doesn't exist
+        File azFile = new File(languagesFolder, "az.yml");
+        if (!azFile.exists()) {
+            Obsidianwars.getInstance().saveResource("languages/az.yml", false);
+            Obsidianwars.getInstance().getLogger().info("Created default az.yml");
+        }
+
+        // Load default es.yml if it doesn't exist
+        File esFile = new File(languagesFolder, "es.yml");
+        if (!esFile.exists()) {
+            Obsidianwars.getInstance().saveResource("languages/es.yml", false);
+            Obsidianwars.getInstance().getLogger().info("Created default es.yml");
+        }
+
         // Load all .yml files from languages folder
         File[] languageFiles = languagesFolder.listFiles((dir, name) -> name.endsWith(".yml"));
         if (languageFiles != null) {
